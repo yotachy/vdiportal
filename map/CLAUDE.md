@@ -144,7 +144,8 @@
 - **파일**: `app/index.html` · `app.css` · `app-config.js`(정책 단일 출처) · `app-strings.js`(문자열 키) · `app-state.js`(스토어·영속 `ms_app_v1`) · `app-data.js`(종목·OHLC — forge-api 프록시) · `app-engine.js`(**엔진 브리지** — 앱↔ForgeCore 유일 통로) · `app-chart.js`(모바일 차트 — 엔진 실곡선) · `app-ui.js`(공통 크롬) · `app-main.js`(라우터) · `app-screen-*.js`(화면 모듈: onboarding·run·home·chart…) · `app/assets/`(인트로 영상 등). **로드 순서 고정**(index.html 주석): forge-core→config→strings→state→data→engine→chart→ui→main→screens, defer/async 금지.
 - **규칙**: ES2017 하한 · 색은 토큰만 · 정책 숫자는 `MS.config.POLICY` 만 · 문자열은 `MS.str()` 만 · 화면 간 직접 의존 금지. 엔진은 `../forge-core.js` 원본 참조(사본·수정 금지 — 엔진 변경은 §② 프로토콜).
 - **관문**: `./tests/run.sh`(app 스위트 포함, 문법 하한 검사 내장) + 화면 태스크는 헤드리스 스크린샷을 프로토타입과 나란히 대조(§④-2).
-- **격리**: `_archive/`(봉쇄)·`map.html`·`potflow/` 불간섭. 커밋 스코프 `app`. 배포 경로·세트는 미정(P1 이후 §③ 형식으로 등재).
+- **격리**: `_archive/`(봉쇄)·`map.html`·`potflow/` 불간섭. 커밋 스코프 `app`.
+- **배포(2026-08-24 확정)**: cafe24 SFTP `www/map/app/` — `index.html`·`app.css`·`app-*.js`(**`*.test.js` 제외**)·`assets/`. 라이브 `https://parksvc.mycafe24.com/map/app/`. **엔진은 업로드 대상이 아니라 서버의 `www/map/forge-core.js` 를 상대참조**하므로, 엔진 커밋이 서버에 안 올라가 있으면 앱이 죽는다 — 2026-08-24 실제 사고: 90a2ca8(aggUpProb 엔진 이동)이 미배포 상태라 `core.aggUpProb is not a function`. **엔진을 고쳤으면 forge 동반 세트(§③)와 앱이 같은 서버 스냅샷을 보는지 확인하고 배포한다.**
 - **협의 확정(2026-08-24)**: Q1 적중 환급 +1 구현 · Q2 레벨 기저 제거(0 시작) · Q3 24h 재분석 무차감 심화·커스텀 대칭 · Q5 지표 32종은 엔진이 정본.
 
 # 🔥 스쿱포지 (Scoop Forge) — 플래그십
