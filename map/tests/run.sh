@@ -68,7 +68,7 @@ fi
 
 # 머니스쿱 앱(map/app/) — 정책·상태·문자열 로직 + ES2017 문법 하한. UMD 라 node 로 돈다.
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
-  run_suite "app"         "$ROOT/app" node --test app-config.test.js app-strings.test.js app-state.test.js syntax-floor.test.js
+  run_suite "app"         "$ROOT/app" bash -c 'node --test ./*.test.js'   # 글롭 — 새 테스트 파일이 자동 편입되게(나열 방식은 누락 사고를 만든다)
 fi
 
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "wallet" ]; then

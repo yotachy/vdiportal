@@ -141,7 +141,7 @@
 
 **시안2가 유일한 시각·동작 정본**(우선순위: 프로토타입 > 지침서 > 치환표 > 구 시안 동결). 상세는 [`docs/design-v2/BUILD-PLAN.md`](docs/design-v2/BUILD-PLAN.md) — 여기는 작업 규칙 요약만.
 
-- **파일**: `app/index.html` · `app.css` · `app-config.js`(정책 단일 출처) · `app-strings.js`(문자열 키) · `app-state.js`(스토어·영속 `ms_app_v1`) · `app-ui.js`(공통 크롬) · `app-main.js`(라우터) · `app-screen-*.js`(화면 모듈). **로드 순서 고정**(index.html 주석): config→strings→state→ui→main→screens, defer/async 금지.
+- **파일**: `app/index.html` · `app.css` · `app-config.js`(정책 단일 출처) · `app-strings.js`(문자열 키) · `app-state.js`(스토어·영속 `ms_app_v1`) · `app-data.js`(종목·OHLC — forge-api 프록시) · `app-engine.js`(**엔진 브리지** — 앱↔ForgeCore 유일 통로) · `app-chart.js`(모바일 차트 — 엔진 실곡선) · `app-ui.js`(공통 크롬) · `app-main.js`(라우터) · `app-screen-*.js`(화면 모듈: onboarding·run·home·chart…) · `app/assets/`(인트로 영상 등). **로드 순서 고정**(index.html 주석): forge-core→config→strings→state→data→engine→chart→ui→main→screens, defer/async 금지.
 - **규칙**: ES2017 하한 · 색은 토큰만 · 정책 숫자는 `MS.config.POLICY` 만 · 문자열은 `MS.str()` 만 · 화면 간 직접 의존 금지. 엔진은 `../forge-core.js` 원본 참조(사본·수정 금지 — 엔진 변경은 §② 프로토콜).
 - **관문**: `./tests/run.sh`(app 스위트 포함, 문법 하한 검사 내장) + 화면 태스크는 헤드리스 스크린샷을 프로토타입과 나란히 대조(§④-2).
 - **격리**: `_archive/`(봉쇄)·`map.html`·`potflow/` 불간섭. 커밋 스코프 `app`. 배포 경로·세트는 미정(P1 이후 §③ 형식으로 등재).
