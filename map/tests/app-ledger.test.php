@@ -85,6 +85,36 @@ ok((int)$n["c"] === 2, "원장 자체는 보존");
 $L2 = al_list($db, "dev_other", 50, $NOW);
 ok(count($L2["rows"]) === 0, "기기별 격리");
 
+// ── 익명 통계(P7 peers) — 실값 파생·표본 미달은 null/빈 값 ──
+@unlink($dir . "/app_ledger.db");
+$db = al_db($dir);
+$P_NOW = $NOW + 10 * 86400;
+
+// 빈 원장: 전부 0/빈 값 — 클라가 '집계 준비 중'으로 표기할 근거
+$P = al_peers_stats($db, $D, $P_NOW);
+ok($P["ok"] === true && count($P["trend"]) === 14, "peers: 트렌드 14칸 고정");
+ok($P["regTotal14"] === 0 && $P["topsTotal"] === 0 && count($P["tops"]) === 0, "peers: 빈 원장 = 0 표본");
+ok($P["scored"]["n"] === 0 && count($P["styleFit"]) === 0 && $P["me"]["rank"] === null, "peers: 빈 원장 = 집계 없음");
+
+// 기기 2대 × 프리셋 2종 채점 데이터 적재(6일 전 등록 → 채점 완료로 직접 마킹)
+$seed = function ($db, $dev, $sym, $i, $preset, $hit, $now2) {
+  al_register($db, array("device" => $dev, "sym" => $sym, "tf" => "일", "tier" => "deep", "dir" => "up",
+    "anchor" => 100.0, "preset" => $preset, "base_t" => "2026-08-2" . ($i % 9), "_now" => $now2 - $i * 86400));
+  $db->exec("update predictions set status='" . ($hit ? "hit" : "miss") . "', settle_close="
+    . ($hit ? "101.0" : "99.0") . ", scored_at='" . gmdate("c", $now2) . "' where status='wait'");
+};
+for ($i = 0; $i < 6; $i++) $seed($db, "dev_a", "NVDA", $i, "추세 중심", $i < 4, $P_NOW);        // 4/6 적중
+for ($i = 0; $i < 6; $i++) $seed($db, "dev_b", "TSLA", $i, "전체 종합", $i < 2, $P_NOW);        // 2/6 적중
+$P = al_peers_stats($db, "dev_a", $P_NOW);
+ok($P["regTotal14"] === 12 && $P["topsTotal"] === 12, "peers: 등록 12건 집계");
+ok(count($P["tops"]) === 2 && $P["tops"][0]["n"] === 6, "peers: 종목 top 파생");
+ok($P["scored"]["n"] === 12 && $P["scored"]["hit"] === 6 && $P["scored"]["up"] === 6, "peers: 적중·항상상승 기준선 파생");
+ok(count($P["styleFit"]) === 2 && $P["styleFit"][0]["n"] === 6, "peers: 프리셋별 적중(표본 충족)");
+ok($P["me"]["n"] === 6 && $P["me"]["hit"] === 4 && $P["me"]["rank"] === 50, "peers: 나의 적중률·상위 %(2기기 중 1등=상위 50)");
+// 표본 미달 프리셋은 목록에서 제외
+$P = al_peers_stats($db, "dev_a", $P_NOW, 7);
+ok(count($P["styleFit"]) === 0 && $P["me"]["rank"] === null, "peers: minN 미달이면 프리셋·순위 비공개");
+
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
 exit($FAIL ? 1 : 0);

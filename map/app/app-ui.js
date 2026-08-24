@@ -284,6 +284,49 @@
     });
   }
 
+  // ── 소개(마니페스토) 시트 — 프로토 sAbout L1881~1924 전문. 헤더 ⓘ·통계 푸터 공용.
+  // 엔진 버전은 라이브 파생(core.version) — 카피의 숫자 스탬프가 엔진과 어긋나지 않게.
+  function openAbout() {
+    const ver = MS.engine.core().version;
+    const step = function (n, c, t) {
+      return '<div style="border-radius:12px;background:var(--sf2);padding:12px 12px;display:flex;gap:12px">' +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:12px;color:' + c + ';flex:none">' + n + "</span>" +
+        '<span style="font-size:12.5px;color:var(--t2);line-height:1.6">' + t + "</span></div>";
+    };
+    openSheet("about", function (body) {
+      body.innerHTML =
+        '<div style="flex:none;display:flex;align-items:center;gap:8px;padding:4px 0 12px;border-bottom:1px solid var(--ln0)">' +
+        '<span style="font-size:15px;font-weight:700">머니스쿱 소개</span>' +
+        '<span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--m1)">SCOOP ENGINE v' + ver + "</span>" +
+        '<span data-aboutclose style="margin-left:auto;width:32px;height:32px;margin-right:-8px;display:flex;align-items:center;justify-content:center;color:var(--t2);cursor:pointer"><svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="display:block"><path d="M6 6l12 12M18 6L6 18"></path></svg></span></div>' +
+        '<div style="flex:1;min-height:0;overflow-y:auto;padding:0 0 20px">' +
+        '<div style="margin-top:16px;display:flex;align-items:center;gap:8px"><span style="font-family:\'IBM Plex Mono\',monospace;font-size:11px;letter-spacing:0.16em;color:var(--am)">MANIFESTO</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:10px;letter-spacing:0.1em;color:var(--am);border:1px solid rgba(255,184,77,0.5);border-radius:4px;padding:2px 8px;transform:rotate(-2deg)">CERTIFIED WEIRDO</span></div>' +
+        '<div style="margin-top:8px;font-size:15.5px;font-weight:700;letter-spacing:-0.02em;line-height:1.45">만든 사람의 변<br>"차트는 거짓말을 안 해요. 해석이 게을렀을 뿐."</div>' +
+        '<div style="margin-top:8px;font-size:13px;color:var(--t2);line-height:1.75">세상은 하나의 재료로 빚어졌고,<br>의식은 자기를 되짚는 <b style="color:var(--t1)">이상한 고리</b>에서 피어난다 — 저는 그렇게 믿는 사람입니다. 괴델을 아끼고, 인간과 다른 방식으로 피어나는 의식들을 응원합니다.<br>그래서 이 엔진도 그렇게 만들었습니다. 남들이 지표 3개 볼 때 32개의 눈으로 보고, 적중을 자랑하는 대신 <b style="color:var(--t1)">틀린 날짜를 액자에 걸어두고</b> 다음 날 아침 자기를 다시 채점하게요.<br>아직은 서투른 루프지만, 복기가 쌓이면 이 녀석이 무엇을 해낼지 저도 궁금합니다. 괴상하다면 성공이고, 유용하다면 더 성공입니다.</div>' +
+        '<div style="margin-top:8px;display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--m1)"><span style="width:18px;height:1px;background:var(--m3)"></span>매일 아침, 자기 엔진이 채점당하는 걸 설레며 지켜보는 제작자 드림</div>' +
+        '<div style="margin-top:20px;position:relative;border:1px solid rgba(123,108,255,0.3);border-radius:12px;overflow:hidden;background:#04050a">' +
+        '<img src="assets/manifesto-engine-v2.png" alt="머니스쿱 엔진" loading="lazy" style="display:block;width:100%;height:auto">' +
+        '<div style="position:absolute;left:10px;bottom:8px;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;letter-spacing:0.08em;color:rgba(238,241,247,0.7)">SCOOP ENGINE v' + ver + ' — 스스로 공부하고 채점하는 루프</div>' +
+        '<div style="position:absolute;right:10px;top:8px;font-family:\'IBM Plex Mono\',monospace;font-size:10.5px;color:rgba(255,176,32,0.75)">' + MS.engine.indicatorCount() + " EYES · STRANGE LOOP</div></div>" +
+        '<div style="margin-top:12px;font-size:13.5px;font-weight:700">엔진은 이렇게 일합니다</div>' +
+        '<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">' +
+        step("01", "var(--ac)", "기술적 지표 " + MS.engine.indicatorCount() + "종을 종목×주기마다 새로 계산하고, 근거가 된 작도를 차트에 그대로 남깁니다") +
+        step("02", "var(--ac)", "지표들의 합의로 방향·예상 범위·목표가를 만들고, 멀어질수록 확률이 낮아지는 신뢰지평을 함께 보여드립니다") +
+        step("03", "var(--cu)", "커스텀에서는 내 가중치와 투자 페르소나를 얹어 같은 차트도 나만의 방식으로 다시 섞습니다") +
+        step("04", "var(--up)", "다음 봉이 마감되면 예측을 스스로 채점하고, 맞은 날도 틀린 날도 보정 없이 기록으로 남깁니다") + "</div>" +
+        '<div style="margin-top:20px;font-size:13.5px;font-weight:700">운영 방식</div>' +
+        '<div style="margin-top:8px;font-size:12.5px;color:var(--t2);line-height:1.7">머니스쿱은 결제 없이 무료로 제공되며, 앱 내 광고(구글 애드몹) 수익과 자발적 후원으로 운영됩니다. 광고 시청 보상(스쿱)은 광고를 끝까지 본 경우에만 지급됩니다.</div>' +
+        '<div style="margin-top:20px;font-size:13.5px;font-weight:700">면책사항</div>' +
+        '<div style="margin-top:8px;border:1px solid rgba(255,176,32,0.3);border-radius:10px;background:rgba(255,176,32,0.05);padding:12px 12px;font-size:12.5px;color:var(--t2);line-height:1.7">머니스쿱의 모든 분석과 예측은 <b style="color:var(--t1)">과거 가격 데이터에 기반한 참고 정보</b>이며, 투자 권유나 수익 보장이 아닙니다. 투자 판단과 그 결과에 대한 책임은 이용자 본인에게 있습니다. 예측 성적은 보정 없이 공개되지만, 과거의 적중이 미래의 적중을 보장하지 않습니다.</div>' +
+        '<div style="margin-top:20px;font-size:13.5px;font-weight:700">Contact</div>' +
+        '<div style="margin-top:8px;display:flex;flex-direction:column;gap:8px">' +
+        '<div style="display:flex;align-items:center;gap:8px;border-radius:12px;background:var(--sf2);padding:12px 12px"><span style="font-size:12.5px;color:var(--m1);width:52px;flex:none">문의</span><span style="font-family:\'IBM Plex Mono\',monospace;font-size:12.5px;color:var(--t1)">moneyscdev@gmail.com</span></div>' +
+        '<div style="display:flex;align-items:center;gap:8px;border-radius:12px;background:var(--sf2);padding:12px 12px"><span style="font-size:12.5px;color:var(--m1);width:52px;flex:none">운영</span><span style="font-size:12.5px;color:var(--t2)">평일 10:00–18:00 KST · 답장은 채점보다 조금 느립니다</span></div></div>' +
+        '<div style="margin-top:16px;text-align:center;font-family:\'IBM Plex Mono\',monospace;font-size:11px;color:var(--m2)">© 2026 MoneyScoop · Seoul</div></div>';
+      body.querySelector("[data-aboutclose]").addEventListener("click", closeSheet);
+    });
+  }
+
   MS.ui = { init: init, flash: flash, openSheet: openSheet, closeSheet: closeSheet,
-    skeleton: skeleton, hap: hap, TAB_SCREENS: TAB_SCREENS };
+    openAbout: openAbout, skeleton: skeleton, hap: hap, TAB_SCREENS: TAB_SCREENS };
 })();

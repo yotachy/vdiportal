@@ -137,3 +137,10 @@ test("PRESETS 9종 · 이름·설명·prof 5축", () => {
     assert.equal(p.prof.length, 5);
   });
 });
+
+test("core() 접근자 — version·validatedAxes 라이브 파생(P7 통계·about 시트)", () => {
+  const core = engine.core();
+  assert.ok(/^\d+\.\d+\.\d+$/.test(core.version));
+  assert.ok(Array.isArray(core.validatedAxes) && core.validatedAxes.length >= 8);
+  core.validatedAxes.forEach((a) => assert.ok(a.lab && a.acc > 0 && a.acc < 100));
+});

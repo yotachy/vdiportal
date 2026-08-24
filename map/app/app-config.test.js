@@ -73,6 +73,10 @@ test("정책 기준선 스모크 — 지침서 §8·§10 수치", () => {
   assert.equal(P.limits.persona.guestMax, 3);
   assert.deepEqual(P.persona.stages, [0, 4, 9, 16, 31, 61]);
   assert.equal(P.persona.stageNames.length, 6);
+  // P7 통계 — 정직 표기의 핵심: 백테스트 방향 적중은 '항상 상승' 기준선을 넘지 못한다(정본 사실)
+  assert.equal(P.stats.minN, 5);
+  assert.ok(P.stats.backtest.hit < P.stats.backtest.base, "방향 적중률은 기준선 미달이어야 정본과 일치");
+  assert.ok(P.stats.backtest.n && P.stats.backtest.syms > 0);
   assert.equal(P.ui.sheetClosePx, 90);
   assert.equal(P.ui.skeletonMs, 180);
   assert.equal(P.ui.toastMs, 1800);

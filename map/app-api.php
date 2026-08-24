@@ -61,6 +61,11 @@ try {
     al_score_pending($db, $device, "al_candles_from_cache", time());
     al_out(al_list($db, $device, isset($in["limit"]) ? (int)$in["limit"] : 120, time()));
   }
+  // ── 익명 통계(P7) — 원장 실값 파생. 내 대기 건 채점을 먼저 스위프해 집계에 반영 ──
+  if ($op === "peers") {
+    al_score_pending($db, $device, "al_candles_from_cache", time());
+    al_out(al_peers_stats($db, $device, time()));
+  }
   // ── 페르소나 질문(P6) — 인덱스로 다음 질문만, 총량은 절대 싣지 않는다(Q4) ──
   if ($op === "persona_q") {
     require_once __DIR__ . "/app-persona-bank.php";

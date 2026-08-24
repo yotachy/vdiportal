@@ -177,6 +177,83 @@ function al_list($db, $device, $limit, $now) {
     "byTf" => $byTf, "day14" => $day14, "today" => $today);
 }
 
+// 익명 통계(P7 peers) — 원장에서 실값만 파생한다. 표본이 모자란 항목은 null 로 내려
+// 클라가 '집계 준비 중'을 정직하게 표기한다(지어내지 않음). 개인 식별 없음 — device 는
+// 나의 적중률·순위 계산에만 쓰고 응답에 다른 기기 식별자를 싣지 않는다.
+function al_peers_stats($db, $device, $now, $minN = 5) {
+  $d14 = al_kst_day($now - 13 * 86400);
+  $d7 = al_kst_day($now - 6 * 86400);
+  $cut90 = gmdate("c", $now - 90 * 86400);
+
+  // 최근 14일 일별 등록 건수(전 기기) — 빈 날은 0 으로 채워 14칸 고정
+  $st = $db->prepare("select day, count(*) n from predictions where day>=:d group by day");
+  $st->execute(array(":d" => $d14));
+  $byDay = array();
+  foreach ($st->fetchAll() as $r) $byDay[$r["day"]] = (int)$r["n"];
+  $trend = array();
+  $regTotal14 = 0;
+  for ($i = 13; $i >= 0; $i--) {
+    $day = al_kst_day($now - $i * 86400);
+    $n = isset($byDay[$day]) ? $byDay[$day] : 0;
+    $trend[] = array("day" => $day, "n" => $n);
+    $regTotal14 += $n;
+  }
+
+  // 최근 7일 최다 분석 종목 top5 + 점유율 분모
+  $st = $db->prepare("select sym, count(*) n from predictions where day>=:d group by sym order by n desc, sym limit 5");
+  $st->execute(array(":d" => $d7));
+  $tops = array_map(function ($r) { return array("sym" => $r["sym"], "n" => (int)$r["n"]); }, $st->fetchAll());
+  $st = $db->prepare("select count(*) n, count(distinct device) dev from predictions where day>=:d");
+  $st->execute(array(":d" => $d7));
+  $row7 = $st->fetch();
+  $topsTotal = (int)$row7["n"];
+  $devices7 = (int)$row7["dev"];
+
+  // 최근 90일 채점 완료 전 기기: 표본·적중·'항상 상승' 기준선(실제 상승 비율)
+  $st = $db->prepare("select count(*) n, sum(case when status='hit' then 1 else 0 end) hit,
+    sum(case when settle_close>anchor then 1 else 0 end) up
+    from predictions where status!='wait' and scored_at>=:c");
+  $st->execute(array(":c" => $cut90));
+  $sc = $st->fetch();
+  $scored = array("n" => (int)$sc["n"], "hit" => (int)$sc["hit"], "up" => (int)$sc["up"]);
+
+  // 관점(프리셋)별 적중률 — 표본 minN 이상만, 표본 많은 순 4개
+  $st = $db->prepare("select coalesce(preset,'전체 종합') p, count(*) n,
+    sum(case when status='hit' then 1 else 0 end) hit
+    from predictions where status!='wait' and scored_at>=:c
+    group by p having count(*)>=:m order by n desc limit 4");
+  $st->bindValue(":c", $cut90);
+  $st->bindValue(":m", (int)$minN, PDO::PARAM_INT);
+  $st->execute();
+  $styleFit = array_map(function ($r) {
+    return array("preset" => $r["p"], "n" => (int)$r["n"], "hit" => (int)$r["hit"]);
+  }, $st->fetchAll());
+
+  // 나의 적중률 + 상위 % (표본 minN 이상 기기들의 적중률 분포에서)
+  $st = $db->prepare("select count(*) n, sum(case when status='hit' then 1 else 0 end) hit
+    from predictions where device=:d and status!='wait' and scored_at>=:c");
+  $st->execute(array(":d" => $device, ":c" => $cut90));
+  $meRow = $st->fetch();
+  $me = array("n" => (int)$meRow["n"], "hit" => (int)$meRow["hit"], "rank" => null);
+  if ($me["n"] >= $minN) {
+    $st = $db->prepare("select device, count(*) n, sum(case when status='hit' then 1 else 0 end) hit
+      from predictions where status!='wait' and scored_at>=:c group by device having count(*)>=:m");
+    $st->bindValue(":c", $cut90);
+    $st->bindValue(":m", (int)$minN, PDO::PARAM_INT);
+    $st->execute();
+    $all = $st->fetchAll();
+    $mine = $me["hit"] / $me["n"];
+    $better = 0;
+    foreach ($all as $r) { if (((int)$r["hit"]) / ((int)$r["n"]) > $mine) $better++; }
+    if (count($all)) $me["rank"] = (int)max(1, round(($better + 1) / count($all) * 100));
+  }
+
+  return array("ok" => true, "minN" => (int)$minN,
+    "trend" => $trend, "regTotal14" => $regTotal14,
+    "tops" => $tops, "topsTotal" => $topsTotal, "devices7" => $devices7,
+    "scored" => $scored, "styleFit" => $styleFit, "me" => $me);
+}
+
 // 적중 환급 지급 대상 조회·소진(P5 지갑 통합에서 실지급 — 여기서는 상태만 원자적으로 넘긴다)
 function al_claim_refunds($db, $device) {
   $db->exec("begin immediate");

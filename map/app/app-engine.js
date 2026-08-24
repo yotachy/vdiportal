@@ -518,6 +518,7 @@
   }
 
   return { analyze: analyze, buildGraph: buildGraph, buildDrawings: buildDrawings,
+    core: function () { return core; },   // 읽기 접근(version·validatedAxes 라이브 파생 — P7 통계)
     indMeta: indMeta, basicSet: basicSet, fullSet: fullSet, indicatorCount: indicatorCount,
     registry: registry, PRESETS: PRESETS,
     presetWeights: presetWeights, composeWeights: composeWeights,

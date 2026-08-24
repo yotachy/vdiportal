@@ -50,7 +50,7 @@
     } else if (act === "scoop" || act === "acct") {
       go("wallet");
     } else if (act === "about") {
-      MS.ui.flash(MS.str("toast.comingSoon"), "");   // 마니페스토 시트 — P7 인접 작업
+      MS.ui.openAbout();   // 마니페스토·면책·문의 시트(P7)
     }
   }
 
