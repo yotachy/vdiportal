@@ -188,11 +188,11 @@
         // basic 업셀 + 잠금 행
         (tier === "basic" ?
           '<div style="margin:16px 16px 0;border:1px solid rgba(123,108,255,0.3);border-radius:12px;background:rgba(123,108,255,0.1);padding:12px 16px">' +
-          '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13.5px;font-weight:700">지금 결과는 기본 분석입니다</span><span style="font-size:12.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:99px;padding:2px 8px">도구 5개</span></div>' +
-          '<div style="margin-top:4px;font-size:13px;color:var(--t2);line-height:1.6">방향과 예상 범위까지 확인했어요. <b style="color:var(--t1)">32개 도구가 왜 그렇게 봤는지</b>는 심화에서 열립니다.</div>' +
+          '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13.5px;font-weight:700">지금 결과는 기본 분석입니다</span><span style="font-size:12.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:99px;padding:2px 8px">도구 ' + MS.engine.basicSet().length + '개</span></div>' +
+          '<div style="margin-top:4px;font-size:13px;color:var(--t2);line-height:1.6">방향과 예상 범위까지 확인했어요. <b style="color:var(--t1)">' + MS.engine.indicatorCount() + '개 도구가 왜 그렇게 봤는지</b>는 심화에서 열립니다.</div>' +
           '<div data-act="tier" style="margin-top:12px;height:48px;border-radius:9px;background:linear-gradient(135deg,#7b6cff,#4a3ce0);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer"><span style="font-size:13.5px;font-weight:700;color:#fff">심화로 더 깊이</span><span class="mono" style="font-size:13px;color:rgba(255,255,255,0.85)">◈ ' + MS.config.POLICY.scoop.costDeep + "</span></div></div>" +
           '<div style="margin:16px 16px 0;border:1px solid var(--ln0);border-radius:14px;overflow:hidden">' +
-          ["확신도(합의 상세)", "세 시점 예측", "반대 의견", "지표 해설 32개"].map(function (n) {
+          ["확신도(합의 상세)", "세 시점 예측", "반대 의견", "지표 해설 " + MS.engine.indicatorCount() + "개"].map(function (n) {
             return '<div data-act="tier" style="display:flex;align-items:center;gap:8px;padding:12px;border-bottom:1px solid var(--ln0);cursor:pointer">' +
               '<span style="font-size:13.5px;color:var(--t3)">' + n + "</span>" +
               '<span style="font-size:11.5px;color:var(--ac);border:1px solid rgba(123,108,255,0.3);border-radius:4px;padding:1px 8px">심화</span>' +

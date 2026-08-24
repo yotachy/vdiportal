@@ -2,8 +2,8 @@
    호출 레시피는 PC(forge-app _computeTf L1731~)와 동일: data={price,candle,n} ·
    run(graph, data, {futW, timeframe, driftWeights}) · 확률=aggUpProb(캘리브레이션 포함).
    지표별 진행 이벤트(onStep)는 실계산 완료 순간 발행 — 실행 연출이 여기에 박자를 동기화한다.
-   지표 32종 = 엔진 IND_TIERS 가 정본(Q5 확정 — 시안의 'RSI/거래량 다이버전스' 2종은 rsi·volume
-   분석의 다이버전스 필드로 흡수). 그룹 배분은 시안 GRP 총량(추세8·모멘텀7·변동성6·거래량5·구조6)과 동수.
+   지표 세트·개수·이름·그룹의 단일 출처는 core.indicatorRegistry(열린 엔진 원칙) — 엔진에
+   지표가 추가되면 모바일도 자동으로 N+1개로 분석된다(별도 구현 없음, 2026-08-24 사용자 확정).
    해설문은 전부 실측값 생성 — 더미 문구 이식 금지. 엔진 로직 수정 없음. */
 (function (root, factory) {
   if (typeof module !== "undefined" && module.exports) module.exports = factory(require("../forge-core.js"));
@@ -11,55 +11,34 @@
 })(typeof self !== "undefined" ? self : this, function (core) {
   "use strict";
 
-  // ── 지표 메타(32종) — id=엔진 blockType, 그룹 t8·m7·v6·q5·s6(시안 GRP 동수), 표시는 그룹 순서 ──
-  const IND_META = {
-    // t 추세(8)
-    ma: { name: "이동평균", group: "t" },
-    trend: { name: "추세 회귀채널", group: "t" },
-    adx: { name: "ADX / DMI", group: "t" },
-    ichimoku: { name: "일목균형표", group: "t" },
-    supertrend: { name: "슈퍼트렌드", group: "t" },
-    psar: { name: "PSAR", group: "t" },
-    aroon: { name: "Aroon", group: "t" },
-    gann: { name: "Gann 부채꼴", group: "t" },
-    // m 모멘텀(7)
-    macd: { name: "MACD", group: "m" },
-    rsi: { name: "RSI", group: "m" },
-    stochastic: { name: "스토캐스틱", group: "m" },
-    cci: { name: "CCI", group: "m" },
-    williams: { name: "Williams %R", group: "m" },
-    roc: { name: "ROC", group: "m" },
-    ao: { name: "AO", group: "m" },
-    // v 변동성(6)
-    bollinger: { name: "볼린저밴드", group: "v" },
-    atr: { name: "ATR", group: "v" },
-    keltner: { name: "켈트너 채널", group: "v" },
-    donchian: { name: "돈치안 채널", group: "v" },
-    cycle: { name: "사이클 위상", group: "v" },
-    phasefold: { name: "파동 스캔", group: "v" },
-    // q 거래량(5)
-    volume: { name: "거래량", group: "q" },
-    vwap: { name: "VWAP", group: "q" },
-    volumeprofile: { name: "볼륨 프로파일", group: "q" },
-    mfi: { name: "MFI", group: "q" },
-    cmf: { name: "CMF", group: "q" },
-    // s 구조(6)
-    fib: { name: "피보나치", group: "s" },
-    pivot: { name: "피벗 S/R", group: "s" },
-    structure: { name: "시장구조 BOS", group: "s" },
-    smc: { name: "스마트머니 존", group: "s" },
-    elliott: { name: "엘리어트 파동", group: "s" },
-    pattern: { name: "차트 패턴", group: "s" }
-  };
-  // 표시·실행 순서: 기본 5(시안 표기 순) / 전체 32(그룹 순서 추세→모멘텀→변동성→거래량→구조 — 지침서 §4)
-  const BASIC_SET = ["ma", "rsi", "macd", "bollinger", "volume"];
-  const FULL_SET = [
-    "ma", "trend", "adx", "ichimoku", "supertrend", "psar", "aroon", "gann",
-    "macd", "rsi", "stochastic", "cci", "williams", "roc", "ao",
-    "bollinger", "atr", "keltner", "donchian", "cycle", "phasefold",
-    "volume", "vwap", "volumeprofile", "mfi", "cmf",
-    "fib", "pivot", "structure", "smc", "elliott", "pattern"
-  ];
+  // ── 지표 세트 — 단일 출처는 엔진 레지스트리(core.indicatorRegistry, 열린 엔진 원칙) ──
+  // 여기서는 아무것도 하드코딩하지 않는다: 엔진에 33번째 지표가 추가되면 세트·개수·이름·그룹이
+  // 라이브 파생으로 자동 확장된다(모바일 별도 구현 없음 — 2026-08-24 사용자 확정).
+  // 파생은 매 호출 계산(호출부는 분석 시작 시 1회 수준 — 비용 무시 가능).
+  const GROUP_ORDER = ["t", "m", "v", "q", "s"];   // 표시·실행 그룹 순서(지침서 §4)
+  function registry() { return core.indicatorRegistry || []; }
+  function regOf(id) {
+    const r = registry();
+    for (let i = 0; i < r.length; i++) if (r[i].id === id) return r[i];
+    return null;
+  }
+  function indMeta(id) {
+    const e = regOf(id);
+    return e ? { name: e.label, group: e.group } : { name: id, group: "m" };
+  }
+  function basicSet() {
+    return registry().filter(function (e) { return e.tier === 1; }).map(function (e) { return e.id; });
+  }
+  function fullSet() {
+    // 그룹 순서로 안정 정렬(그룹 내에서는 레지스트리 순서 유지 — 수동 인덱스 타이브레이크)
+    const r = registry().map(function (e, i) { return { e: e, i: i }; });
+    r.sort(function (a, b) {
+      const ga = GROUP_ORDER.indexOf(a.e.group), gb = GROUP_ORDER.indexOf(b.e.group);
+      return ga !== gb ? ga - gb : a.i - b.i;
+    });
+    return r.map(function (x) { return x.e.id; });
+  }
+  function indicatorCount() { return registry().length; }
 
   // ── 프리셋 9종(시안 PROF·P — 축 순서 [추세,모멘텀,거래량,변동성,구조]) ──
   const PRESETS = [
@@ -82,8 +61,8 @@
     const p = PRESETS.filter(function (x) { return x.name === presetName; })[0];
     const out = {};
     if (!p) return out;
-    FULL_SET.forEach(function (id) {
-      const gi = AXIS_GROUP.indexOf(IND_META[id].group);
+    fullSet().forEach(function (id) {
+      const gi = AXIS_GROUP.indexOf(indMeta(id).group);
       out[id] = clampW(p.prof[gi] / 6);
     });
     return out;
@@ -93,7 +72,7 @@
   function composeWeights(presetName, userMult) {
     const base = presetWeights(presetName);
     const out = {};
-    FULL_SET.forEach(function (id) {
+    fullSet().forEach(function (id) {
       const b = (id in base) ? base[id] : 1;
       const u = (userMult && typeof userMult[id] === "number") ? userMult[id] : 1;
       out[id] = clampW(b * u);
@@ -293,7 +272,28 @@
       if (!r.detected || r.pattern === "none") return { bias: 0, text: "완성 패턴 없음" };
       return { bias: r.bias, text: (r.label || r.pattern) + (r.confirmed ? " · 확정" : " 형성 중") + " · 신뢰 " + Math.round((r.confidence || 0) * 100) + "%" };
     }
-    return { bias: 0, text: "" };
+    // 범용 폴백 — 레지스트리에 새 지표가 추가되면 전용 해설문 없이도 즉시 분석·표시된다
+    // (열린 엔진 원칙). 전용 포맷터는 품질 개선으로 추후 얹는다.
+    const reg = regOf(id);
+    if (reg && reg.analyze) {
+      let r = null;
+      try {
+        if (reg.input === "price") r = reg.analyze(price, {});
+        else if (reg.input === "data") r = reg.analyze(data, {});
+        else if (reg.input === "pv") r = reg.analyze(price, volumes, {});
+        else if (reg.input === "cv") r = reg.analyze({ candle: data.candle, price: price, volume: volumes }, {});
+        else if (reg.input === "candle") r = reg.analyze(data.candle);
+      } catch (e) { r = null; }
+      const bias = (r && typeof r.bias === "number" && isFinite(r.bias)) ? r.bias : 0;
+      return { bias: bias, text: (bias > 0.05 ? "상승 신호" : bias < -0.05 ? "하락 신호" : "중립") +
+        " · 기여 " + (bias >= 0 ? "+" : "") + (Math.round(bias * 100) / 100) };
+    }
+    if (reg && reg.input === "scan") {
+      let sr = null;
+      try { sr = core.scanPeriod(price); } catch (e) { sr = null; }
+      return { bias: 0, text: (sr && sr.best > 2) ? "지배 주기 " + r1(sr.best) + "봉" : "지배 주기 불명확" };
+    }
+    return { bias: 0, text: "중립" };
   }
 
   // ── 작도 원자료(지표별 기하 — 차트가 소비, 전역 인덱스 공간) ──
@@ -389,7 +389,7 @@
 
   // 티어별 그래프 — 노드 존재로 run() 드리프트·컨플루언스·계절성이 결정된다
   function buildGraph(tier, volumes) {
-    const set = tier === "basic" ? BASIC_SET : FULL_SET;
+    const set = tier === "basic" ? basicSet() : fullSet();
     const nodes = set.map(function (id) {
       const n = { id: "n_" + id, kind: "block", blockType: id, params: {} };
       if (id === "volume") n.series = (volumes || []).map(function (x) { return isFinite(x) ? x : 0; });
@@ -450,11 +450,11 @@
       : core.synthVolume(price);
 
     const tier = req.tier || "basic";
-    const set = tier === "basic" ? BASIC_SET : FULL_SET;
+    const set = tier === "basic" ? basicSet() : fullSet();
     const indicators = [];
     for (let i = 0; i < set.length; i++) {
       const id = set[i];
-      const meta = IND_META[id];
+      const meta = indMeta(id);
       let c;
       try { c = computeInd(id, price, data, volumes); }
       catch (e) { c = { bias: 0, text: "계산 불가" }; }   // 개별 지표 실패가 분석 전체를 죽이지 않게
@@ -507,8 +507,9 @@
     };
   }
 
-  return { analyze: analyze, buildGraph: buildGraph, buildDrawings: buildDrawings, IND_META: IND_META,
-    BASIC_SET: BASIC_SET, FULL_SET: FULL_SET, PRESETS: PRESETS,
+  return { analyze: analyze, buildGraph: buildGraph, buildDrawings: buildDrawings,
+    indMeta: indMeta, basicSet: basicSet, fullSet: fullSet, indicatorCount: indicatorCount,
+    registry: registry, PRESETS: PRESETS,
     presetWeights: presetWeights, composeWeights: composeWeights,
     horizonForTF: horizonForTF, tfLabel: tfLabel };
 });

@@ -30,7 +30,7 @@
 
   MS.runStart = function (req) {
     if (session) return;   // guardRun 이 막지만 이중 안전
-    session = { req: req, total: req.tier === "basic" ? 5 : 32, steps: [], presented: 0,
+    session = { req: req, total: (req.tier === "basic" ? MS.engine.basicSet() : MS.engine.fullSet()).length, steps: [], presented: 0,
       phase: "ind", report: null, err: null, timer: null, vidT: null, bgT: null,
       host: null, candles: null, model: null };
     MS.store.set({ runLive: 1, runSym: req.symbol, runTf: req.tfKo, tier: req.tier, prog: 0, runDoneN: null });
@@ -248,8 +248,8 @@
 
     // 진행률 구간식(03 §1-7): 지표 94% → 가중 96% → 페르소나 98% → 100%
     let pct;
-    if (tier === "basic") pct = done ? 100 : Math.min(99, Math.round((Math.min(5, s.presented + 1) / 5) * 100));
-    else if (s.phase === "ind") pct = Math.round(s.presented / 32 * 94);
+    if (tier === "basic") pct = done ? 100 : Math.min(99, Math.round((Math.min(s.total, s.presented + 1) / s.total) * 100));
+    else if (s.phase === "ind") pct = Math.round(s.presented / s.total * 94);
     else if (s.phase === "apply") pct = 96;
     else if (s.phase === "persona") pct = 98;
     else if (s.phase === "video") pct = s.req.tier === "custom" && s.req.personaApply ? 98 : 96;
@@ -319,7 +319,7 @@
       if (tier === "custom") {
         const wl = [];
         const w = s.req.weights || {};
-        Object.keys(w).forEach(function (k) { if (w[k] !== 1) wl.push((MS.engine.IND_META[k] ? MS.engine.IND_META[k].name : k) + " ×" + w[k]); });
+        Object.keys(w).forEach(function (k) { if (w[k] !== 1) wl.push(MS.engine.indMeta(k).name + " ×" + w[k]); });
         logs += '<div style="display:flex;gap:8px;font-size:11.5px;color:var(--ac);line-height:1.7"><span style="flex:none">●</span><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">내 가중치 적용: ' + (wl.length ? esc(wl.join(" · ")) : "모두 ×1") + "</span></div>";
         if (s.req.personaApply && (s.phase === "persona" || s.phase === "video" || done))
           logs += '<div style="display:flex;gap:8px;font-size:11.5px;color:var(--cu);line-height:1.7"><span style="flex:none">●</span><span>페르소나 미세 조정 반영</span></div>';

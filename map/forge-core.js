@@ -2753,5 +2753,48 @@
     return Array.from(map.keys()).sort().map(k => map.get(k));
   }
 
-  return { version, indicatorCount, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
+  // ── 지표 레지스트리 — PC·모바일 공용 단일 출처(열린 엔진 원칙) ──
+  // 지표를 추가/제거하면 여기와 indicatorCount 가 함께 움직인다. 소비자(모바일 앱 브리지,
+  // 이후 forge-state IND_TIERS 파생 예정)는 이 목록으로 지표 수·실행 세트·표시를 자동 확장한다
+  // — 33번째 지표가 생기면 별도 구현 없이 모바일도 33개로 분석된다(2026-08-24 사용자 확정).
+  // 필드: id=blockType · label=한국어명 · tier=IND_TIERS 등급(1~4) · group=5축(t추세 m모멘텀
+  // v변동성 q거래량 s구조 — 작도·틱바 분류) · input=analyze 입력 형태 · analyze=분석 함수 원본.
+  // input: price=종가배열 / data={price,candle,n} / pv=(price,volume) / cv={candle,price,volume} /
+  //        candle=캔들배열 / scan=scanPeriod(price)
+  const indicatorRegistry = [
+    { id: "ma", label: "이동평균", tier: 1, group: "t", input: "price", analyze: analyzeMA },
+    { id: "macd", label: "MACD", tier: 1, group: "m", input: "price", analyze: analyzeMACD },
+    { id: "rsi", label: "RSI", tier: 1, group: "m", input: "price", analyze: analyzeRSI },
+    { id: "bollinger", label: "볼린저밴드", tier: 1, group: "v", input: "price", analyze: analyzeBollinger },
+    { id: "volume", label: "거래량", tier: 1, group: "q", input: "pv", analyze: analyzeVolume },
+    { id: "trend", label: "추세 회귀채널", tier: 2, group: "t", input: "price", analyze: analyzeTrend },
+    { id: "adx", label: "ADX / DMI", tier: 2, group: "t", input: "data", analyze: analyzeADX },
+    { id: "stochastic", label: "스토캐스틱", tier: 2, group: "m", input: "data", analyze: analyzeStochastic },
+    { id: "fib", label: "피보나치", tier: 2, group: "s", input: "price", analyze: analyzeFib },
+    { id: "ichimoku", label: "일목균형표", tier: 2, group: "t", input: "price", analyze: analyzeIchimoku },
+    { id: "pivot", label: "피벗 S/R", tier: 2, group: "s", input: "data", analyze: analyzePivot },
+    { id: "psar", label: "PSAR", tier: 2, group: "t", input: "data", analyze: analyzePSAR },
+    { id: "gann", label: "Gann 부채꼴", tier: 2, group: "t", input: "data", analyze: analyzeGann },
+    { id: "vwap", label: "VWAP", tier: 3, group: "q", input: "pv", analyze: analyzeVWAP },
+    { id: "supertrend", label: "슈퍼트렌드", tier: 3, group: "t", input: "data", analyze: analyzeSupertrend },
+    { id: "atr", label: "ATR", tier: 3, group: "v", input: "data", analyze: analyzeATR },
+    { id: "volumeprofile", label: "볼륨 프로파일", tier: 3, group: "q", input: "pv", analyze: analyzeVolumeProfile },
+    { id: "structure", label: "시장구조 BOS", tier: 3, group: "s", input: "price", analyze: analyzeStructure },
+    { id: "keltner", label: "켈트너 채널", tier: 3, group: "v", input: "data", analyze: analyzeKeltner },
+    { id: "donchian", label: "돈치안 채널", tier: 3, group: "v", input: "data", analyze: analyzeDonchian },
+    { id: "cci", label: "CCI", tier: 3, group: "m", input: "data", analyze: analyzeCCI },
+    { id: "williams", label: "Williams %R", tier: 3, group: "m", input: "data", analyze: analyzeWilliams },
+    { id: "aroon", label: "Aroon", tier: 3, group: "t", input: "data", analyze: analyzeAroon },
+    { id: "mfi", label: "MFI", tier: 3, group: "q", input: "cv", analyze: analyzeMFI },
+    { id: "elliott", label: "엘리어트 파동", tier: 4, group: "s", input: "price", analyze: analyzeElliott },
+    { id: "smc", label: "스마트머니 존", tier: 4, group: "s", input: "candle", analyze: analyzeSMC },
+    { id: "cycle", label: "사이클 위상", tier: 4, group: "v", input: "price", analyze: analyzeCycle },
+    { id: "phasefold", label: "파동 스캔", tier: 4, group: "v", input: "scan", analyze: null },
+    { id: "roc", label: "ROC", tier: 4, group: "m", input: "price", analyze: analyzeROC },
+    { id: "ao", label: "AO", tier: 4, group: "m", input: "data", analyze: analyzeAO },
+    { id: "cmf", label: "CMF", tier: 4, group: "q", input: "cv", analyze: analyzeCMF },
+    { id: "pattern", label: "차트 패턴", tier: 4, group: "s", input: "data", analyze: analyzePattern }
+  ];
+
+  return { version, indicatorCount, indicatorRegistry, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });

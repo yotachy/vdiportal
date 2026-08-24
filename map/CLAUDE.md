@@ -53,8 +53,7 @@
 
 1. **원본에서만 수정한다** — `map/forge-core.js` · `map/forge-tools.js`. **새 앱은 이 파일들을 그대로 실행하므로 사본이 존재하지 않는다**(전제 1). vendor 복제 구조는 봉쇄와 함께 사라졌다.
 2. **`./tests/run.sh` 통과.**
-3. 지표를 추가·제거하면 `forge-core.indicatorCount` 와 `forge-state.js` 의 `IND_TIERS` 합이 함께 움직인다 — 어긋나면 화면이 "32개 중"이라 말하면서 다른 수를 그린다.
-   node 에서 등급표를 읽어야 하면 `backtest/ind-tiers.js`(UMD 사본, 봉쇄에서 꺼내 온 것)를 쓴다.
+3. 지표를 추가·제거하면 **`forge-core.indicatorRegistry`(2026-08-24 신설 — PC·모바일 공용 단일 출처)와 `indicatorCount`, `forge-state.js` 의 `IND_TIERS` 합이 함께 움직인다.** 레지스트리 항목 = {id·label·tier·group·input·analyze}. **머니스쿱 앱은 이 레지스트리에서 지표 세트·개수·이름·그룹을 라이브 파생하므로, 지표를 엔진에 추가하면 모바일은 별도 구현 없이 자동으로 N+1개로 분석·표시된다**(열린 엔진 원칙 — 사용자 확정). 3자 동기(레지스트리↔indicatorCount↔ind-tiers 사본) 드리프트 가드는 `app/registry-sync.test.js`(run.sh app 스위트, 가짜 33번째 지표 자동 확장 증명 포함). node 등급표는 `backtest/ind-tiers.js`(UMD 사본).
 
 ## ③ 브랜치 · 배포
 

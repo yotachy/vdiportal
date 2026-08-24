@@ -64,11 +64,11 @@
         '<div data-act="deep" style="margin-top:8px;border:1px solid rgba(123,108,255,0.6);border-radius:12px;background:rgba(123,108,255,0.1);padding:12px 16px;cursor:pointer">' +
         '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13.5px;font-weight:800;color:#0a0c12;background:linear-gradient(135deg,#b3a9ff,#7b6cff);border-radius:6px;padding:4px 12px;white-space:nowrap;flex:none">심화</span><span class="mono" style="font-size:13px;color:var(--ac);white-space:nowrap;flex:none">' + (free ? "무차감" : "◈ " + cd) + "</span>" +
         (!free && s.scoops < cd ? '<span style="margin-left:auto;font-size:12.5px;color:var(--dn);white-space:nowrap">' + (cd - s.scoops) + " 부족</span>" : "") + "</div>" +
-        '<div style="margin-top:4px;font-size:13.5px;color:var(--t1);line-height:1.55"><b style="color:var(--ac)">도구 32개</b> · 관점 프리셋 · 2차 예측선</div></div>' +
+        '<div style="margin-top:4px;font-size:13.5px;color:var(--t1);line-height:1.55"><b style="color:var(--ac)">도구 ' + MS.engine.indicatorCount() + '개</b> · 관점 프리셋 · 2차 예측선</div></div>' +
         '<div data-act="custom" style="margin-top:8px;border:1px solid rgba(210,165,22,0.55);border-radius:12px;background:linear-gradient(140deg,rgba(210,165,22,0.1),rgba(210,165,22,0.03) 60%,var(--sf2));padding:12px 16px;cursor:pointer">' +
         '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:13.5px;font-weight:800;color:#1a1204;background:linear-gradient(135deg,#ecca5e,#c1901a);border-radius:6px;padding:4px 12px;white-space:nowrap;flex:none">커스텀</span><span class="mono" style="font-size:13px;color:var(--cu);white-space:nowrap;flex:none">' + (free ? "무차감" : "◈ " + cc) + "</span>" +
         (!free && s.scoops < cc ? '<span style="margin-left:auto;font-size:12.5px;color:var(--dn);white-space:nowrap">' + (cc - s.scoops) + " 부족</span>" : "") + "</div>" +
-        '<div style="margin-top:4px;font-size:13.5px;color:var(--t1);line-height:1.55"><b style="color:var(--cu)">도구 32개＋가중치</b> · 페르소나 반영 · 3차 예측선</div></div>' +
+        '<div style="margin-top:4px;font-size:13.5px;color:var(--t1);line-height:1.55"><b style="color:var(--cu)">도구 ' + MS.engine.indicatorCount() + '개＋가중치</b> · 페르소나 반영 · 3차 예측선</div></div>' +
         '<div style="margin:12px 0 4px;font-size:13px;color:var(--m1);text-align:center">차감은 마지막 확인에서 한 번뿐</div>';
       body.querySelector('[data-act="close"]').addEventListener("click", MS.ui.closeSheet);
       body.querySelector('[data-act="basic"]').addEventListener("click", function () {
@@ -247,7 +247,7 @@
         (v ? '<span style="font-size:13.5px;font-weight:700;color:' + (v.dir === "up" ? "var(--up)" : v.dir === "down" ? "var(--dn)" : "var(--t2)") + '">' + (v.dir === "up" ? "▲ 상승" : v.dir === "down" ? "▼ 하락" : "— 중립") + "</span>" : "") +
         '<span style="margin-left:auto;font-size:12.5px;color:var(--m1)">스쿱이 부족해요 · ◈ ' + s.scoops + "</span></div>" +
         '<div style="margin-top:16px;font-size:18px;font-weight:700;letter-spacing:-0.02em">' + esc(s.ticker) + "에서 지금 못 보고 있는 것</div>" +
-        '<div style="margin-top:8px;font-size:13.5px;color:var(--t1);line-height:1.8">· 확신도<br>· 세 시점 · 내일 · 1주 · 1개월<br>· 반대 의견 · 어떤 지표가 반대하는지<br>· 지표 해설 32개</div>' +
+        '<div style="margin-top:8px;font-size:13.5px;color:var(--t1);line-height:1.8">· 확신도<br>· 세 시점 · 내일 · 1주 · 1개월<br>· 반대 의견 · 어떤 지표가 반대하는지<br>· 지표 해설 ' + MS.engine.indicatorCount() + '개</div>' +
         '<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">' +
         '<button data-act="ad" style="min-height:54px;border-radius:12px;border:1px solid rgba(123,108,255,0.45);background:rgba(123,108,255,0.1);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-family:inherit;letter-spacing:inherit"><span style="font-size:15px;font-weight:600;color:var(--ac)">광고 1편 보기</span><span style="font-size:13px;color:var(--ac)">+' + P().scoop.ad.scoop + '스쿱</span><span style="font-size:13px;color:var(--up)">+' + P().scoop.ad.xp + "XP</span></button>" +
         '<div style="min-height:54px;border-radius:12px;border:1px solid var(--ln2);background:var(--sf2);display:flex;align-items:center;justify-content:center;gap:8px"><span style="font-size:15px;font-weight:600">다음 출석까지</span><span class="mono" style="font-size:13.5px;color:var(--ac)">—</span><span class="mono" style="font-size:13px;color:var(--t2)">+1</span></div>' +
@@ -321,7 +321,7 @@
               '<input data-w="' + r.id + '" type="range" min="0" max="3" step="0.5" value="' + w + '" style="flex:1;accent-color:var(--cu)"' + (on ? "" : " disabled") + ">" +
               '<span class="mono" style="width:36px;flex:none;text-align:right;font-size:12.5px;color:' + (w !== 1 ? "var(--cu)" : "var(--m1)") + '">×' + w + "</span></div>";
           }).join("") + "</div>" +
-          '<div style="margin:10px 16px 0;font-size:12px;color:var(--m2)">나머지 25개 지표는 ×1 기준으로 함께 계산됩니다</div>' +
+          '<div style="margin:10px 16px 0;font-size:12px;color:var(--m2)">나머지 ' + (MS.engine.indicatorCount() - MIX_ROWS.length) + '개 지표는 ×1 기준으로 함께 계산됩니다</div>' +
           "</div>" +
           '<div class="ob-ctazone" style="bottom:0;padding-bottom:calc(16px + env(safe-area-inset-bottom))">' +
           '<button class="ms-cta-primary big" data-act="go" style="background:linear-gradient(135deg,#ecca5e,#c1901a);box-shadow:0 10px 26px -10px rgba(210,165,22,0.7)"><span class="t" style="color:#1a1204">이 조합으로 계속 →</span></button></div>';

@@ -21,7 +21,7 @@ test("basic 분석: onStep 5회(순서·그룹) + Report 계약", async () => {
   const r = await engine.analyze({ symbol: "TEST", tfKo: "일", tier: "basic", candles: FIX },
     (s) => steps.push(s));
   assert.equal(steps.length, 5);
-  assert.deepEqual(steps.map((s) => s.id), ["ma", "rsi", "macd", "bollinger", "volume"]); // 시안 표기 순서
+  assert.deepEqual(steps.map((s) => s.id), ["ma", "macd", "rsi", "bollinger", "volume"]); // 레지스트리(IND_TIERS Lv1) 순서가 정본
   assert.deepEqual(steps.map((s) => s.group), ["t", "m", "m", "v", "q"]);
   steps.forEach((s, i) => { assert.equal(s.i, i); assert.equal(s.total, 5); assert.ok(s.text.length > 0); });
 
@@ -73,15 +73,15 @@ test("캔들 부족(<24) 은 오류", async () => {
 // ── P2: 32종 · 프리셋 · 커스텀 ──
 
 test("FULL_SET 32종 · 그룹 배분 t8 m7 v6 q5 s6(시안 GRP 동수)", () => {
-  assert.equal(engine.FULL_SET.length, 32);
+  assert.equal(engine.fullSet().length, 32);
   const cnt = {};
-  engine.FULL_SET.forEach((id) => {
-    const g = engine.IND_META[id].group;
+  engine.fullSet().forEach((id) => {
+    const g = engine.indMeta(id).group;
     cnt[g] = (cnt[g] || 0) + 1;
   });
   assert.deepEqual(cnt, { t: 8, m: 7, v: 6, q: 5, s: 6 });
   // 표시 순서 = 그룹 순서(추세→모멘텀→변동성→거래량→구조)
-  const order = engine.FULL_SET.map((id) => engine.IND_META[id].group).join("");
+  const order = engine.fullSet().map((id) => engine.indMeta(id).group).join("");
   assert.equal(order, "t".repeat(8) + "m".repeat(7) + "v".repeat(6) + "q".repeat(5) + "s".repeat(6));
 });
 
@@ -99,7 +99,7 @@ test("deep 분석: onStep 32회·해설문 전부 채워짐·지표 32", async (
 
 test("프리셋 가중: 전체 종합=전부 1, 추세 중심=추세군 10/6·모멘텀군 4/6, 0~3 클램프", () => {
   const all = engine.presetWeights("전체 종합");
-  engine.FULL_SET.forEach((id) => assert.equal(all[id], 1));
+  engine.fullSet().forEach((id) => assert.equal(all[id], 1));
   const tr = engine.presetWeights("추세 중심");   // prof [10,4,4,3,5] = [t,m,q,v,s]
   assert.ok(Math.abs(tr.ma - 10 / 6) < 1e-9);
   assert.ok(Math.abs(tr.macd - 4 / 6) < 1e-9);
