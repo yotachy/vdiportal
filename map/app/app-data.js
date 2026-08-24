@@ -98,7 +98,10 @@
       const out = [];
       for (let i = 0; i < 300; i++) {
         const c = (50 + h % 200) * Math.exp(0.0012 * i) + (3 + h % 7) * Math.sin(i / (7 + h % 5));
-        out.push({ o: c * 0.996, h: c * 1.011, l: c * 0.989, c: c, v: 1000 + 400 * Math.sin(i / 6 + h) });
+        // 결정적 날짜(2026-08-20 종료 역산) — 원장 base_t 등 날짜 의존 경로 검증용
+        const d = new Date(Date.UTC(2026, 7, 20) - (299 - i) * 86400000);
+        const t = d.getUTCFullYear() + "-" + String(d.getUTCMonth() + 1).padStart(2, "0") + "-" + String(d.getUTCDate()).padStart(2, "0");
+        out.push({ t: t, o: c * 0.996, h: c * 1.011, l: c * 0.989, c: c, v: 1000 + 400 * Math.sin(i / 6 + h) });
       }
       return out;
     }
@@ -107,8 +110,32 @@
     } };
   }
 
+  // ── 기기 식별자(익명) — 채점 원장·이후 지갑(P5)이 같은 값을 쓴다(w_account_id(deviceId) 합류 전제) ──
+  function deviceId() {
+    let id = null;
+    try { id = localStorage.getItem("ms_device_id"); } catch (e) {}
+    if (id) return id;
+    let s = "d";
+    for (let i = 0; i < 24; i++) s += "abcdefghijklmnopqrstuvwxyz0123456789".charAt(Math.floor(Math.random() * 36));
+    try { localStorage.setItem("ms_device_id", s); } catch (e) {}
+    return s;
+  }
+
+  // 앱 서버 API(app-api.php) — POST JSON {op, device, ...}
+  async function serverApi(op, payload) {
+    const body = payload || {};
+    body.op = op;
+    body.device = deviceId();
+    const r = await fetch("../app-api.php", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body)
+    });
+    return r.json();
+  }
+
   const api = { MASTER: MASTER, tfApi: tfApi, quote: quote, spark: spark,
-    createOHLC: createOHLC, browserIO: browserIO, fixtureStore: fixtureStore, ohlc: null };
+    createOHLC: createOHLC, browserIO: browserIO, fixtureStore: fixtureStore,
+    deviceId: deviceId, api: serverApi, ohlc: null };
   // 브라우저에선 기본 스토어를 미리 만들어 둔다(테스트는 createOHLC 로 주입 생성)
   if (typeof window !== "undefined" && typeof fetch !== "undefined") {
     api.ohlc = (/[?&]fixture=1/.test(window.location.search)) ? fixtureStore() : createOHLC(browserIO());

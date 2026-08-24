@@ -37,8 +37,10 @@
       qs.forEach(function (q, i) { if (!top || Math.abs(q.chg) > Math.abs(top.chg)) top = { sym: picks[i], chg: q.chg }; });
       const upW = qs.length ? Math.round(upN / qs.length * 100) : 50;
 
-      // 채점 예정 = 심화·커스텀 기록 수(basic 제외 — 지침서 §6)
-      const waitN = Object.keys(s.analyzed).filter(function (k) { return s.analyzed[k] !== "basic"; }).length;
+      // 채점 카드 — 서버 원장 실값(로드 전엔 로컬 근사)
+      const dueN = s.scoreDueN || 0;
+      const waitN = (s.scoreWaitN != null) ? s.scoreWaitN :
+        Object.keys(s.analyzed).filter(function (k) { return s.analyzed[k] !== "basic"; }).length;
       const todayAna = Object.keys(s.analyzedAt).filter(function (k) {
         return MS.state.dayKey(s.analyzedAt[k]) === MS.state.dayKey(Date.now());
       }).length;
@@ -65,9 +67,9 @@
         '<div style="position:absolute;inset:0;background:radial-gradient(130% 90% at 100% 0%,rgba(255,176,32,0.13),transparent 60%)"></div>' +
         '<div style="position:relative">' +
         '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--t2)"><span style="position:relative;width:6px;height:6px;flex:none"><span style="position:absolute;inset:0;border-radius:50%;background:var(--am)"></span><span style="position:absolute;inset:0;border-radius:50%;background:var(--am);animation:msPing 2.4s ease-out infinite"></span></span>오늘의 채점</div>' +
-        '<div style="margin-top:8px;display:flex;align-items:baseline;gap:4px"><span class="mono" style="font-size:22px;font-weight:700;color:var(--am);line-height:1">0</span><span style="font-size:12.5px;color:var(--t2)">건</span><span class="mono" style="margin-left:auto;font-size:12px;color:var(--ac);white-space:nowrap;flex:none">예정 ' + waitN + "</span></div>" +
-        '<div class="mono" style="margin-top:8px;font-size:13px;color:var(--am);letter-spacing:0.02em">' + (waitN ? "다음 마감 후" : "—") + "</div>" +
-        '<div style="margin-top:4px;font-size:11.5px;color:var(--m1);white-space:nowrap">채점은 심화부터 ›</div>' +
+        '<div style="margin-top:8px;display:flex;align-items:baseline;gap:4px"><span class="mono" style="font-size:22px;font-weight:700;color:var(--am);line-height:1">' + dueN + '</span><span style="font-size:12.5px;color:var(--t2)">건</span><span class="mono" style="margin-left:auto;font-size:12px;color:var(--ac);white-space:nowrap;flex:none">예정 ' + waitN + "</span></div>" +
+        '<div class="mono" style="margin-top:8px;font-size:13px;color:var(--am);letter-spacing:0.02em">' + (dueN ? "오늘 확인하세요" : waitN ? "다음 마감 후" : "—") + "</div>" +
+        '<div style="margin-top:4px;font-size:11.5px;color:var(--m1);white-space:nowrap">' + (dueN || waitN ? "채점 보기" : "채점은 심화부터") + " ›</div>" +
         "</div></div>" +
         "</div>" +
 
@@ -221,6 +223,13 @@
     }
 
     render();
+    // 채점 요약(서버) — 배지·히어로 실값
+    MS.data.api("list", { limit: 200 }).then(function (r) {
+      if (r && r.ok) {
+        MS.store.set({ scoreDueN: r.cnt.due, scoreWaitN: r.cnt.wait });
+        if (MS.store.get().screen === "home") render();
+      }
+    }).catch(function () {});
     // 실시세 로드 → 재렌더
     if (s0.picks.length) {
       Promise.all(s0.picks.map(function (p) {

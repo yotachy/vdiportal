@@ -30,6 +30,8 @@
 
   MS.runStart = function (req) {
     if (session) return;   // guardRun 이 막지만 이중 안전
+    const ctx = MS.store.get().runFromCtx;
+    if (ctx && !req.from) { req.from = ctx; MS.store.set({ runFromCtx: null }); }
     session = { req: req, total: (req.tier === "basic" ? MS.engine.basicSet() : MS.engine.fullSet()).length, steps: [], presented: 0,
       phase: "ind", report: null, err: null, timer: null, vidT: null, bgT: null,
       host: null, candles: null, model: null };
@@ -170,6 +172,24 @@
       ticker: away ? st.ticker : s.req.symbol, tf: away ? st.tf : s.req.tfKo,
       seg: s.req.tier === "basic" ? "evi" : "narr" });
     MS.store.persistSoon();
+    // 심화·커스텀 → 채점 원장 등록(서버 — 그날 마지막 1건은 서버가 교체 처리)
+    if (s.req.tier !== "basic" && s.report && s.candles && s.candles.length) {
+      const v = s.report.verdict;
+      const lastC = s.candles[s.candles.length - 1];
+      const oppDirUp = v.dir !== "up";
+      const opp = s.report.indicators
+        .filter(function (g) { return oppDirUp ? g.bias > 0.05 : g.bias < -0.05; })
+        .sort(function (a, b) { return Math.abs(b.bias) - Math.abs(a.bias); })
+        .slice(0, 5).map(function (g) { return { n: g.name, d: g.text, g: g.group }; });
+      MS.data.api("register", {
+        sym: s.req.symbol, tf: s.req.tfKo, tier: s.req.tier,
+        dir: v.dir, prob: v.prob, target: v.target, invalid: v.invalid,
+        anchor: s.report.prediction.anchor,
+        preset: s.req.preset || null, agree: v.agree, total: v.totalInd,
+        opp: opp, engine: s.report.engineVersion,
+        base_t: String(lastC.t || "").slice(0, 10)
+      }).catch(function () { /* 오프라인 — 다음 분석 때 재등록됨(그날 마지막 1건 규칙) */ });
+    }
     const obFlow = s.req.obFlow;
     session = null;
     removePip();

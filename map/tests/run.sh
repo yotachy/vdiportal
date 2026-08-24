@@ -71,6 +71,16 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
   run_suite "app"         "$ROOT/app" bash -c 'node --test ./*.test.js'   # 글롭 — 새 테스트 파일이 자동 편입되게(나열 방식은 누락 사고를 만든다)
 fi
 
+# 앱 채점 원장(PHP) — 서버 판정 로직. 'all'에 낀다(빠름).
+if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
+  if command -v php >/dev/null 2>&1; then
+    run_suite "app-ledger" "$ROOT" php tests/app-ledger.test.php
+  else
+    printf '── %-22s 건너뜀 (php 없음 — 채점 판정 미검사)\n' "app-ledger"
+    SKIPPED+=("app-ledger")
+  fi
+fi
+
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "wallet" ]; then
   if command -v php >/dev/null 2>&1; then
     run_suite "wallet" "$ROOT" php tests/wallet.test.php
