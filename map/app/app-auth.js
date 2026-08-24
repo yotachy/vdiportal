@@ -8,7 +8,7 @@
 (function () {
   "use strict";
   const MS = (window.MS = window.MS || {});
-  const isFixture = /[?&]fixture=1/.test(window.location.search);
+  const isFixture = !!(MS.data && MS.data.devMode);   // 로컬 호스트 + ?fixture=1 에서만(app-data 게이트)
   let polling = null;
   let syncTimer = null;
   let busy = false;

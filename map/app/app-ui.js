@@ -112,13 +112,15 @@
   function renderTabbar(host) {
     hostTabbar = host;
     host.className = "ms-tabbar";
+    host.setAttribute("role", "tablist");
+    host.setAttribute("aria-label", "주요 화면");
     host.innerHTML = TABS.map(function (t) {
       if (t.wallet) {
-        return '<button class="ms-tab ms-tab-wallet" data-tab="' + t.screen + '">' +
+        return '<button class="ms-tab ms-tab-wallet" role="tab" aria-label="' + str(t.labelKey) + '" data-tab="' + t.screen + '">' +
           '<span class="pill"><span class="gem">◈</span><span data-bind="scoops"></span></span>' +
           '<span class="lbl">' + str(t.labelKey) + "</span></button>";
       }
-      return '<button class="ms-tab" data-tab="' + t.screen + '">' +
+      return '<button class="ms-tab" role="tab" aria-label="' + str(t.labelKey) + '" data-tab="' + t.screen + '">' +
         '<span class="pill">' + TAB_ICONS[t.key] +
         (t.badge ? '<span class="badge" data-bind="' + t.badge + '" style="display:none"></span>' : "") +
         "</span><span class=\"lbl\">" + str(t.labelKey) + "</span></button>";
@@ -139,7 +141,7 @@
     const tabs = hostTabbar.querySelectorAll("[data-tab]");
     for (let i = 0; i < tabs.length; i++) {
       const on = tabs[i].getAttribute("data-tab") === s.screen && !tabs[i].classList.contains("ms-tab-wallet");
-      tabs[i].classList.toggle("on", on);
+      tabs[i].classList.toggle("on", on); tabs[i].setAttribute("aria-selected", on ? "true" : "false");
     }
     const sc = hostTabbar.querySelector('[data-bind="scoops"]');
     if (sc) sc.textContent = s.scoops;
@@ -188,6 +190,9 @@
     dim.addEventListener("click", closeSheet);
     const sheet = document.createElement("div");
     sheet.className = "ms-sheet";
+    sheet.setAttribute("role", "dialog");
+    sheet.setAttribute("aria-modal", "true");
+    sheet.tabIndex = -1;
     sheet.style.bottom = bottom;
     sheet.innerHTML = '<div class="ms-sheet-handle"><span></span></div>';
     const body = document.createElement("div");
@@ -199,6 +204,7 @@
     sheetState = { name: name, el: sheet, dim: dim, startY: null, dy: 0 };
     bindSheetDrag(sheet);
     if (store) store.set({ sheet: name });
+    try { sheet.focus({ preventScroll: true }); } catch (e) {}
     return body;
   }
 
@@ -234,6 +240,10 @@
       else sheet.style.transform = "";   // 스프링 복귀(CSS transition)
     });
   }
+
+  document.addEventListener("keydown", function (e) {   // 키보드 접근성 — Esc 로 시트 닫기
+    if (e.key === "Escape" && sheetState) closeSheet();
+  });
 
   function closeSheet() {
     if (!sheetState) return;

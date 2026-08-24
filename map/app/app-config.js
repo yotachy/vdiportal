@@ -10,6 +10,7 @@
   "use strict";
 
   const POLICY = {
+    app: { version: "1.0.0-rc1" },   // 스토어 릴리스 트랙에서 올린다(엔진 버전은 ForgeCore.version 라이브)
     scoop: {
       start: 15,                 // 가입 지급(= Lv.1 상한)
       capBase: 15,               // 상한 = capBase + (레벨-1)×capPerLevel

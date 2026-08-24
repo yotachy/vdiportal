@@ -138,7 +138,10 @@
     deviceId: deviceId, api: serverApi, ohlc: null };
   // 브라우저에선 기본 스토어를 미리 만들어 둔다(테스트는 createOHLC 로 주입 생성)
   if (typeof window !== "undefined" && typeof fetch !== "undefined") {
-    api.ohlc = (/[?&]fixture=1/.test(window.location.search)) ? fixtureStore() : createOHLC(browserIO());
+    // dev 게이트(P9): ?fixture=1 은 로컬·사설망 호스트에서만 산다 — 프로덕션 URL 로는 켤 수 없다
+    api.devMode = /^(localhost|127\.0\.0\.1|10\.|192\.168\.|100\.)/.test(window.location.hostname) &&
+      /[?&]fixture=1/.test(window.location.search);
+    api.ohlc = api.devMode ? fixtureStore() : createOHLC(browserIO());
   }
   return api;
 });

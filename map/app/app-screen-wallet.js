@@ -96,8 +96,8 @@
         rowToggle("noti", "알림", !s.notiOff) +
         row("theme", "테마", s.theme === "dark" ? "다크" : "라이트", "전환") +
         rowSeg("fz", "글자 크기", s.fontZoom) +
-        '<div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--ln0);font-size:13px;color:var(--t2)"><span>앱 버전</span><span class="mono" style="margin-left:auto;color:var(--m2)">dev · 엔진 ' + esc((window.ForgeCore && ForgeCore.version) || "") + "</span></div>" +
-        row("reset", "프로토타입 초기화", "이 기기의 기록을 지우고 처음부터", "초기화") +
+        '<div style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--ln0);font-size:13px;color:var(--t2)"><span>앱 버전</span><span class="mono" style="margin-left:auto;color:var(--m2)">' + esc(MS.config.POLICY.app.version) + ' · 엔진 ' + esc((window.ForgeCore && ForgeCore.version) || "") + "</span></div>" +
+        row("reset", "데이터 초기화", "이 기기의 기록을 지우고 처음부터", "초기화") +
         row("withdraw", "회원 탈퇴", s.gLinked ? "서버 기록 삭제 · 구글 연결 해제" : "계정과 서버 기록 삭제(로그인 후 이용)", s.gLinked ? "탈퇴" : "") +
         "</div>" +
         '<div style="margin:14px 16px 0;font-size:11px;color:var(--m2);line-height:1.7">스쿱·기록은 서버에 안전하게 보관돼요 · 예측은 참고용이며 투자 판단과 책임은 본인에게 있습니다.</div>' +

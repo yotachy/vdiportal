@@ -103,7 +103,7 @@
         '<span style="font-size:15px;font-weight:700;letter-spacing:-0.02em;white-space:nowrap;flex:none">내 관심 종목</span>' +
         '<span class="mono" style="font-size:13px;color:var(--ac)">' + picks.length + "/" + MS.config.POLICY.limits.stocksMax + "</span>" +
         '<button data-act="add" style="margin-left:auto;font-size:13px;color:var(--ac);border:1px solid rgba(123,108,255,0.45);border-radius:99px;padding:4px 12px;cursor:pointer;white-space:nowrap;flex:none;background:none;font-family:inherit">＋ 추가</button></div>' +
-        '<div style="margin:8px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px">' +
+        '<div data-home="grid" style="margin:8px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px">' +
         picks.map(function (p) {
           const q = quotes[p];
           const slots = ["일", "주", "월"].map(function (tf) {
@@ -120,7 +120,8 @@
         }).join("") + "</div>" +
         '<div style="margin:8px 16px 0;display:flex;gap:12px;font-size:11.5px;color:var(--m2)"><span>✓ = 분석완료 <span style="color:#8b93a7">●기본</span> <span style="color:#7b6cff">●심화</span> <span style="color:var(--cu)">●커스텀</span></span></div>' +
 
-        // 분석 현황 매트릭스
+        // 분석 현황 매트릭스 (+페르소나 카드 — medium 이상 2컬럼, 지침서 §16)
+        '<div class="ms-home-duo">' +
         '<div style="margin:16px 16px 0;border-radius:14px;background:var(--sf1);padding:12px">' +
         '<div style="display:flex;align-items:baseline;gap:8px">' +
         '<span style="font-size:15px;font-weight:700;letter-spacing:-0.02em;white-space:nowrap;flex:none">분석 현황</span>' +
@@ -157,6 +158,7 @@
 
         // 페르소나 카드(P6 — 즉시 질문·풀 배급·게스트 3문 잠금)
         personaCardHtml() +
+        "</div>" +
 
         // 푸터
         '<div style="margin:20px 16px 0;font-size:11px;color:var(--m2);line-height:1.7">시세는 지연될 수 있어요 · 예측은 참고용이며 투자 판단과 책임은 본인에게 있습니다.</div>' +

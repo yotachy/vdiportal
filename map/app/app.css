@@ -208,3 +208,35 @@ a:hover{color:var(--ach)}
 .pick-chip{font-size:13.5px;font-weight:600;color:var(--t2);border:1px solid var(--ln1);background:transparent;
   border-radius:99px;padding:12px 16px;cursor:pointer;font-family:inherit;letter-spacing:inherit;min-height:44px}
 .pick-chip.on{color:var(--t1);border-color:rgba(123,108,255,0.6);background:rgba(123,108,255,0.1)}
+
+/* ── 반응형 §16 (지침서) — 동선·상태·정책·카피 불변, 배치만 바뀐다. 정본은 폰 411px ──
+   compact ~599: 프로토 그대로 · medium 600~839: 본문 640 캡 + 2패널 + 시트→480 다이얼로그 ·
+   expanded 840~: 탭바→좌측 내비 레일 + 차트 비중 확대 */
+@media (min-width:600px){
+  #msApp{max-width:640px}
+  /* 중앙 다이얼로그 — inset 0 + margin auto 로 센터링(msSheetUp 키프레임이 transform 을 쓰므로 transform 센터링 금지) */
+  .ms-sheet{left:0;right:0;top:0;bottom:0!important;margin:auto;width:480px;max-width:calc(100% - 32px);
+    height:fit-content;max-height:80%;border-radius:18px;border-bottom:1px solid var(--ln1)}
+  .ms-sheet-handle{display:none}
+  .ms-home-duo{display:grid;grid-template-columns:1fr 1fr;gap:0 12px;align-items:start}
+  .ms-home-duo>*{margin-right:0!important}
+  .ms-home-duo>*:first-child{margin-left:16px!important}
+  .ms-home-duo>*:last-child{margin-left:0!important;margin-right:16px!important}
+  [data-home="grid"]{grid-template-columns:repeat(3,1fr)!important}
+  .ms-chart-layout{display:grid;grid-template-columns:55fr 45fr;align-items:start;padding-bottom:0!important}
+  .ms-chart-left{position:sticky;top:0}
+  .ms-chart-right{border-left:1px solid var(--ln0);min-height:100%;padding-bottom:110px}
+  .ms-chart-right>div:first-child{padding-top:12px!important}
+}
+@media (min-width:840px){
+  #msApp{max-width:none;flex-direction:row;flex-wrap:wrap}
+  .ms-header{width:100%;order:0}
+  .ms-tabbar{order:1;flex-direction:column;width:96px;border-top:0;border-right:1px solid var(--sf3);
+    padding:12px 6px;justify-content:flex-start;gap:6px;align-self:stretch}
+  .ms-tab{flex:0 0 auto;padding:10px 0}
+  #msMain{order:2;flex:1;min-width:0;height:calc(100vh - 58px);height:calc(100dvh - 58px)}
+  .ms-chart-layout{grid-template-columns:62fr 38fr}
+  [data-home="grid"]{grid-template-columns:repeat(4,1fr)!important}
+  .ms-screen>div{max-width:1100px;margin:0 auto}
+  .ms-sheet-dim{bottom:0!important}
+}

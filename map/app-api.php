@@ -64,7 +64,44 @@ try {
   // ── 익명 통계(P7) — 원장 실값 파생. 내 대기 건 채점을 먼저 스위프해 집계에 반영 ──
   if ($op === "peers") {
     al_score_pending($db, $device, "al_candles_from_cache", time());
-    al_out(al_peers_stats($db, $device, time()));
+    $ps = al_peers_stats($db, $device, time());
+    // 닉네임 리더보드(P9 해금 — P7 이월): 원장 실값 + 구글 연결(닉네임 있는) 사용자만.
+    // 적중 보드는 30회 이상(프로토 카피 기준) · 다작 보드는 30일 등록 수. 레벨 보드는 XP 서버
+    // 검증(§15) 전까지 비공개. 기기 id 는 응답에 싣지 않는다.
+    require_once __DIR__ . "/app-sync-lib.php";
+    sync_migrate($db);
+    $wdb = w_db($AL_DIR);
+    $nickOf = function ($dev) use ($wdb, $db, $AL_DIR) {
+      $r = app_acct_resolve($wdb, $AL_DIR, $dev, false);
+      if (!$r["linked"]) return null;
+      $row = sync_get($db, $r["sub"]);
+      return $row ? $row["nick"] : null;
+    };
+    $cut90 = gmdate("c", time() - 90 * 86400);
+    $st = $db->prepare("select device, count(*) n, sum(case when status='hit' then 1 else 0 end) hit
+      from predictions where status!='wait' and scored_at>=:c group by device having count(*)>=30
+      order by (hit*1.0/n) desc, n desc limit 12");
+    $st->execute(array(":c" => $cut90));
+    $leads = array();
+    foreach ($st->fetchAll() as $r) {
+      $nick = $nickOf($r["device"]);
+      if ($nick === null) continue;
+      $leads[] = array("nick" => $nick, "n" => (int)$r["n"], "hit" => (int)$r["hit"]);
+      if (count($leads) >= 4) break;
+    }
+    $d30 = al_kst_day(time() - 29 * 86400);
+    $st = $db->prepare("select device, count(*) n from predictions where day>=:d group by device order by n desc limit 12");
+    $st->execute(array(":d" => $d30));
+    $vols = array();
+    foreach ($st->fetchAll() as $r) {
+      $nick = $nickOf($r["device"]);
+      if ($nick === null) continue;
+      $vols[] = array("nick" => $nick, "n" => (int)$r["n"]);
+      if (count($vols) >= 3) break;
+    }
+    $ps["leads"] = $leads;
+    $ps["vols"] = $vols;
+    al_out($ps);
   }
   // ── 페르소나 질문(P6) — 인덱스로 다음 질문만, 총량은 절대 싣지 않는다(Q4) ──
   if ($op === "persona_q") {

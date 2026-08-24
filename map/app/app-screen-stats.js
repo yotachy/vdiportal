@@ -224,9 +224,38 @@
         (stats.me.rank != null ? "상위 " + stats.me.rank + "%" : "채점 " + stats.me.n + "건 · " + minN + "건부터 순위가 나와요") + "</span>" +
         '<span style="margin-left:auto;font-size:11.5px;color:var(--m1)">채점 탭에서 자세히</span></div>';
     }
-    return card(head("예측이 잘 맞은 사용자", "최근 30일 · 닉네임") +
-      pendingBody("적중 · 다작 · 레벨 리더보드 3종(닉네임)",
-        "닉네임은 구글 로그인과 함께 생겨요 — 그때부터 익명 랭킹으로 열려요.") + mine +
+    const leads = (stats && stats.leads) || [], vols = (stats && stats.vols) || [];
+    const rk = function (i) { return String(i + 1).padStart(2, "0"); };
+    let leadRows = "", volRows = "";
+    leads.forEach(function (r, i) {
+      const pct = Math.round(r.hit / r.n * 100);
+      leadRows += '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span class="mono" style="font-size:12.5px;color:var(--ac);flex:none">' + rk(i) + "</span>" +
+        '<div style="width:104px;flex:none;overflow:hidden"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nick) + "</div></div>" +
+        '<div style="flex:1;height:7px;border-radius:4px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:' + Math.max(4, Math.min(100, Math.round((pct - 50) / 30 * 100))) + '%;border-radius:4px;background:linear-gradient(90deg,#2ed9a0,#22d3ee)"></div></div>' +
+        '<span class="mono" style="font-size:13px;font-weight:700;color:var(--up);width:38px;text-align:right;flex:none">' + pct + "%</span>" +
+        '<span class="mono" style="font-size:11.5px;color:var(--m1);width:44px;text-align:right;flex:none">' + fmtN(r.n) + "회</span></div>";
+    });
+    const vmx = vols.length ? vols[0].n : 1;
+    vols.forEach(function (r, i) {
+      volRows += '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span class="mono" style="font-size:12.5px;color:var(--cu);flex:none">' + rk(i) + "</span>" +
+        '<div style="width:104px;flex:none;overflow:hidden"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nick) + "</div></div>" +
+        '<div style="flex:1;height:7px;border-radius:4px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:' + Math.round(r.n / vmx * 100) + '%;border-radius:4px;background:linear-gradient(90deg,#7b6cff,#d2a516)"></div></div>' +
+        '<span class="mono" style="font-size:13px;font-weight:700;color:var(--cu);width:52px;text-align:right;flex:none">' + fmtN(r.n) + "회</span></div>";
+    });
+    const leadBlock = leads.length
+      ? '<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">' + leadRows + "</div>"
+      : pendingBody("적중 리더보드(닉네임)", "구글 연결 사용자 중 최근 90일 채점 30회 이상이 생기면 열려요.");
+    const volBlock = vols.length
+      ? '<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">' + volRows + "</div>"
+      : pendingBody("다작 리더보드(닉네임)", "구글 연결 사용자의 최근 30일 등록 건수로 열려요.");
+    return card(head("예측이 잘 맞은 사용자", "최근 90일 · 30회 이상 · 닉네임") + leadBlock +
+      '<div style="margin-top:12px;border-top:1px dashed var(--ln1);padding-top:12px">' +
+      head("분석을 많이 한 사용자", "최근 30일 · 닉네임") + volBlock + "</div>" +
+      '<div style="margin-top:12px;border-top:1px dashed var(--ln1);padding-top:12px">' +
+      head("레벨이 높은 사용자", "누적 경험치 · 닉네임") +
+      pendingBody("레벨 리더보드(닉네임)", "경험치 서버 검증이 붙은 뒤 열려요 — 검증 전 수치는 올리지 않아요.") + "</div>" + mine +
       '<div style="margin-top:8px;font-size:11.5px;color:var(--m1);line-height:1.6">뼈대 엔진은 모두 같아요. 관점과 가중치, <b style="color:var(--t2)">투자 페르소나</b>에 따라 예측이 달라지니, 적중률도 사람마다 다릅니다.</div>');
   }
 

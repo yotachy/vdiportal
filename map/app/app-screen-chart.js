@@ -133,7 +133,7 @@
       const oppTxt = opp ? (opp.sub === "support" ? "지지 반등 기회 [검증됨]" : "하락 후 반등 기회 [검증됨]") : null;
 
       host.innerHTML =
-        '<div style="padding-bottom:110px">' +
+        '<div class="ms-chart-layout" style="padding-bottom:110px"><div class="ms-chart-left">' +
         '<div style="display:flex;align-items:center;gap:8px;padding:12px 16px 0">' +
         '<button data-act="back" aria-label="홈으로" style="width:32px;height:32px;display:flex;align-items:center;justify-content:center;background:none;border:0;color:var(--m1);cursor:pointer;flex:none"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"></path></svg></button>' +
         '<span data-act="stocks" style="display:flex;align-items:baseline;gap:6px;cursor:pointer;min-width:0">' +
@@ -152,7 +152,8 @@
             (t2 ? '<span style="position:absolute;right:4px;top:4px;width:5px;height:5px;border-radius:50%;background:' + TIER_C[t2] + '"></span>' : "") + "</button>";
         }).join("") + "</div>" +
         '<button data-act="chip" style="margin-left:auto;font-size:11.5px;color:' + chip.fg + ";border:1px " + chip.dash + " " + chip.bd + ';border-radius:99px;padding:5px 12px;white-space:nowrap;background:none;cursor:pointer;font-family:inherit">' + chip.txt + "</button></div>" +
-        '<div style="margin-top:8px">' + chartHtml + "</div>" +
+        '<div style="margin-top:8px">' + chartHtml + "</div></div>" +
+        '<div class="ms-chart-right">' +
 
         // 판정 블록
         '<div style="padding:16px 16px 0;position:relative;overflow:hidden">' +
@@ -214,7 +215,7 @@
         '<div style="margin:16px;font-size:11px;color:var(--m2);line-height:1.7">' +
         (candles && candles !== "err" ? "실봉 " + candles.length.toLocaleString("en-US") + "개 계산 · " : "") +
         "시세는 지연될 수 있어요 · 예측은 참고용이며 투자 판단과 책임은 본인에게 있습니다.</div>" +
-        "</div>";
+        "</div></div>";
 
       renderFab(tier);
       bind(rep, tier);
@@ -232,6 +233,7 @@
       fab.style.cssText = "position:absolute;right:16px;bottom:96px;z-index:30;height:48px;border-radius:99px;border:0;padding:0 20px;background:linear-gradient(135deg,#7b6cff,#4a3ce0);color:#fff;font-size:13.5px;font-weight:700;font-family:inherit;box-shadow:0 10px 26px -10px rgba(123,108,255,0.8);cursor:pointer;transition:transform 0.3s";
       fab.textContent = tier ? "다시 분석" : "분석하기";
       fab.setAttribute("data-act", "fab");
+      fab.setAttribute("aria-label", tier ? "다시 분석" : "분석하기");
       fab.addEventListener("click", function () {
         if (MS.guardRun && MS.guardRun()) return;
         MS.flow.openTier();
