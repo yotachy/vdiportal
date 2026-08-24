@@ -149,6 +149,12 @@
       sb.style.display = n > 0 ? "block" : "none";
       sb.textContent = n;
     }
+    const gb = hostTabbar.querySelector('[data-bind="sigBadge"]');
+    if (gb) {
+      const n2 = s.sigTodayN || 0;
+      gb.style.display = n2 > 0 ? "block" : "none";
+      gb.textContent = n2;
+    }
   }
 
   // ── 토스트(스낵바) — 프로토 flash 승계: 감액 3.2s 적색·흔들림, 적립 보라 ──
@@ -271,7 +277,7 @@
     renderTabbar(els.tabbar);
     store.subscribe(function (keys) {
       if (keys.indexOf("scoops") >= 0 || keys.indexOf("xp") >= 0 || keys.indexOf("gLinked") >= 0) syncHeader();
-      if (keys.indexOf("screen") >= 0 || keys.indexOf("scoops") >= 0 || keys.indexOf("scoreDueN") >= 0) syncTabbar();
+      if (keys.indexOf("screen") >= 0 || keys.indexOf("scoops") >= 0 || keys.indexOf("scoreDueN") >= 0 || keys.indexOf("sigTodayN") >= 0) syncTabbar();
       if (keys.indexOf("screen") >= 0 && sheetState) closeSheet();  // 다른 화면 이동 시 시트 자동 닫힘
       if (keys.indexOf("theme") >= 0) document.body.setAttribute("data-th", store.get().theme);
       if (keys.indexOf("fontZoom") >= 0) document.documentElement.setAttribute("data-fz", store.get().fontZoom ? "1" : "0");

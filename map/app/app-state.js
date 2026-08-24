@@ -18,7 +18,7 @@
   const persistKeys = [
     "picks", "analyzed", "analyzedAt", "scoops", "theme", "gLinked",
     "personaIdx", "personaAns", "personaApply", "xp", "xpToday", "fontZoom",
-    "dayVisit", "weights", "checks", "indOff", "dayCounters",
+    "dayVisit", "weights", "checks", "indOff", "dayCounters", "sigRead",
     "analysisMeta"   // 'SYM|TF' → {tier,preset,weights,personaApply} — 리포트 재구성(재계산 무료·결정적)용
   ];
 
@@ -34,6 +34,8 @@
       personaIdx: 0, personaAns: [], personaApply: 0,
       // 커스텀 조합·작도 (Q8: 영속)
       weights: {}, checks: {}, indOff: {}, drawOff: {}, analysisMeta: {},
+      // 시그널
+      sigRead: {}, sgOpen: {},
       // 설정
       theme: "dark", fontZoom: 0,
       // 실행

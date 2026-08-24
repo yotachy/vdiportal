@@ -62,7 +62,16 @@
         '<div style="margin-top:8px;display:flex;align-items:center;gap:4px"><span class="mono" style="font-size:11.5px;color:var(--up);flex:none">' + upN + '▲</span><div style="flex:1;display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;background:var(--sf3)"><span style="width:' + upW + '%;background:var(--up)"></span><span style="width:' + (100 - upW) + '%;background:var(--dn)"></span></div><span class="mono" style="font-size:11.5px;color:var(--dn);flex:none">' + dnN + "▼</span></div>" +
         '<div class="mono" style="margin-top:8px;font-size:11.5px;color:' + (top ? (top.chg >= 0 ? "var(--up)" : "var(--dn)") : "var(--m2)") + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (top ? esc(top.sym) + " " + fmtChg(top.chg) : "시세 불러오는 중") + "</div>" +
         "</div></div>" +
-        heroStub("오늘의 시그널", "var(--ac)", "rgba(123,108,255,0.1)", '<span class="mono" style="font-size:22px;font-weight:700;color:var(--ac);line-height:1">0</span><span style="font-size:12.5px;color:var(--t2)">건</span>', "감지 준비 중", "다음 단계에서 열려요", "sig") +
+        (function () {
+          const all = s.sigList || [];
+          const today = MS.state.dayKey(Date.now());
+          const tn = all.filter(function (x) { return x.barT === today; }).length;
+          const lastSig = all[0];
+          return heroStub("오늘의 시그널", "var(--ac)", "rgba(123,108,255,0.1)",
+            '<span class="mono" style="font-size:22px;font-weight:700;color:var(--ac);line-height:1">' + tn + '</span><span style="font-size:12.5px;color:var(--t2)">건</span>',
+            lastSig ? esc(lastSig.sym) + " " + esc(lastSig.title) : "최근 3일 감지 없음",
+            "감지 내역 보기", "sig");
+        })() +
         '<div data-act="score" style="flex:1;min-width:0;border:1px solid rgba(255,176,32,0.4);border-radius:12px;background:var(--sf1);padding:12px;position:relative;overflow:hidden;cursor:pointer">' +
         '<div style="position:absolute;inset:0;background:radial-gradient(130% 90% at 100% 0%,rgba(255,176,32,0.13),transparent 60%)"></div>' +
         '<div style="position:relative">' +
@@ -230,6 +239,12 @@
         if (MS.store.get().screen === "home") render();
       }
     }).catch(function () {});
+    // 시그널 스캔(캐시 공유 — 배지·히어로)
+    if (s0.picks.length && MS.scanSignals) {
+      MS.scanSignals().then(function () {
+        if (MS.store.get().screen === "home") render();
+      }).catch(function () {});
+    }
     // 실시세 로드 → 재렌더
     if (s0.picks.length) {
       Promise.all(s0.picks.map(function (p) {
