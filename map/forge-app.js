@@ -2797,6 +2797,7 @@
     // 손그림 작도: 모든 도구를 동시에, 진행도(_scanU 0→1)에 맞춰 선이 그어지듯 작도(스캔 아님)
     _evidenceSet = new Set(indNodes.map(n => n.id));
     _evReveal = {}; indNodes.forEach(n => { _evReveal[n.id] = Infinity; });
+    _seqStart = {}; _seqDur = {};   // 순차 모드 시작 시각(노드별) 초기화
     _scanning = true; _scanU = 0; drawEvidence();
     // 차트 외 시각화 초기화: 레이더·신호보드 전부 흐리게(아직 계산 전), 예측·국면은 0에서 형성
     _playReveal = { ids: new Set(), u: 0 };
@@ -2836,7 +2837,7 @@
     const ticks = [];
     indNodes.forEach((n, idx) => { stepsByNode[idx].forEach((st, sIdx) => ticks.push({ n, idx, steps: stepsByNode[idx], sIdx, st })); });
     // 하위단계 간격 — 지표가 많을수록 짧게(총 시연 ~16초 목표, 지표당 최소 리듬 유지)
-    const STEP_SUB = Math.max(150, Math.min(620, Math.round(16000 / Math.max(1, ticks.length))));
+    const STEP_SUB = Math.max(150, Math.min(620, Math.round((typeof _playTotalMs !== "undefined" ? _playTotalMs : 16000) / Math.max(1, ticks.length))));
     ticks.forEach((tk, tIdx) => {
       _playTimers.push(setTimeout(() => {
         if (!_playing) return;
@@ -2845,6 +2846,7 @@
           const el = bq(tk.n.id); if (el) { el.classList.remove("analyzed"); el.classList.add("analyzing"); }
           _evidenceSet.add(tk.n.id);
           _analyzeNode = tk.n.id;            // 현재 동작 노드 추적(드로펄스 활성 효과용)
+          if (typeof _playSeq !== "undefined" && _playSeq) { _seqStart[tk.n.id] = performance.now(); _seqDur[tk.n.id] = Math.max(400, tk.steps.length * STEP_SUB); }   // 순차 작도: 이 지표의 단계 길이만큼 그어짐
           // 차트 외 시각화 동기: 이 지표가 계산되면 레이더 막대·신호보드 행이 점등
           if (_playReveal.ids) { _playReveal.ids.add(tk.n.id); renderNodeAnalysis(lastResult); renderSignalBoard(); }
         }

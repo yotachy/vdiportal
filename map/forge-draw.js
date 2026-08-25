@@ -3074,6 +3074,10 @@
         if (_scanning && _scanU < 1) {   // 시연 작도 속도차: 중요한 지표일수록 먼저·빠르게 완성(도구 무관, 동시 시작)
           const _imp = Math.min(1, ((n.weight != null ? n.weight : 50) + Math.abs(n.conviction || 0)) / 140);
           _skFrac = Math.max(0, Math.min(1, (_scanU - (1 - _imp) * 0.42) / 0.5));
+          if (typeof _playSeq !== "undefined" && _playSeq) {   // 순차 모드(앱 임베드): 차례가 온 지표만, 자기 단계 길이 동안 그어짐
+            const _st0 = _seqStart[n.id]; if (_st0 == null) continue;
+            _skFrac = Math.max(0, Math.min(1, (performance.now() - _st0) / (_seqDur[n.id] || 1000)));
+          }
         }
         const cc = (cHi && _dec) ? cHi : c;   // 결정적 → 선명 캔버스(글로우), 나머지 → 희미
         if (n.blockType === "ma") {

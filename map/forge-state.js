@@ -31,7 +31,9 @@
   let _heroZoomDragging = false;
   let _logChart = false;
   let _chartWin = { start: 0, count: 0 };   // count 0 = 미초기화(전체 시계열 길이로 기본화)
-  let _drawWide = false;   // 작도(시연) 중 콘 영역 없이 캔들이 전폭을 쓰는 모드 — 앱 임베드가 play 동안 켠다(fcRenderForecast 가 pred 를 무시)
+  let _drawWide = false;
+  // 시연 순차 모드(앱 임베드): 지표별 차례가 오면 그 지표만 자기 단계 길이 동안 그어진다(PC 기본=모든 도구 동시 진행)
+  let _playSeq = false, _seqStart = {}, _seqDur = {}, _playTotalMs = 16000;   // 작도(시연) 중 콘 영역 없이 캔들이 전폭을 쓰는 모드 — 앱 임베드가 play 동안 켠다(fcRenderForecast 가 pred 를 무시)
   let _needFit = true;   // 첫 표시/새 데이터 시 캔들+예측밴드 전체가 보이도록 자동 프레이밍(fitPrediction)
   let _chartNav = false;   // 사용자가 시간축을 수동 조작(드래그/휠) 중 — true면 세로 오토스케일이 예측밴드 제외(캔들 상세 유지)
   let _yScale = { mode: "auto", lo: null, hi: null };

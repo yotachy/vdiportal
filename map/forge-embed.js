@@ -23,6 +23,7 @@
       indicators: boardState.nodes.filter(n => n.kind === "block" && EV_COLORS[n.blockType]).map(n => n.blockType) };
   };
 
+  let _lastTier = "basic";
   const TF_MAP = { "일": "1day", "주": "1week", "월": "1month", "1day": "1day", "1week": "1week", "1month": "1month" };
 
   // tier → 보드 지표 구성. basic = IND_TIERS[0](핵심 5) 만 남김 · 그 외 = 전체(32). 가중치 = _driftW(타입별 배율).
@@ -37,6 +38,9 @@
     } else {
       if (typeof _allIndAdded === "function" && !_allIndAdded()) toggleAllBlocks();
     }
+    // 표시 지표 = 보드에 놓인 지표 전부. 이래야 시연이 티어의 모든 지표(기본 5·심화 32)를 차례로 그린다
+    // (기본 _evVisible 은 일부만 켜져 있어 ma·거래량이 시연에서 빠졌다).
+    _evVisible = new Set(boardState.nodes.filter(n => n.kind === "block" && EV_COLORS[n.blockType]).map(n => n.blockType));
     _driftW = {};
     if (weights && typeof weights === "object") {
       Object.keys(weights).forEach(k => { const v = +weights[k]; if (indTypes.indexOf(k) >= 0 && isFinite(v) && v > 0 && v !== 1) _driftW[k] = v; });
@@ -50,6 +54,7 @@
       t.params.symbol = String(m.symbol || "").trim().toUpperCase();
       t.params.tf = TF_MAP[m.tf] || "1day";
       applyTier(m.tier || "basic", m.weights);
+      _lastTier = m.tier || "basic";
       // 예측선 노출 = 앱 단계 규약(기본: 1차 종합 / 심화·커스텀: +반대 시나리오). PC 의 '2차 선택지표(체크 조합 재계산)'는 앱 개념에 없어 끈다.
       // 커스텀 가중치는 _driftW 로 1차 자체에 반영된다(별도 선 아님).
       _predVis.p1 = true; _predVis.p2 = false; _predVis.p3 = (m.tier || "basic") !== "basic";
@@ -74,6 +79,9 @@
     // 작도 단계 = 콘 없이 캔들 전폭(사용자 판정 2026-08-25: 절반만 보이는 작도는 신뢰가 안 간다) →
     // 시연이 끝나면(done) fitPrediction 이 콘 배치로 전환한다
     _drawWide = true;
+    // 순차 작도 + 총 길이(기본 5지표는 짧게) — 서사(step)와 그림이 같은 박자로 간다. 근거는 시연이 켠다(load 는 evidence:false 로 올 수 있음)
+    _playSeq = true; _playTotalMs = _lastTier === "basic" ? 8000 : 16000;
+    _evidenceShow = true;
     const N = (currentData().price || []).length;
     _chartWin.count = Math.min(N, WIDE_BARS); _chartWin.start = Math.max(0, N - _chartWin.count);
     _yScale = { mode: "auto", lo: null, hi: null };
@@ -83,6 +91,7 @@
   }
   // 시연 종료(완료·중단) → 전폭 모드 해제 + 콘 프레이밍
   function onPlayEnd() {
+    _playSeq = false;
     if (!_drawWide) return;
     _drawWide = false;
     try { fitPrediction(); } catch (e) { try { renderHeroZoom(); } catch (e2) {} }
