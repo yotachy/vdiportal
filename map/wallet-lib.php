@@ -16,7 +16,7 @@ if (!defined("W_CHEST_EVERY")) define("W_CHEST_EVERY", 7);
 // 파트너 실기기가 429 로 막혔던 문제 회피). 실기기 확인이 끝나 3 으로 되돌린다 — 재설치 남용
 // 방어의 실제 값이며(진짜 방어는 8c 구글 로그인), tests/wallet-concurrency.sh check1/check3 은
 // cap 값에서 레이서 수·기대 429·사전 채움을 스스로 유도하므로 수정 없이 그대로 유효하다.
-define("W_IP_DAILY", 3);          // IP 해시당 하루 신규 계정 지급 상한(재설치 남용 완화)
+if (!defined("W_IP_DAILY")) define("W_IP_DAILY", 3);   // IP 해시당 하루 신규 계정 지급 상한(재설치 남용 완화). 가드형 — 앱은 app-api 에서 상향 주입
 define("W_RUN_TTL_SEC", 86400);   // Full 권리 24시간
 define("W_NONCE_TTL_SEC", 600);   // 10분. 사용자가 브라우저에서 로그인을 마칠 시간
 

@@ -20,6 +20,10 @@ define("W_SEED", 15);
 define("W_CAP", 15);
 define("W_COSTS_JSON", json_encode(array("deep" => 2, "custom" => 3)));
 define("W_ENTITLED_JSON", json_encode(array("deep", "custom")));
+// IP당 하루 신규 계정 상한 — 기본 3은 재설치·NAT(공유 IP)·테스트에 너무 빡빡해 정상 사용자가
+// wallet_state 부터 429 로 막혔다(차감 실패의 실제 원인, 2026-08-25). 앱은 상향한다.
+// ⚠ 여전히 시드(가입 15스쿱) 남용 방어선이다 — 출시 전 실사용 데이터로 재조정(§15·리모트 컨피그).
+define("W_IP_DAILY", 30);
 require_once __DIR__ . "/wallet-lib.php";
 require_once __DIR__ . "/app-wallet-bridge.php";
 
