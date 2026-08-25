@@ -195,11 +195,32 @@
       '<div style="margin-top:10px;font-size:11.5px;color:var(--m1);line-height:1.6">가장 많은 성향은 <b style="color:var(--t2)">' + GN[items[0].k] + "</b> — 나와 다른 성향이 시장을 어떻게 보는지 참고해요.</div>");
   }
 
-  // ── 가중치 집계(준비 중) ──
+  // ── 가중치 인기(서버 익명 집계) — 기본 ×1 기준 다이버징 바 톱5 ──
   function wtsCard() {
-    return card(head("가장 많이 수정된 가중치", "커스텀 사용자") +
-      pendingBody("기본 ×1 기준 다이버징 바 톱5 — 다들 무엇을 키우고 줄이는지",
-        "커스텀 가중치 사용 집계가 쌓이는 대로 열려요."));
+    const wp = stats && stats.weightPop;
+    if (!wp || !wp.n) {
+      return card(head("가장 많이 수정된 가중치", "커스텀 사용자") +
+        pendingBody("기본 ×1 기준 — 다들 무엇을 키우고 줄이는지",
+          "커스텀으로 가중치를 조절한 구글 연결 사용자 " + (stats ? stats.minN : 5) + "명 이상 모이면 열려요."));
+    }
+    const WN = { ma: "이동평균", supertrend: "슈퍼트렌드", macd: "MACD", bollinger: "볼린저밴드", volume: "거래량", rsi: "RSI 다이버전스", cmf: "거래량 다이버전스" };
+    const items = (wp.items || []).slice().sort(function (a, b) { return Math.abs(b.avg - 1) - Math.abs(a.avg - 1); }).slice(0, 5);
+    const span = 2;   // ×1 기준 좌우 최대 편차(0↔3 → −1↔+2, 시각 스케일 2)
+    let rows = "";
+    items.forEach(function (it) {
+      const dev = it.avg - 1;                          // >0 키움 · <0 줄임
+      const w = Math.min(50, Math.abs(dev) / span * 50);
+      const up = dev >= 0;
+      rows += '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="width:96px;flex:none;font-size:12.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + WN[it.id] + "</span>" +
+        '<div style="flex:1;height:10px;position:relative;background:var(--sf3);border-radius:5px">' +
+        '<div style="position:absolute;left:50%;top:0;bottom:0;width:1px;background:var(--ln2)"></div>' +
+        '<div style="position:absolute;top:0;bottom:0;' + (up ? "left:50%" : "right:50%") + ';width:' + w + '%;border-radius:5px;background:' + (up ? "#2ed9a0" : "#e06a6a") + '"></div></div>' +
+        '<span class="mono" style="font-size:12.5px;font-weight:700;color:' + (Math.abs(dev) < 0.05 ? "var(--m1)" : up ? "var(--up)" : "var(--dn)") + ';width:42px;text-align:right;flex:none">×' + it.avg.toFixed(2) + "</span></div>";
+    });
+    return card(head("가장 많이 수정된 가중치", "커스텀 사용자 " + fmtN(wp.n) + "명 · ×1 기준") +
+      '<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">' + rows + "</div>" +
+      '<div style="margin-top:10px;font-size:11.5px;color:var(--m1);line-height:1.6"><span style="color:var(--up)">오른쪽=더 크게</span> · <span style="color:var(--dn)">왼쪽=더 작게</span> 본다는 뜻 — 커스텀 사용자들의 평균 배율.</div>');
   }
 
   // ── 잘 맞는 관점(서버 실값) ──

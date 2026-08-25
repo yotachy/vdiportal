@@ -66,6 +66,11 @@ function sync_merge_state($server, $incoming, $picksMax = 12) {
     if (is_string($p) && $p !== "" && !in_array($p, $picks, true) && count($picks) < $picksMax) $picks[] = $p;
   }
   $out["picks"] = $picks;
+  // weights(커스텀 슬라이더 — 통계 집계용): 클라 최신 우선, 없으면 서버 보관본 유지
+  $cw = isset($c["weights"]) && is_array($c["weights"]) ? $c["weights"] : null;
+  $sw = isset($s["weights"]) && is_array($s["weights"]) ? $s["weights"] : null;
+  if ($cw !== null) $out["weights"] = $cw;
+  elseif ($sw !== null) $out["weights"] = $sw;
   return $out;
 }
 
@@ -130,4 +135,28 @@ function sync_persona_dist($db, $minAns = 3, $minN = 5) {
   }
   if ($n < $minN) return null;
   return array("counts" => $counts, "n" => $n);
+}
+
+// 가중치 인기(익명 집계) — app_sync 의 weights(커스텀 슬라이더 7지표)에서 지표별 평균 배율.
+// 실제로 커스터마이즈한 계정만(하나라도 기본 1에서 벗어남) 세어 기본값 노이즈를 컷. 표본 minN 미달이면 null.
+function sync_weights_pop($db, $minN = 5) {
+  $keys = array("ma", "supertrend", "macd", "bollinger", "volume", "rsi", "cmf");
+  $rows = $db->query("select state from app_sync")->fetchAll();
+  $sum = array(); foreach ($keys as $k) $sum[$k] = 0.0;
+  $cnt = 0;
+  foreach ($rows as $row) {
+    $state = json_decode($row["state"], true);
+    if (!is_array($state)) continue;
+    $w = isset($state["weights"]) && is_array($state["weights"]) ? $state["weights"] : null;
+    if (!$w) continue;
+    $custom = false;
+    foreach ($keys as $k) { if (isset($w[$k]) && is_numeric($w[$k]) && (float)$w[$k] != 1.0) { $custom = true; break; } }
+    if (!$custom) continue;
+    foreach ($keys as $k) { $sum[$k] += (isset($w[$k]) && is_numeric($w[$k])) ? (float)$w[$k] : 1.0; }
+    $cnt++;
+  }
+  if ($cnt < $minN) return null;
+  $items = array();
+  foreach ($keys as $k) $items[] = array("id" => $k, "avg" => round($sum[$k] / $cnt, 2));
+  return array("items" => $items, "n" => $cnt);
 }

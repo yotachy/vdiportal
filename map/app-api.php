@@ -127,6 +127,8 @@ try {
     $ps["myLevel"] = array("xp" => $myXp, "level" => al_activity_level($myXp), "reg" => $myReg, "rank" => $myRank, "minReg" => AL_LV_MINREG);
     // 페르소나 성향 분포(익명 집계 — 클라 파생 personaGroups 평균). 표본 미달이면 null → 화면은 '집계 준비 중'.
     $ps["personaDist"] = sync_persona_dist($db);
+    // 가중치 인기(익명 집계 — 커스텀 슬라이더 지표별 평균 배율). 표본 미달이면 null.
+    $ps["weightPop"] = sync_weights_pop($db);
     al_out($ps);
   }
   // ── 페르소나 질문(P6) — 인덱스로 다음 질문만, 총량은 절대 싣지 않는다(Q4) ──

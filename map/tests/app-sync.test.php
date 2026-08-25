@@ -106,6 +106,19 @@ ok(sync_persona_dist($ddb, 3, 5)["n"] === 5, "personaDist: 답 minAns 미만 계
 // 표본 minN 미달이면 null(정직 표기)
 ok(sync_persona_dist($ddb, 3, 6) === null, "personaDist: 표본 minN 미달이면 null");
 
+// ── 가중치 인기 집계 ──
+$wpDir = sys_get_temp_dir() . "/as_wp_" . getmypid();
+@mkdir($wpDir, 0700, true); @unlink($wpDir . "/app_ledger.db");
+$wpDb = al_db($wpDir); sync_migrate($wpDb);
+for ($i = 1; $i <= 5; $i++) {
+  sync_put($wpDb, "w" . $i, array("weights" => array("ma" => 2, "supertrend" => 1, "macd" => 1, "bollinger" => 1, "volume" => 1, "rsi" => 0.5, "cmf" => 1)), 1756000000);
+}
+sync_put($wpDb, "wdef", array("weights" => array("ma" => 1, "supertrend" => 1, "macd" => 1, "bollinger" => 1, "volume" => 1, "rsi" => 1, "cmf" => 1)), 1756000000);  // 전부 기본 → 제외
+$wp = sync_weights_pop($wpDb, 5);
+$wById = array(); foreach ($wp["items"] as $it) $wById[$it["id"]] = $it["avg"];
+ok($wp["n"] === 5 && $wById["ma"] === 2.0 && $wById["rsi"] === 0.5 && $wById["macd"] === 1.0, "weightsPop: 커스텀 5명 평균(ma 2·rsi 0.5·기본만 제외)");
+ok(sync_weights_pop($wpDb, 6) === null, "weightsPop: 표본 minN 미달이면 null");
+
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
 exit($FAIL ? 1 : 0);

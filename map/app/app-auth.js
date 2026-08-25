@@ -19,6 +19,7 @@
     return { xp: s.xp, personaIdx: s.personaIdx, personaAns: s.personaAns,
       // 파생 성향(통계 집계용) — 서버에 DIM_GROUP 복제 대신 클라가 계산해 실어 보낸다(드리프트 0)
       personaGroups: (MS.persona ? MS.persona.groupWeights(s.personaAns || []) : null),
+      weights: s.weights || null,   // 커스텀 슬라이더(통계 '가중치 인기' 집계용)
       sigRead: s.sigRead, picks: s.picks, theme: s.theme, fontZoom: s.fontZoom,
       notiOff: s.notiOff, xpSeen: s.xpSeen };
   }
