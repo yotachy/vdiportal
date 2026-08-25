@@ -21,6 +21,19 @@
     } catch (e) { /* 미지원 무시 */ }
   }
 
+  // 숫자 카운트 트윈(잔액 변화 손맛) — 현재 표시값에서 목표까지 easeOutCubic
+  function tweenNum(el, to) {
+    const from = parseInt(el.textContent, 10);
+    if (!isFinite(from) || from === to) { el.textContent = String(to); return; }
+    const t0 = (typeof performance !== "undefined" ? performance.now() : Date.now()), dur = 460;
+    (function step() {
+      const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+      const p = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - p, 3);
+      el.textContent = String(Math.round(from + (to - from) * e));
+      if (p < 1) requestAnimationFrame(step); else el.textContent = String(to);
+    })();
+  }
+
   // ── SVG 조각 (프로토 원문 — 하드코딩 색만 토큰화) ──
   const SVG_LOGO =
     '<svg viewBox="0 0 24 24" width="26" height="26" style="display:block;flex:none" aria-hidden="true">' +
@@ -92,7 +105,18 @@
     const s = store.get();
     const lv = MS.config.levelOf(s.xp);
     const el = function (b) { return hostHeader.querySelector('[data-bind="' + b + '"]'); };
-    el("scoops").textContent = s.scoops;
+    // 잔액 변화 손맛 — 카운트 트윈 + 방향 펄스(벌면 골드↑·쓰면 축소↓). 최초 표시는 스냅.
+    const scoopEl = el("scoops");
+    const prevSc = parseInt(scoopEl.textContent, 10);
+    if (isFinite(prevSc) && prevSc !== s.scoops) {
+      const dir = s.scoops > prevSc ? "up" : "dn";
+      tweenNum(scoopEl, s.scoops);
+      scoopEl.classList.remove("up", "dn");
+      void scoopEl.offsetWidth;   // 리플로우로 애니메이션 재시작
+      scoopEl.classList.add(dir);
+    } else {
+      scoopEl.textContent = String(s.scoops);
+    }
     // 레벨 미니 배지 — 게스트는 잠금(레벨 없음, 지침서 §8 게스트 정책)
     el("lvWrap").style.display = s.gLinked ? "flex" : "none";
     if (s.gLinked) {

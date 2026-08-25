@@ -147,6 +147,12 @@ a:hover{color:var(--ach)}
 /* ── 탭바 (프로토 L1643~1668) ── */
 .ms-tabbar{flex:none;display:flex;border-top:1px solid var(--sf3);
   background:rgba(var(--ovr),0.98);padding:6px 4px 14px}
+/* 헤더 스쿱 잔액 변화 펄스 — 벌면 골드로 커졌다 돌아오고, 쓰면 살짝 줄었다 돌아온다 */
+@keyframes msScoopUp{0%{transform:scale(1)}32%{transform:scale(1.22);color:var(--cu)}100%{transform:scale(1)}}
+@keyframes msScoopDn{0%{transform:scale(1)}32%{transform:scale(0.86);opacity:0.55}100%{transform:scale(1)}}
+.ms-header-scoop [data-bind="scoops"]{display:inline-block}
+.ms-header-scoop [data-bind="scoops"].up{animation:msScoopUp 0.5s cubic-bezier(0.2,0.8,0.3,1)}
+.ms-header-scoop [data-bind="scoops"].dn{animation:msScoopDn 0.5s cubic-bezier(0.2,0.8,0.3,1)}
 /* 화면을 넘기거나 펼치는 카드에 눌림 피드백 — 탭 햅틱과 짝. 인라인 스타일이 transform 을 안 쓰므로 안전 */
 [data-go],[data-cell],[data-sig],[data-row]{transition:transform 0.11s cubic-bezier(0.2,0.9,0.3,1)}
 [data-go]:active,[data-cell]:active,[data-sig]:active,[data-row]:active{transform:scale(0.98)}
