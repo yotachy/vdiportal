@@ -67,13 +67,29 @@
     } catch (e) { emit("error", { msg: String(e && e.message || e) }); }
   }
 
+  const WIDE_BARS = 120;   // 시연 중 전폭에 놓을 캔들 수(폰 폭 기준 봉당 ~3px — 작도가 읽히는 밀도)
   function onPlay() {
     if (!hasRealSeries()) { emit("error", { msg: "no-series" }); return; }
     if (_playing) return;
+    // 작도 단계 = 콘 없이 캔들 전폭(사용자 판정 2026-08-25: 절반만 보이는 작도는 신뢰가 안 간다) →
+    // 시연이 끝나면(done) fitPrediction 이 콘 배치로 전환한다
+    _drawWide = true;
+    const N = (currentData().price || []).length;
+    _chartWin.count = Math.min(N, WIDE_BARS); _chartWin.start = Math.max(0, N - _chartWin.count);
+    _yScale = { mode: "auto", lo: null, hi: null };
     playAnalysis();
     // reduced-motion 이면 playAnalysis 가 즉시 확정 렌더로 끝난다 — 완료 신호를 여기서 보낸다
     if (typeof prefersReducedMotion === "function" && prefersReducedMotion()) emit("done", { instant: true });
   }
+  // 시연 종료(완료·중단) → 전폭 모드 해제 + 콘 프레이밍
+  function onPlayEnd() {
+    if (!_drawWide) return;
+    _drawWide = false;
+    try { fitPrediction(); } catch (e) { try { renderHeroZoom(); } catch (e2) {} }
+  }
+  const _emitRaw = emit;
+  emit = function (type, data) { if (type === "done" || type === "stopped") { try { onPlayEnd(); } catch (e) {} } _emitRaw(type, data); };
+  window._embedEmit = emit;
 
   async function onTF(m) {
     const tf = TF_MAP[m.tf]; if (!tf) return;

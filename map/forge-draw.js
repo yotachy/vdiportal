@@ -3355,6 +3355,7 @@
     if (cls !== "warn") el.style.display = "none";   // 정보성 '입력 시계열/비전 N봉' 배지는 숨김 — 이미지≠입력 불일치 경고만 노출
   }
   function fcRenderForecast(pred) {
+    if (typeof _drawWide !== "undefined" && _drawWide) pred = null;   // 전폭 작도 모드: 콘·예측선 없이 캔들만(시연 끝에 fitPrediction 이 콘을 연다)
     const mode = heroMode();
     if (mode === "chart") { const _cd = currentData(); if (_cd && _cd.price) fcDrawMainChart(_cd.price, pred); return; }   // null 가드(데이터 미도착 레이스)
     const cone = document.getElementById("fcCone");
