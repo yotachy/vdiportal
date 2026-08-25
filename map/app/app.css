@@ -81,7 +81,9 @@
 @keyframes msMarq{0%{transform:translateX(0)}100%{transform:translateX(-50%)}}
 
 /* ── 베이스 ── */
-html,body{margin:0;padding:0}
+/* 모바일 웹브라우저(크롬)의 '당겨서 새로고침'·오버스크롤을 끈다 — 시트 스와이프-다운이 페이지
+   리로드로 새는 문제(APK WebView 엔 없지만 dev 미리보기·모바일 웹에서 발생). 앱 자체 PTR 은 별개 동작. */
+html,body{margin:0;padding:0;overscroll-behavior:none}
 body{
   background:radial-gradient(70% 40% at 50% 0%,rgba(123,108,255,0.10),transparent 70%),var(--bg0);
   color:var(--t1);
@@ -98,7 +100,7 @@ a:hover{color:var(--ach)}
 #msApp{position:relative;width:100%;max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;
   background:var(--sf0);overflow:hidden;display:flex;flex-direction:column}
 #msMain{flex:1;min-height:0;overflow:hidden;position:relative}
-.ms-screen{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:msScreenIn 0.22s cubic-bezier(0.22,0.7,0.3,1) both}
+.ms-screen{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;animation:msScreenIn 0.22s cubic-bezier(0.22,0.7,0.3,1) both}
 /* 화면 전환 페이드 — 탭·화면 이동이 즉각 교체라 딱딱했다. opacity 만(transform 은 차트 forge iframe
    위치를 어긋나게 함 — iframe 은 rect 로 동기되지 별도 요소). 부드럽게 나타나며 유려해진다. */
 @keyframes msScreenIn{from{opacity:0}to{opacity:1}}
@@ -197,7 +199,7 @@ a:hover{color:var(--ach)}
 .ms-sheet.drag{transition:none}
 .ms-sheet-handle{flex:none;display:flex;justify-content:center;padding:9px 0 5px}
 .ms-sheet-handle span{width:38px;height:4px;border-radius:2px;background:var(--ln2)}
-.ms-sheet-body{flex:1;min-height:0;overflow-y:auto;padding:6px 16px 16px}
+.ms-sheet-body{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 16px 16px}
 .ms-sheet-cta{flex:none;padding:10px 16px calc(12px + env(safe-area-inset-bottom));border-top:1px solid var(--ln0)}
 
 /* ── 스켈레톤 (프로토 L1849~1861, 180ms) ── */
