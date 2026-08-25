@@ -92,6 +92,10 @@
     // 순차 작도 + 총 길이(기본 5지표는 짧게) — 서사(step)와 그림이 같은 박자로 간다. 근거는 시연이 켠다(load 는 evidence:false 로 올 수 있음)
     _playSeq = true; _playTotalMs = _lastTier === "basic" ? 8000 : 16000;
     _evidenceShow = true;
+    // preview(웹분석 전) 상태면 drawEvidence 가 작도를 통째로 건너뛴다 → 시연 동안 근거가 안 보인다.
+    // 이 종목을 '웹분석 후'로 승격해 preview 해제(콘은 _drawWide 가 계속 숨긴다).
+    if (typeof _deepSessionDocs !== "undefined") _deepSessionDocs.add(activeId);
+    if (typeof window !== "undefined") window._fcPreview = false;
     const N = (currentData().price || []).length;
     _chartWin.count = Math.min(N, WIDE_BARS); _chartWin.start = Math.max(0, N - _chartWin.count);
     _yScale = { mode: "auto", lo: null, hi: null };
