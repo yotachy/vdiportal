@@ -12,6 +12,25 @@
   let stats = null;      // 서버 집계(성공 시 {ok,trend,tops,scored,styleFit,me,...})
   let statsErr = false;
   let engI = 0;          // 엔진 카드 페이지
+  let engTimer = null;   // 자동 슬라이드 타이머(3초) — 조작 시 리셋·화면 이탈 시 정리
+
+  // 엔진 카드만 교체(전체 재렌더 아님 — 위임 리스너라 재바인딩 불필요). reset=true 면 자동 타이머도 리셋.
+  function showEngPage(i, reset) {
+    engI = Math.max(0, Math.min(3, i));
+    const el = hostEl && hostEl.querySelector("#msEngCard");
+    if (el) el.outerHTML = engCard(); else render();
+    if (reset) startEngTimer();
+  }
+  function startEngTimer() {
+    if (engTimer) { clearInterval(engTimer); engTimer = null; }
+    engTimer = setInterval(function () {
+      if (!hostEl || (MS.store.get().screen !== "stats")) return;   // 다른 화면이면 대기(unmount 가 정리)
+      const el = hostEl.querySelector("#msEngCard");
+      if (!el) return;
+      engI = (engI + 1) % 4;
+      el.outerHTML = engCard();   // 순환(마지막 다음 = 첫 페이지)
+    }, (MS.config.POLICY.ui.carouselMs || 3000));
+  }
   let touchX = null;
   let hostEl = null;
 
@@ -353,9 +372,10 @@
     hostEl = host;
     render();     // 즉시(엔진 정본·준비 중) → 서버 응답 오면 실값으로 재렌더
     load();
+    startEngTimer();   // 자동 슬라이드 시작(3초)
     host.addEventListener("click", function (e) {
       const dot = e.target.closest("[data-engdot]");
-      if (dot) { engI = parseInt(dot.getAttribute("data-engdot"), 10); render(); return; }
+      if (dot) { showEngPage(parseInt(dot.getAttribute("data-engdot"), 10), true); return; }
       if (e.target.closest("[data-about]")) { MS.ui.openAbout(); return; }
       if (e.target.closest("[data-retry]")) { load(); return; }
     });
@@ -371,10 +391,10 @@
       const dx = t.clientX - touchX;
       touchX = null;
       if (Math.abs(dx) < MS.config.POLICY.ui.swipePx) return;
-      engI = Math.max(0, Math.min(3, engI + (dx < 0 ? 1 : -1)));
-      render();
+      showEngPage(engI + (dx < 0 ? 1 : -1), true);   // 수동 스와이프 — 카드만 교체 + 타이머 리셋
     }, { passive: true });
   }
 
-  MS.router.register("stats", { mount: mount, refresh: load });
+  MS.router.register("stats", { mount: mount, refresh: load,
+    unmount: function () { if (engTimer) { clearInterval(engTimer); engTimer = null; } } });
 })();

@@ -10,6 +10,7 @@
   const MS = (window.MS = window.MS || {});
   const str = MS.str;
   const GC = { t: "var(--bl)", m: "var(--up)", v: "var(--cy)", q: "var(--am)", s: "var(--pk)" };
+  let sigTimer = null;   // 캐러셀 자동 슬라이드(3초) — 재마운트/이탈 시 정리
   const GN = { t: "추세", m: "모멘텀", v: "변동성", q: "거래량", s: "구조" };
 
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
@@ -222,26 +223,43 @@
           MS.router.go("chart");
         });
       });
-      const car = host.querySelector("[data-car]");
-      if (car) {
-        let x0 = null;
-        car.addEventListener("touchstart", function (e) { x0 = e.touches[0].clientX; }, { passive: true });
-        car.addEventListener("touchend", function (e) {
-          if (x0 == null) return;
-          const dx = e.changedTouches[0].clientX - x0;
-          if (Math.abs(dx) > 40) { carousel = (carousel + (dx < 0 ? 1 : 3)) % 4; render(); }
-          x0 = null;
-        });
-        car.addEventListener("click", function () { carousel = (carousel + 1) % 4; render(); });
-      }
+    }
+
+    // 캐러셀 카드만 교체(전체 재렌더 아님) + 자동 슬라이드 타이머 리셋
+    function showCar(i) {
+      carousel = ((i % 4) + 4) % 4;
+      const el = host.querySelector("[data-car]");
+      if (el) el.outerHTML = carouselHtml(); else render();
+      startSigTimer();
+    }
+    function startSigTimer() {
+      if (sigTimer) { clearInterval(sigTimer); sigTimer = null; }
+      sigTimer = setInterval(function () {
+        if (MS.store.get().screen !== "signal") return;   // 다른 화면이면 대기(unmount 가 정리)
+        const el = host.querySelector("[data-car]");
+        if (!el) return;
+        carousel = (carousel + 1) % 4;
+        el.outerHTML = carouselHtml();
+      }, (MS.config.POLICY.ui.carouselMs || 3000));
     }
 
     render();
+    // 캐러셀 조작은 host 위임(카드만 교체해도 살아있게). 스와이프 40px·클릭=다음.
+    let carX0 = null;
+    host.addEventListener("touchstart", function (e) { carX0 = e.target.closest("[data-car]") ? e.touches[0].clientX : null; }, { passive: true });
+    host.addEventListener("touchend", function (e) {
+      if (carX0 == null) return;
+      const dx = e.changedTouches[0].clientX - carX0; carX0 = null;
+      if (Math.abs(dx) > 40) showCar(carousel + (dx < 0 ? 1 : -1));
+    }, { passive: true });
+    host.addEventListener("click", function (e) { if (e.target.closest("[data-car]")) showCar(carousel + 1); });
+    startSigTimer();   // 자동 슬라이드 시작(3초)
     MS.scanSignals().then(function (all) {
       list = all;
       if (MS.store.get().screen === "signal") render();
     });
   }
 
-  MS.router.register("signal", { mount: mount });
+  MS.router.register("signal", { mount: mount,
+    unmount: function () { if (sigTimer) { clearInterval(sigTimer); sigTimer = null; } } });
 })();

@@ -68,6 +68,7 @@
       toastMs: 1800,
       toastNegMs: 3200,
       rewardMs: 1500,
+      carouselMs: 3000,   // 상단 대시보드 자동 슬라이드 주기(드래그와 같은 정책)
       swipePx: 40,
       haptics: {
         deduct: [30, 40, 30], done: [15, 30, 60], earn: [15, 35, 20],
