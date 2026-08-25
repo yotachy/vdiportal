@@ -95,10 +95,10 @@
       case "volumeprofile": span = _p(n, "len", 120); break;
       case "gann": span = 120; break;
       case "ichimoku": span = _p(n, "kijun", 26) + _p(n, "senkouB", 52) + _p(n, "shift", 26); break;   // ~104
-      case "cycle": span = Math.min(320, _p(n, "pmax", 120) * 2.2); break;        // 최소 2주기(단 상한)
-      case "phasefold": span = Math.min(340, _p(n, "pmax", 128) * 2.2); break;
-      case "elliott": span = 360; break;          // 파동 전개 = 아주 멀리(단 캔들 보이는 선)
-      case "structure": span = 300; break;
+      case "cycle": span = Math.min(420, _p(n, "pmax", 120) * 3); break;        // 최소 3주기
+      case "phasefold": span = Math.min(440, _p(n, "pmax", 128) * 3); break;
+      case "elliott": span = 460; break;          // 파동 전개 = 최대 조망
+      case "structure": span = 380; break;
       case "smc": span = 200; break;
       case "trend": span = Math.max(_p(n, "len", 40) * 3, Math.round(N * 0.45)); break;   // 장기 추세창까지
       case "ma": span = 130; break;                                // 20·60·120선 → 120선이 보이게
@@ -125,30 +125,60 @@
       case "pattern": span = 70; break;
       default: span = 90;
     }
-    return Math.max(26, Math.min(N, 380, Math.round(span * 1.25)));   // 여백 25% · 하한 26(아주 가까이) · 상한 380(멀어도 캔들 보이게)
+    return Math.max(22, Math.min(N, 460, Math.round(span * 1.15)));   // 하한 22(아주 가까이) · 상한 460(멀리·캔들 보이는 선)
   }
+  // 창 [start, start+count) 의 실제 고·저(OHLC) — Y 프레이밍용
+  function _winPriceRange(start, count) {
+    var oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
+    var lo = Infinity, hi = -Infinity, s = Math.max(0, start), e = Math.min((oh ? oh.length : 0), start + count);
+    if (oh) { for (var i = s; i < e; i++) { var d = oh[i]; if (!d) continue; if (d.l < lo) lo = d.l; if (d.h > hi) hi = d.h; } }
+    else { var px = (currentData().price || []); for (var j = s; j < Math.min(px.length, start + count); j++) { var v = px[j]; if (v < lo) lo = v; if (v > hi) hi = v; } }
+    if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return null;
+    return { lo: lo, hi: hi };
+  }
+  // 지표 성격별 Y 여백(레벨·확장을 그리는 지표는 넉넉히 — 화면 밖으로 안 나가게)
+  var _YPAD = { fib: 0.34, gann: 0.34, pivot: 0.26, elliott: 0.20, structure: 0.16, volumeprofile: 0.20,
+    trend: 0.18, ma: 0.14, ichimoku: 0.14, cycle: 0.16, phasefold: 0.16, smc: 0.18,
+    bollinger: 0.12, keltner: 0.12, donchian: 0.12, supertrend: 0.12, psar: 0.10, vwap: 0.10,
+    rsi: 0.10, stochastic: 0.10, williams: 0.10, cci: 0.10, mfi: 0.10, cmf: 0.10, macd: 0.10,
+    adx: 0.10, atr: 0.12, aroon: 0.10, roc: 0.10, ao: 0.10, volume: 0.10, pattern: 0.14 };
   function _camWinNode(n, N) {
     var c = _spanBars(n, N);
-    return { count: c, start: Math.max(0, N - c) };
+    var start = Math.max(0, N - c);
+    var pr = _winPriceRange(start, c);
+    var ylo = null, yhi = null;
+    if (pr) {
+      var pad = (_YPAD[n.blockType] != null ? _YPAD[n.blockType] : 0.12) * (pr.hi - pr.lo);
+      ylo = pr.lo - pad; yhi = pr.hi + pad;
+    }
+    return { count: c, start: start, ylo: ylo, yhi: yhi };
   }
 
   // _chartWin 을 목표 창으로 부드럽게 이동  // _chartWin 을 목표 창으로 부드럽게 이동(짧은 트윈 — 카메라가 미끄러지듯). 스텝마다 캔들+근거 재그림.
   function _camTween(target, steps, done) {
-    var s0 = _chartWin.start, c0 = _chartWin.count, i = 0;
-    steps = Math.max(1, steps);
+    var s0 = _chartWin.start, c0 = _chartWin.count;
+    // Y 시작값: 현재 manual 이면 그 값, 아니면 현재 창의 자동 범위에서 출발
+    var y0 = (_yScale && _yScale.mode === "manual" && isFinite(_yScale.lo) && isFinite(_yScale.hi))
+      ? { lo: _yScale.lo, hi: _yScale.hi }
+      : (_winPriceRange(s0, c0) || null);
+    var yT = (isFinite(target.ylo) && isFinite(target.yhi)) ? { lo: target.ylo, hi: target.yhi } : null;
+    var i = 0; steps = Math.max(1, steps);
     function step() {
       if (!_playing) { if (done) done(); return; }
       i++;
       var t = i / steps, e = 1 - Math.pow(1 - t, 3);   // easeOutCubic
       _chartWin.count = Math.round(c0 + (target.count - c0) * e);
       _chartWin.start = Math.round(s0 + (target.start - s0) * e);
+      if (y0 && yT) {   // X·Y 동시 이동 — 지표 작도 범위가 세로로도 꽉 들어오게
+        _yScale = { mode: "manual", lo: y0.lo + (yT.lo - y0.lo) * e, hi: y0.hi + (yT.hi - y0.hi) * e };
+      }
       try { renderHeroZoom(); } catch (err) {}
       if (i < steps) { _camT = setTimeout(step, 55); } else { if (done) done(); }
     }
     step();
   }
 
-  // ── 임베드 자체 시연(가벼움) — PC 의 무거운 morph RAF + 100+ setTimeout 틱(HUD/로그 DOM) 대신,
+  // ── 임베드 자체 시연(가벼움)  // ── 임베드 자체 시연(가벼움) — PC 의 무거운 morph RAF + 100+ setTimeout 틱(HUD/로그 DOM) 대신,
   //    지표를 하나씩 넉넉한 간격으로 그린다. 매 스텝 사이 스레드가 쉬어 느린 폰에서도 화면이 갱신되고
   //    순차 작도가 실제로 보인다(2026-08-25: PC morph 는 폰 스레드를 20초 독점해 끝에 한 번에 나타남). ──
   var _embT = null, _embI = 0, _embNodes = [], _camT = null;
@@ -255,7 +285,7 @@
         document.body.appendChild(el); }
       var ev = -1; try { var cv = document.getElementById("fcEvidence"); var c = cv.getContext("2d"); var d = c.getImageData(0,0,cv.width,cv.height).data; ev = 0; for (var i=3;i<d.length;i+=8) if (d[i]>60) ev++; } catch (e) {}
       var cs = getComputedStyle(document.getElementById("fcEvidence"));
-      el.textContent = "DIAG v=20260825k evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
+      el.textContent = "DIAG v=20260825l evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
     }, 700);
   }
   if (/[?&]demo=1/.test(location.search)) {
