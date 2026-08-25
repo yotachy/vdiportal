@@ -38,6 +38,10 @@
       let top = null;
       qs.forEach(function (q, i) { if (!top || Math.abs(q.chg) > Math.abs(top.chg)) top = { sym: picks[i], chg: q.chg }; });
       const upW = qs.length ? Math.round(upN / qs.length * 100) : 50;
+      // 분석 현황 매트릭스가 통째로 비었는지(t·만료 하나도 없음) — 비었으면 죽은 범례 대신 첫 분석 안내
+      const anyAnal = picks.some(function (p) {
+        return ["일", "주", "월"].some(function (tf) { const k = p + "|" + tf; return s.analyzed[k] || s.analyzedAt[k]; });
+      });
 
       // 채점 카드 — 서버 원장 실값(로드 전엔 로컬 근사)
       const dueN = s.scoreDueN || 0;
@@ -156,7 +160,9 @@
               return '<span data-cell="' + esc(p) + "|" + tf + '" style="flex:1;height:27px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11.5px;font-weight:600;cursor:pointer;' + style + '">' + txt + "</span>";
             }).join("") + "</div>";
         }).join("") +
-        '<div style="margin-top:8px;font-size:11.5px;color:var(--m2)"><span style="color:#8b93a7">●</span> 기본 · <span style="color:#7b6cff">●</span> 심화 · <span style="color:var(--cu)">●</span> 커스텀 — 24시간이 지나면 자동 폐기</div></div>' +
+        (anyAnal
+          ? '<div style="margin-top:8px;font-size:11.5px;color:var(--m2)"><span style="color:#8b93a7">●</span> 기본 · <span style="color:#7b6cff">●</span> 심화 · <span style="color:var(--cu)">●</span> 커스텀 — 24시간이 지나면 자동 폐기</div>'
+          : '<div style="margin-top:10px;font-size:12px;color:var(--m1);line-height:1.6;text-align:center;padding:6px 2px 2px">아직 분석 기록이 없어요<br><span style="color:var(--t2);font-weight:600">칸을 눌러 첫 분석을 시작하세요</span></div>') + '</div>' +
 
         // 페르소나 카드(P6 — 즉시 질문·풀 배급·게스트 3문 잠금)
         personaCardHtml() +
