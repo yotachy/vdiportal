@@ -113,7 +113,7 @@
         resultWaiter = { res: res, t: t };
         post({ type: "load", symbol: req.symbol, tf: TF_TO[req.tf] || req.tf || "1day", tier: req.tier || "basic",
           weights: req.weights || null, evidence: req.evidence !== false, confirmed: !!req.confirmed,
-          evidenceOff: req.evidenceOff || null });
+          draft: !!req.draft, evidenceOff: req.evidenceOff || null });
       });
     });
   }

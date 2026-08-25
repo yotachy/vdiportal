@@ -985,7 +985,8 @@
     const wStart = _chartWin.start, wCount = _chartWin.count;
     const hist = (series || []).slice(wStart, wStart + wCount);
     const atLatest = (wStart + wCount >= N);
-    const path = atLatest ? ((pred && pred.path) || []) : [], lo = atLatest ? ((pred && pred.lo) || []) : [], hi = atLatest ? ((pred && pred.hi) || []) : [];
+    const _wide = (typeof _drawWide !== "undefined" && _drawWide);   // 전폭 작도 모드: 메인 캔버스도 콘·예측선 없이 캔들만
+    const path = (!_wide && atLatest) ? ((pred && pred.path) || []) : [], lo = (!_wide && atLatest) ? ((pred && pred.lo) || []) : [], hi = (!_wide && atLatest) ? ((pred && pred.hi) || []) : [];
     if (hist.length < 2) {
       c.fillStyle = FC_DIM; c.font = "11px ui-monospace,monospace"; c.textAlign = "center";
       c.fillText("분석 데이터 없음", cw / 2, ch / 2); c.textAlign = "left"; return;

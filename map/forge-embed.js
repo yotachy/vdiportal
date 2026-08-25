@@ -55,6 +55,7 @@
       t.params.tf = TF_MAP[m.tf] || "1day";
       applyTier(m.tier || "basic", m.weights);
       _lastTier = m.tier || "basic";
+      _draft = !!m.draft;   // 실행(draft) 로드: 결과 콘을 미리 안 보인다 — 로드부터 전폭 캔들, 확정 콘은 시연 끝(onPlayEnd)
       // 예측선 노출 = 앱 단계 규약(기본: 1차 종합 / 심화·커스텀: +반대 시나리오). PC 의 '2차 선택지표(체크 조합 재계산)'는 앱 개념에 없어 끈다.
       // 커스텀 가중치는 _driftW 로 1차 자체에 반영된다(별도 선 아님).
       _predVis.p1 = true; _predVis.p2 = false; _predVis.p3 = (m.tier || "basic") !== "basic";
@@ -64,15 +65,24 @@
       if (m.evidence !== false && !_evidenceShow) toggleEvidence();
       await loadTicker();   // fetch → applyTickerOHLC → runForge(→ result emit) → renderChart
       if (!hasRealSeries()) { emit("error", { msg: "no-series" }); return; }
-      // 앱에서 이미 분석을 마친 종목(confirmed) = PC 의 '웹분석 후' 상태 — 미확정(회색 밴드) 콘이 아니라 확정 콘을 그린다
-      if (m.confirmed && typeof _deepSessionDocs !== "undefined") { _deepSessionDocs.add(activeId); renderChart(lastResult, currentData()); }
-      else if (!m.confirmed && typeof _deepSessionDocs !== "undefined" && _deepSessionDocs.has(activeId)) { _deepSessionDocs.delete(activeId); renderChart(lastResult, currentData()); }
-      if (Array.isArray(m.evidenceOff) && m.evidenceOff.length) onEvidence({ off: m.evidenceOff });
-      if (typeof fitPrediction === "function") { try { fitPrediction(); } catch (e) {} }
+      if (m.confirmed && typeof _deepSessionDocs !== "undefined") { _deepSessionDocs.add(activeId); }
+      else if (!m.confirmed && typeof _deepSessionDocs !== "undefined" && _deepSessionDocs.has(activeId)) { _deepSessionDocs.delete(activeId); }
+      if (_draft) {   // 결과 숨김: 전폭 캔들만(콘·근거 없음). 시연이 지표를 긋고, 끝에 콘을 연다.
+        _drawWide = true; _playSeq = false;
+        const N = (currentData().price || []).length;
+        _chartWin.count = Math.min(N, WIDE_BARS); _chartWin.start = Math.max(0, N - _chartWin.count);
+        _yScale = { mode: "auto", lo: null, hi: null };
+        renderHeroZoom();
+      } else {
+        renderChart(lastResult, currentData());
+        if (Array.isArray(m.evidenceOff) && m.evidenceOff.length) onEvidence({ off: m.evidenceOff });
+        if (typeof fitPrediction === "function") { try { fitPrediction(); } catch (e) {} }
+      }
     } catch (e) { emit("error", { msg: String(e && e.message || e) }); }
   }
 
-  const WIDE_BARS = 120;   // 시연 중 전폭에 놓을 캔들 수(폰 폭 기준 봉당 ~3px — 작도가 읽히는 밀도)
+  const WIDE_BARS = 120;
+  let _draft = false;   // 시연 중 전폭에 놓을 캔들 수(폰 폭 기준 봉당 ~3px — 작도가 읽히는 밀도)
   function onPlay() {
     if (!hasRealSeries()) { emit("error", { msg: "no-series" }); return; }
     if (_playing) return;
@@ -92,8 +102,10 @@
   // 시연 종료(완료·중단) → 전폭 모드 해제 + 콘 프레이밍
   function onPlayEnd() {
     _playSeq = false;
-    if (!_drawWide) return;
-    _drawWide = false;
+    if (!_drawWide && !_draft) return;
+    _drawWide = false; _draft = false;
+    // 시연 종료 → 확정 콘 공개(웹분석 후 상태) + 예측 프레이밍
+    try { if (typeof _deepSessionDocs !== "undefined") _deepSessionDocs.add(activeId); renderChart(lastResult, currentData()); } catch (e) {}
     try { fitPrediction(); } catch (e) { try { renderHeroZoom(); } catch (e2) {} }
   }
   const _emitRaw = emit;

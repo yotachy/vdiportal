@@ -53,7 +53,7 @@
       s.frameDone = false;
       if (MS.forgeFrame) {
         const W = MS.engine.finalWeights(req.tier, req);
-        MS.forgeFrame.load({ symbol: req.symbol, tf: req.tfKo, tier: req.tier, weights: W, confirmed: true, evidence: false })   // 근거는 시연이 지표별로 긋는다(미리 다 그려 놓지 않음)
+        MS.forgeFrame.load({ symbol: req.symbol, tf: req.tfKo, tier: req.tier, weights: W, draft: true, evidence: false })   // draft=결과 콘 숨김 · 근거는 시연이 지표별로 긋고 끝에 확정 콘 공개
           .then(function (lr) {
             if (s !== session) return null;
             if (!lr || !lr.ok) { s.frameDone = true; pump(); return null; }
