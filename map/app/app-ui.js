@@ -292,23 +292,30 @@
         n = n.parentNode;
       }
       if (scrollEl && scrollEl.scrollTop > 1) return;
+      const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
       sheetState.startY = e.touches[0].clientY;
       sheetState.dy = 0;
+      sheetState.lastY = sheetState.startY; sheetState.lastT = now; sheetState.vy = 0;
     }, { passive: true });
     sheet.addEventListener("touchmove", function (e) {
       if (!sheetState || sheetState.startY === null) return;
-      const dy = e.touches[0].clientY - sheetState.startY;
-      if (dy <= 0) return;
+      const y = e.touches[0].clientY, dy = y - sheetState.startY;
+      if (dy <= 0) { sheet.style.transform = ""; sheetState.dy = 0; return; }
+      const now = (typeof performance !== "undefined" ? performance.now() : Date.now());
+      const dt = now - sheetState.lastT;
+      if (dt > 0) sheetState.vy = (y - sheetState.lastY) / dt;   // px/ms(아래로 양수) — 플릭 속도
+      sheetState.lastY = y; sheetState.lastT = now;
       sheetState.dy = dy;
       sheet.classList.add("drag");
       sheet.style.transform = "translateY(" + dy + "px)";
     }, { passive: true });
     sheet.addEventListener("touchend", function () {
       if (!sheetState || sheetState.startY === null) return;
-      const dy = sheetState.dy;
+      const dy = sheetState.dy, vy = sheetState.vy || 0;
       sheetState.startY = null;
       sheet.classList.remove("drag");
-      if (dy > POLICY.ui.sheetClosePx) closeSheet();
+      // 아이폰식: 충분히 내렸거나(거리) 아래로 빠르게 튕기면(속도) 닫는다. 짧고 빠른 플릭도 닫힘.
+      if (dy > POLICY.ui.sheetClosePx || (vy > 0.5 && dy > 24)) closeSheet();
       else sheet.style.transform = "";   // 스프링 복귀(CSS transition)
     });
   }
