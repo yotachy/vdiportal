@@ -28,7 +28,7 @@
     const s = MS.store.get();
     const bySym = {};
     await Promise.all(s.picks.map(function (p) {
-      return MS.data.ohlc.fetch(p, "일").then(function (r) {
+      return MS.data.ohlc.fetch(p, "일", { lite: true }).then(function (r) {   // 감지 룰 창(최대 20봉+ATR14+BB20) — 경량으로 충분
         if (r.ok) bySym[p] = r.candles;
       }).catch(function () {});
     }));

@@ -85,3 +85,40 @@ test("fetchOHLC: 실패 시 이전 캔들로 버팀(stale), 캐시 없으면 ok:
   const miss = await store.fetch("AAPL", "일");
   assert.equal(miss.ok, false);
 });
+
+// ── 전송 정책(2026-08-25): 델타 머지 · 경량(lite) · 경량→전량 승격 · 전량 캐시가 경량 요청을 대신 ──
+test("mergeCandles: t 기준 병합 — 같은 t 는 새 값, 새 봉 추가, 정렬 유지", () => {
+  const prev = [{ t: "2026-08-20", c: 1 }, { t: "2026-08-21", c: 2 }];
+  const m = data.mergeCandles(prev, [{ t: "2026-08-21", c: 2.5 }, { t: "2026-08-22", c: 3 }]);
+  assert.deepEqual(m.map((c) => c.t), ["2026-08-20", "2026-08-21", "2026-08-22"]);
+  assert.equal(m[1].c, 2.5);
+});
+
+test("fetch: 재갱신은 since= 델타 · 응답을 캐시에 머지 · 경량은 limit= · 전량 캐시가 있으면 경량 요청도 캐시", async () => {
+  const urls = [];
+  let now = 1000;
+  const io = {
+    now: () => now,
+    fetchJson: async (url) => {
+      urls.push(url);
+      if (/limit=/.test(url)) return { ok: true, full: false, limit: 60, candles: [{ t: "2026-08-21", c: 2 }, { t: "2026-08-22", c: 3 }] };
+      if (/since=/.test(url)) return { ok: true, full: false, candles: [{ t: "2026-08-22", c: 3.5 }, { t: "2026-08-23", c: 4 }] };
+      return { ok: true, full: true, candles: [{ t: "2026-08-20", c: 1 }, { t: "2026-08-21", c: 2 }, { t: "2026-08-22", c: 3 }] };
+    }
+  };
+  const store = data.createOHLC(io);
+  const a = await store.fetch("NVDA", "일", { lite: true });      // 경량 최초 → limit
+  assert.ok(/limit=60/.test(urls[0]) && !/since=/.test(urls[0]));
+  assert.equal(a.candles.length, 2);
+  const b = await store.fetch("NVDA", "일");                      // 분석용 → 전량(limit 없음) 승격
+  assert.ok(!/limit=/.test(urls[1]) && !/since=/.test(urls[1]), "전량 승격은 limit·since 없음: " + urls[1]);
+  assert.equal(b.candles.length, 3);
+  const c = await store.fetch("NVDA", "일", { lite: true });      // 전량 캐시 신선 → 네트워크 없음
+  assert.equal(urls.length, 2);
+  assert.equal(c.candles.length, 3);
+  now += 10 * 60e3;                                               // 신선도 만료 → 델타
+  const d = await store.fetch("NVDA", "일");
+  assert.ok(/since=2026-08-22/.test(urls[2]), "델타 since: " + urls[2]);
+  assert.deepEqual(d.candles.map((x) => x.c), [1, 2, 3.5, 4]);
+  assert.equal(store._cache["NVDA|1day"].full, true, "델타 후에도 전량 표식 유지");
+});

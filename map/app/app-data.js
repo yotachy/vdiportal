@@ -55,31 +55,73 @@
     return cs.map(function (v) { return span > 0 ? (v - min) / span : 0.5; });
   }
 
-  // ── OHLC 스토어(캐시·신선도·stale 버팀) — io 주입으로 node 테스트 가능 ──
+  // ── OHLC 스토어(캐시·신선도·stale 버팀·증분·경량) — io 주입으로 node 테스트 가능 ──
+  // 전송 정책(2026-08-25): ① 분석용(기본)은 **전량 이력** — 엔진 판정은 이력 길이에 따라 달라지므로 PC 와 같은
+  // 입력이어야 한다(limit 금지). ② 재갱신은 since= 델타(마지막 봉부터)만 받아 머지. ③ 홈 시세·시그널은
+  // opts.lite(마지막 liteBars 봉) — 표시·감지용이라 이력이 짧아도 되고, 전량 캐시가 있으면 그걸 쓴다.
+  // HTTP 는 서버 max-age(5/30분)와 세션 신선도가 같아 앱 페이지·포지 프레임이 같은 응답을 공유한다.
   const FRESH = { "1day": 5 * 60e3, "1week": 30 * 60e3, "1month": 30 * 60e3 };
+  const LITE_BARS = 60;
+
+  // t 기준 병합(같은 t = 새 값으로 갱신 — 진행 중 봉 종가 갱신, 새 봉은 추가). 정렬 유지.
+  function mergeCandles(prev, delta) {
+    if (!prev || !prev.length) return delta.slice();
+    if (!delta || !delta.length) return prev.slice();
+    const map = {};
+    const order = [];
+    prev.forEach(function (c) { const k = String(c.t).slice(0, 10); if (!(k in map)) order.push(k); map[k] = c; });
+    delta.forEach(function (c) { const k = String(c.t).slice(0, 10); if (!(k in map)) order.push(k); map[k] = c; });
+    order.sort();
+    return order.map(function (k) { return map[k]; });
+  }
 
   function createOHLC(io) {
-    const cache = {};   // "SYM|apiTf" → { candles, at, symbol, name, source }
-    async function fetchOHLC(symbol, tfKo) {
+    const cache = {};   // "SYM|apiTf" → { candles, at, symbol, name, source, full }
+    const fresh = function (apiTf) {
+      const pol = (typeof root !== "undefined" && root.MS && root.MS.config && root.MS.config.POLICY.data) ? root.MS.config.POLICY.data : null;
+      return (pol && pol.fresh && pol.fresh[apiTf]) || FRESH[apiTf] || FRESH["1day"];
+    };
+    const liteBars = function () {
+      const pol = (typeof root !== "undefined" && root.MS && root.MS.config && root.MS.config.POLICY.data) ? root.MS.config.POLICY.data : null;
+      return (pol && pol.liteBars) || LITE_BARS;
+    };
+    function out(v, extra) {
+      const o = { ok: true, candles: v.candles, symbol: v.symbol, name: v.name, source: v.source };
+      if (extra) Object.keys(extra).forEach(function (k) { o[k] = extra[k]; });
+      return o;
+    }
+    async function fetchOHLC(symbol, tfKo, opts) {
+      opts = opts || {};
       const apiTf = tfApi(tfKo);
       const key = symbol + "|" + apiTf;
       const hit = cache[key];
       const now = io.now();
-      if (hit && (now - hit.at) < (FRESH[apiTf] || FRESH["1day"])) {
-        return { ok: true, candles: hit.candles, symbol: hit.symbol, name: hit.name, source: hit.source };
+      const lite = !!opts.lite;
+      const isFresh = hit && (now - hit.at) < fresh(apiTf);
+      // 캐시 적중: 전량이면 어떤 요청이든 OK · 경량 캐시는 경량 요청에만
+      if (isFresh && (hit.full || lite)) return out(hit);
+      let url = serverBase() + "/forge-api.php?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(apiTf);
+      let mode = "full";
+      if (lite && !hit) { url += "&limit=" + liteBars(); mode = "lite"; }                     // 경량 최초
+      else if (hit && hit.full && hit.candles.length) {                                        // 전량 재갱신 = 델타
+        url += "&since=" + encodeURIComponent(String(hit.candles[hit.candles.length - 1].t).slice(0, 10)); mode = "delta";
+      } else if (hit && !hit.full && lite && hit.candles.length) {                             // 경량 재갱신 = 델타(경량 유지)
+        url += "&since=" + encodeURIComponent(String(hit.candles[hit.candles.length - 1].t).slice(0, 10)); mode = "delta";
       }
       let j = null;
-      try {
-        j = await io.fetchJson(serverBase() + "/forge-api.php?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(apiTf));
-      } catch (e) { j = null; }
-      if (!j || !j.ok || !Array.isArray(j.candles) || !j.candles.length) {
-        if (hit) return { ok: true, candles: hit.candles, symbol: hit.symbol, name: hit.name, source: hit.source, stale: true };
+      try { j = await io.fetchJson(url); } catch (e) { j = null; }
+      if (!j || !j.ok || !Array.isArray(j.candles) || (!j.candles.length && mode !== "delta")) {
+        if (hit) return out(hit, { stale: true });
         return { ok: false, error: (j && j.error) || "network" };
       }
-      const v = { candles: j.candles, at: now, symbol: j.symbol || symbol,
-        name: j.name || (hit && hit.name) || "", source: j.source || "" };
+      let candles;
+      if (mode === "delta") candles = mergeCandles(hit.candles, j.candles);
+      else candles = j.candles;
+      const v = { candles: candles, at: now, symbol: j.symbol || symbol,
+        name: j.name || (hit && hit.name) || "", source: j.source || (hit && hit.source) || "",
+        full: mode === "delta" ? hit.full : (j.full !== false) };
       cache[key] = v;
-      return { ok: true, candles: v.candles, symbol: v.symbol, name: v.name, source: v.source };
+      return out(v);
     }
     return { fetch: fetchOHLC, _cache: cache };
   }
@@ -88,7 +130,7 @@
     return {
       now: function () { return Date.now(); },
       fetchJson: async function (url) {
-        const r = await fetch(url, { cache: "no-store" });
+        const r = await fetch(url, { cache: "default" });   // 서버 max-age(5/30분) — 포지 프레임과 응답 공유
         if (!r.ok) { let j = null; try { j = await r.json(); } catch (e) {} return j || { ok: false }; }
         return r.json();
       }
@@ -140,7 +182,7 @@
   }
 
   const api = { MASTER: MASTER, tfApi: tfApi, quote: quote, spark: spark,
-    createOHLC: createOHLC, browserIO: browserIO, fixtureStore: fixtureStore,
+    createOHLC: createOHLC, mergeCandles: mergeCandles, browserIO: browserIO, fixtureStore: fixtureStore,
     deviceId: deviceId, api: serverApi, serverBase: serverBase, ohlc: null };
   // 브라우저에선 기본 스토어를 미리 만들어 둔다(테스트는 createOHLC 로 주입 생성)
   if (typeof window !== "undefined" && typeof fetch !== "undefined") {

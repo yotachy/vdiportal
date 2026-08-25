@@ -1976,7 +1976,8 @@
     let url = FORGE_API + "?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(tf);
     if (last) url += "&since=" + encodeURIComponent(String(last).slice(0, 10));
     let r;
-    try { r = await fetch(url, { cache: "no-store" }); }
+    // HTTP 캐시 허용(서버 max-age 300/1800 — _OHLC_FRESH 와 같은 신선도): 앱 임베드 프레임과 앱 페이지가 같은 응답을 나눠 쓴다
+    try { r = await fetch(url, { cache: "default" }); }
     catch (e) { if (hit) return _ohlcOut(hit, { stale: true }); throw e; }
     SERVER_OK = true;
     if (!r.ok) {

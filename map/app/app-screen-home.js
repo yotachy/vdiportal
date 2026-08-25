@@ -361,7 +361,7 @@
     // 실시세 로드 → 재렌더
     if (s0.picks.length) {
       Promise.all(s0.picks.map(function (p) {
-        return MS.data.ohlc.fetch(p, "일").then(function (r) {
+        return MS.data.ohlc.fetch(p, "일", { lite: true }).then(function (r) {   // 시세 표시용 — 경량(60봉)
           if (r.ok) quotes[p] = MS.data.quote(r.candles);
         }).catch(function () {});
       })).then(function () {

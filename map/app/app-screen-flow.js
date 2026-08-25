@@ -458,7 +458,7 @@
       function fetchQuotes(syms) {
         syms.forEach(function (sym) {
           if (quotes[sym]) return;
-          MS.data.ohlc.fetch(sym, "일").then(function (r) {
+          MS.data.ohlc.fetch(sym, "일", { lite: true }).then(function (r) {   // 종목 시트 시세 — 경량
             if (r.ok) { quotes[sym] = MS.data.quote(r.candles); paintSheet(); }
           }).catch(function () {});
         });

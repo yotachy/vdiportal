@@ -45,7 +45,9 @@ function jout($a){ header("Content-Type: application/json; charset=utf-8"); echo
 
 if ($method === "GET") {
   header("Content-Type: application/json; charset=utf-8");
-  header("Cache-Control: no-store");
+  // 브라우저 HTTP 캐시 허용(private): 앱 페이지와 그 안의 포지 프레임(같은 오리진)이 같은 URL 을 받으면
+  // 두 번째는 네트워크 없이 캐시에서 — 신선도는 클라 정책(일 5분·주/월 30분)과 같은 값. 서버 캐시 TTL 과 별개.
+  header("Cache-Control: private, max-age=" . ((isset($_GET["tf"]) && $_GET["tf"] !== "1day") ? 1800 : 300));
   if (isset($_GET["check"])) { echo json_encode(["valid" => check_key($WRITE_KEY)]); exit; }
   if (isset($_GET["images"])) {
     if ($AUTH_ON && !$UID) { echo "{}"; exit; }   // 게스트(체험): 사용자 이미지 없음
@@ -73,15 +75,27 @@ if ($method === "GET") {
     // 주의: 응답 필터일 뿐이며 캐시 파일에는 항상 전량을 저장한다.
     $since = isset($_GET["since"]) ? trim($_GET["since"]) : "";
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $since)) $since = "";
-    $emit = function($cands, $sym, $tf, $source, $name) use ($since) {
+    // limit: 마지막 N봉만(표시·시그널용 경량 요청 — 홈 카드·시세·감지 룰은 60봉이면 충분).
+    // ⚠ 분석용 요청에는 쓰지 않는다: 엔진 판정·목표가는 이력 길이에 따라 달라진다(2026-08-25 실측 —
+    // NVDA 일봉 deep 400봉 64%/229 vs 전량 63%/223). PC·앱 분석은 전량 이력으로 같아야 한다(정합).
+    $limit = isset($_GET["limit"]) ? (int)$_GET["limit"] : 0;
+    if ($limit < 0 || $limit > 6000) $limit = 0;
+    $emit = function($cands, $sym, $tf, $source, $name) use ($since, $limit) {
       $full = true;
       if ($since !== "") {
         $out = [];
         foreach ($cands as $c) { if (isset($c["t"]) && strcmp((string)$c["t"], $since) >= 0) $out[] = $c; }
         $cands = $out; $full = false;
       }
+      if ($limit > 0 && count($cands) > $limit) { $cands = array_slice($cands, -$limit); $full = false; }
+      // 전송 다이어트: 소수 4자리(엔진도 toFixed(4)로 받는다)·거래량 정수 — 원본 캐시는 그대로
+      foreach ($cands as &$c) {
+        foreach (["o","h","l","c"] as $k) if (isset($c[$k])) $c[$k] = round((float)$c[$k], 4);
+        if (isset($c["v"])) $c["v"] = (int)round((float)$c["v"]);
+      }
+      unset($c);
       echo json_encode(["ok"=>true,"symbol"=>$sym,"tf"=>$tf,"source"=>$source,"name"=>$name,
-                        "full"=>$full,"candles"=>array_values($cands)], JSON_UNESCAPED_UNICODE);
+                        "full"=>$full,"limit"=>$limit,"candles"=>array_values($cands)], JSON_UNESCAPED_UNICODE);
     };
 
     // 캐시 (일봉 1h / 주·월 6h)
@@ -91,7 +105,7 @@ if ($method === "GET") {
       // 전량 요청 = 파일 직행(가장 빠른 경로 — 5000봉 decode/encode 회피).
       // 증분 도입 이전에 쓰인 캐시 파일엔 "full" 키가 없어 그대로 나가지만,
       // 클라가 `full !== false`로 판정하므로 전량 교체로 안전하게 떨어진다(TTL 만료 시 자연 해소).
-      if ($since === "") { readfile($cf); exit; }
+      if ($since === "" && $limit === 0) { readfile($cf); exit; }
       $hit = json_decode(@file_get_contents($cf), true);
       if (is_array($hit) && isset($hit["candles"]) && is_array($hit["candles"])) {
         $emit($hit["candles"], $sym, $tf, isset($hit["source"]) ? $hit["source"] : "cache",
