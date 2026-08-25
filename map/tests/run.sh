@@ -69,6 +69,7 @@ fi
 # 머니스쿱 앱(map/app/) — 정책·상태·문자열 로직 + ES2017 문법 하한. UMD 라 node 로 돈다.
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
   run_suite "app"         "$ROOT/app" bash -c 'node --test ./*.test.js'   # 글롭 — 새 테스트 파일이 자동 편입되게(나열 방식은 누락 사고를 만든다)
+  run_suite "app-shell"   "$ROOT/app-shell" bash -c 'node --test ./*.test.mjs'   # Capacitor 셸 www 생성기 관문(P10)
 fi
 
 # 앱 채점 원장(PHP) — 서버 판정 로직. 'all'에 낀다(빠름).

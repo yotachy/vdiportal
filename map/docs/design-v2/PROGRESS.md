@@ -1,7 +1,7 @@
 # 머니스쿱 앱 — 진행 로그 · 재개 지점
 
 **세션이 끊기면 이 문서 하나로 이어진다.** 페이즈 완료·배포·중요 결정 때마다 갱신한다(갱신 규칙은 맨 아래).
-최종 갱신: **2026-08-25 (P9 마감 완료)**
+최종 갱신: **2026-08-25 (P10 앱 셸 완료 — 전 페이즈 종료)**
 
 ---
 
@@ -19,7 +19,8 @@
 | P7 통계 | ✅ | 서버 익명 집계(al_peers_stats — 원장 실값만 파생)·peers 화면 8블록·엔진 카드 4페이지(백테스트 정본 58.1%/기준선 60.8% 병기·validatedAxes/version 라이브)·표본 없는 항목 '집계 준비 중' 정직 표기·마니페스토(about) 시트 |
 | P8 계정 | ✅ | 실 구글 OAuth(wallet-auth.php+w_merge 재사용 — auth_start/auth_poll)·게스트→계정 병합(서버 규칙: xp/페르소나 max·읽음/종목 합집합)·닉네임 자동 생성·XP 실적립 게이트 해제·변경 디바운스 push+부팅 pull·로그아웃/탈퇴·계정 해석 3갈래(최초 링크/병합-이동 기기/게스트) |
 | P9 마감 | ✅ | 반응형 §16 3단계(compact/medium 2패널·480 다이얼로그/expanded 좌측 레일)·접근성(tablist·dialog·Esc·포커스·aria-label)·fixture 로컬 호스트 게이트·앱 버전 상수·닉네임 리더보드 해금(적중·다작) |
-| **P10 앱 셸** | ⏳ **다음** | Capacitor 셸·AdMob 보상 광고(wallet-ssv 연동)·FCM·스토어 릴리스 트랙 |
+| P10 앱 셸 | ✅ | `app-shell/` Capacitor 8 안드로이드 셸(APK 빌드 성공 · 엔진은 서버 절대 URL — 사본 없음)·AdMob 보상 광고 배선(app-ads.js ↔ ad_config/ad_state ↔ wallet-ssv 실지급)·하드웨어 뒤로가기·빌드/광고 활성/릴리스 절차 문서 |
+| **다음** | — | 외부 자원 대기: 실 OAuth 파일 · AdMob 실유닛(ad_units.json) · Firebase(FCM) · 릴리스 서명 키. 코드 트랙은 이월 목록(§5 P7~P9)과 지속 개선(작도 PC 동조) |
 
 **라이브**: https://parksvc.mycafe24.com/map/app/ (실데이터 — cafe24에서만 시세 프록시 동작. 로컬은 `?fixture=1`)
 
@@ -40,12 +41,13 @@
 - 확정: Q1 적중 환급 +1(P5 실지급) · Q2 레벨 0 시작 · Q3 24h 무차감 대칭 · Q4 페르소나 300문+·**총량 비공개** · Q5 지표는 엔진 정본.
 - 정책 숫자는 `app-config.js` POLICY만 · 문자열은 `MS.str()` · ES2017 하한 · 시트는 탭바 불가림.
 
-## 3. 배포 상태 (2026-08-25 기준 — P9까지 라이브)
+## 3. 배포 상태 (2026-08-25 기준 — P10까지 라이브 · APK 는 로컬 빌드만)
 
 - **앱**: `www/map/app/` — index.html·app.css·app-*.js(테스트 제외)·assets(intro/engine-deep/engine-apply.mp4).
 - **서버 동반 세트**: `www/map/app-api.php` + `app-ledger-lib.php` + `app-wallet-bridge.php` + `app-persona-bank.php`(P6) + `app-sync-lib.php`(P8) + `wallet-lib.php`(가드형 상수 — 같이 올리고 같이 검증, wallet-lib 수정 시 concurrency 관문 필수).
 - **엔진**: 앱은 서버의 `www/map/forge-core.js` 를 상대참조 — **엔진 커밋 미배포 시 앱이 죽는다**(aggUpProb 사고, CLAUDE.md 기록). 엔진 올릴 땐 forge 동반 세트 확인.
 - **불가침**: `<data>/app_ledger.db`(예측·채점 원장) + 기존 forge_*·wallet 목록.
+- **앱 셸(APK)**: `map/app-shell/` — 스토어 릴리스 트랙(커밋+푸시 한 세트, 배포 별도). 절차·릴리스 준비 목록은 `docs/ANDROID-BUILD.md` 하단 절. 디버그 APK 44MB(인트로 mp4 3종 포함 — 릴리스 전 R8·에셋 다이어트 과제).
 - 배포 방법: `lftp -u "parksvc,<메모리 scoopforge-deploy 참조>" sftp://parksvc.mycafe24.com` → put. **호스트는 mycafe24.com — `parksvc.cafe24.com`은 22 포트가 닫혀 있어 무한 대기한다**(2026-08-25 확인). `set net:timeout 15` 걸고 올릴 것.
 
 ## 4. 개발 환경 메모 (재개 시 그대로 씀)
@@ -66,7 +68,8 @@
 - P7 통계 완료(2026-08-25): 서버 `al_peers_stats`(14일 사용량·7일 종목 점유율·90일 관점별 적중률+'항상 상승' 실측 기준선·나의 적중률/상위%·minN=5 미달 비공개) + peers op(내 대기 채점 스위프 후 집계). stats 화면: 엔진 스와이프 카드 4p(사용량 실값 / walk-forward 정본 58.1% vs 기준선 60.8% — 프로토 62.6%/60.96%/8,214건 샘플은 이식 금지 / validatedAxes 8축 라이브 / 누적 채점·버전 라이브), 최다 분석 종목(HOT·내 관심), 페르소나 분포·가중치 집계·닉네임 리더보드는 P8 전 '집계 준비 중'(무엇이 올지 이름으로). about 시트(app-ui.openAbout — 마니페스토 전문·면책·Contact·엔진 버전/지표 수 라이브, 헤더 ⓘ+통계 푸터). manifesto-engine-v2.png 에셋 편입. 함정 1건: 라우터 host 가 이미 `.ms-screen`(absolute 스크롤러) — 화면 모듈이 host 스타일을 덮지 말 것.
 - P8 계정 완료(2026-08-25): 서버 — `auth_start`(논스 발급, wallet-auth.php 브라우저 구간 재사용)·`auth_poll`(w_merge 병합 → 논스 소각 → 게스트 상태 즉시 sync_put·닉네임 생성)·`sync_push/pull`(app-sync-lib: xp/personaIdx max·personaAns 긴 쪽·sigRead 합집합·picks 합집합 상한 12·스칼라 클라 우선)·`withdraw`(동기화 삭제+구글 해제, 원장은 익명 보존)·`app_acct_resolve` 3갈래(최초 링크 기기=자기 계정 / merge_discard 표식 기기 → 구글 계정 / 게스트) — 지갑 ops 전부 해석된 계정을 본다(두 기기 같은 잔액, 재발행 없음). 클라 — app-auth.js(start/poll 2.5s×120·logout·withdraw·변경 디바운스 push 3s·부팅 pull), wallet.state 가 linked/nick 정본 반영, 헤더 아바타=닉 이니셜, 내 스쿱 계정 행/탈퇴(confirm), 홈 페르소나 잠금 CTA·헤더 계정 버튼 → 로그인. dev: `?fixture=1` 스텁 링크(서버 무관, stub 플래그로 서버 override 차단). 라이브 OAuth 는 `forge_google_oauth.json` 업로드 시 자동 활성(없으면 auth-disabled → "준비 중" 토스트). 테스트 app-sync 20건. 함정: 로컬 PHP 는 IP 계정 생성 상한에 걸려 wallet ops 가 500 — 동기화 ops 는 계정을 만들지 않게(resolve create=false) 분리했다.
 - P9 마감 완료(2026-08-25): **반응형 §16** — app.css 미디어쿼리 2단(600/840): medium = #msApp 640 캡 · 홈 매트릭스+페르소나 2컬럼(`.ms-home-duo`) · 종목 그리드 3열 · 차트 `.ms-chart-layout` 55/45 2패널(좌 sticky 차트, 우 결과 스크롤, FAB=우패널 하단) · 시트 → 480px 중앙 다이얼로그(inset 0+margin auto — msSheetUp 이 transform 을 쓰므로 transform 센터링 금지); expanded = 탭바 → 좌측 내비 레일(96px 세로) · 차트 62/38 · 그리드 4열 · 본문 1100 캡. 채점·시그널 마스터-디테일은 이월(목록 640 캡으로 대응). **접근성** — 탭바 role=tablist/tab+aria-selected·라벨, 시트 role=dialog aria-modal+포커스+Esc, FAB aria-label. **dev 트리거** — `?fixture=1` 은 로컬·사설망 호스트(localhost/127/10./192.168./100.)에서만 살아 프로덕션 URL 로 켤 수 없다(app-data.devMode 단일 게이트, app-auth 스텁도 이 플래그). 프로토 데모 트리거(fast5·runFail·strk7·watchAd 시뮬)는 애초 이식하지 않았음(03 §7-7 대조 완료). "프로토타입 초기화"→"데이터 초기화", 앱 버전 POLICY.app.version. **리더보드 해금**(P7 이월) — peers 응답에 leads(90일 30회↑ 적중률)·vols(30일 등록) — 구글 연결+닉네임 사용자만, 기기 id 비노출; 레벨 보드는 XP 서버 검증(§15) 전 비공개 유지. **i18n 이월**: 크롬·정책 문자열은 키, 화면 카피는 프로토 원문 인라인(한국어 단일 출시 — 키 분리는 번역 착수 시 일괄, 지침서 §15 "지원 언어·시점 협의"). 3브레이크포인트 스크린샷 대조 완료.
-- **다음 착수점: P10 앱 셸** — Capacitor 셸(`docs/ANDROID-BUILD.md` 절차·`_archive` 참조 금지) · AdMob 보상 광고(광고 버튼 스텁 → `wallet-ssv.php` SSV 연동, `ad_units.json` 킬 스위치) · FCM 푸시(시그널 서버 스캔 승격과 짝) · 하드웨어 백버튼 · 스토어 릴리스 트랙(커밋+푸시 한 세트, 배포 별도).
+- P10 앱 셸 완료(2026-08-25): `app-shell/`(package.json exact — core/cli/android 8.5.0 · app 8.1.1 · admob 8.1.0, capacitor.config appId `com.moneyscoop.app`, `build-www.mjs` = ../app 복사기(테스트·md 제외)+index 치환: **엔진 `<script>` 를 서버 절대 URL 로 바꾸고 `window.MS_SERVER_BASE` 주입** → `app-data.serverBase()` 가 API·시세 경로 결정, 웹은 종전 `..`). `cap add android` 생성물 커밋(build·local.properties·assets/public 제외), 매니페스트 AdMob 테스트 앱 ID, variables.gradle 광고 SDK 고정(25.4.0/4.0.0). **`gradlew assembleDebug` 성공** — APK 44MB · minSdk 24 · targetSdk 36 · www 28 파일 번들 · forge-core 미번들(0건) 확인. 광고: `app-ads.js`(Capacitor.Plugins.AdMob 직접 — 번들러 없음; ad_config→prepare(ssv.customData=계정 id 원문)→show→보상 리스너→wallet_state 폴링으로 SSV 착지 확인, 클라 지급 없음) + app-api `ad_config/ad_state`(w_ad_units/w_ad_state 재사용, ad_units.json 부재=ads-disabled 킬 스위치, 로컬 확인). 하드웨어 뒤로가기 `bindHardwareBack`(시트→홈→종료). run.sh `app-shell` 스위트(3건). 문서: ANDROID-BUILD.md 하단에 새 셸 절차·광고 활성 순서·릴리스 준비 목록(서명 키·versionCode·R8·FCM 은 Firebase 프로젝트 선행). 실기기 설치는 미실시(USB/usbipd 필요).
+- **전 페이즈 종료.** 다음은 외부 자원이 열리는 순서대로: ① `forge_google_oauth.json` 업로드 → 실 로그인 라이브 검증 ② AdMob 콘솔 유닛+SSV URL 등록 → `ad_units.json` 업로드 → APK 실기기 광고 E2E ③ 서명 키·versionCode → `assembleRelease` ④ Firebase → FCM+시그널 서버 스캔. 코드 이월(§5): 채점/시그널 마스터-디테일 · i18n 키 분리 · XP 서버 검증(레벨 보드) · 페르소나 분포/가중치 집계 · 작도 PC 동조 개선.
 
 ---
 

@@ -9,6 +9,12 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
 
+  // 서버 기준 경로 — 웹(cafe24 www/map/app/)은 상대 "..", 앱 셸(Capacitor https://localhost)은
+  // build-www 가 index.html 에 주입한 window.MS_SERVER_BASE(절대 URL). 두 배포가 같은 서버를 본다.
+  function serverBase() {
+    return (typeof window !== "undefined" && window.MS_SERVER_BASE) ? String(window.MS_SERVER_BASE).replace(/\/$/, "") : "..";
+  }
+
   // 임시 종목 마스터(치환표 R-A01 — 실서비스는 검색 API, Q12) — 프로토 T 11종의 심볼·이름만
   const MASTER = [
     { sym: "NVDA", name: "엔비디아" },
@@ -64,7 +70,7 @@
       }
       let j = null;
       try {
-        j = await io.fetchJson("../forge-api.php?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(apiTf));
+        j = await io.fetchJson(serverBase() + "/forge-api.php?ohlc=1&symbol=" + encodeURIComponent(symbol) + "&tf=" + encodeURIComponent(apiTf));
       } catch (e) { j = null; }
       if (!j || !j.ok || !Array.isArray(j.candles) || !j.candles.length) {
         if (hit) return { ok: true, candles: hit.candles, symbol: hit.symbol, name: hit.name, source: hit.source, stale: true };
@@ -126,7 +132,7 @@
     const body = payload || {};
     body.op = op;
     body.device = deviceId();
-    const r = await fetch("../app-api.php", {
+    const r = await fetch(serverBase() + "/app-api.php", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body)
     });
@@ -135,7 +141,7 @@
 
   const api = { MASTER: MASTER, tfApi: tfApi, quote: quote, spark: spark,
     createOHLC: createOHLC, browserIO: browserIO, fixtureStore: fixtureStore,
-    deviceId: deviceId, api: serverApi, ohlc: null };
+    deviceId: deviceId, api: serverApi, serverBase: serverBase, ohlc: null };
   // 브라우저에선 기본 스토어를 미리 만들어 둔다(테스트는 createOHLC 로 주입 생성)
   if (typeof window !== "undefined" && typeof fetch !== "undefined") {
     // dev 게이트(P9): ?fixture=1 은 로컬·사설망 호스트에서만 산다 — 프로덕션 URL 로는 켤 수 없다

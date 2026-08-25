@@ -87,7 +87,7 @@
         // 광고(P10 AdMob)
         '<button data-act="ad" style="margin-top:8px;width:100%;min-height:50px;border-radius:12px;border:1px solid rgba(123,108,255,0.35);background:rgba(123,108,255,0.07);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-family:inherit">' +
         '<span style="font-size:14px;font-weight:600;color:var(--ac)">광고 1편 보기</span><span class="mono" style="font-size:12.5px;color:var(--ac)">◈+' + pol.scoop.ad.scoop + '</span><span class="mono" style="font-size:12.5px;color:var(--up)">+' + pol.scoop.ad.xp + "XP</span></button>" +
-        '<div style="margin-top:6px;font-size:10.5px;color:var(--m2);text-align:center">광고 보상은 앱(스토어) 버전에서 열려요 · 끝까지 봐야 적립됩니다</div>' +
+        '<div style="margin-top:6px;font-size:10.5px;color:var(--m2);text-align:center">' + (MS.ads && MS.ads.native ? "끝까지 봐야 적립됩니다 · 오늘 남은 광고 " + (s.adRemaining == null ? "—" : s.adRemaining) + "편" : "광고 보상은 앱(스토어) 버전에서 열려요 · 끝까지 봐야 적립됩니다") + "</div>" +
         "</div>" +
 
         // 계정 · 설정
@@ -139,7 +139,7 @@
         if (!MS.store.get().canCheckin) { MS.ui.flash("오늘 출석은 이미 받았어요 — 내일 다시", ""); return; }
         MS.wallet.checkin().then(render);
       });
-      on("ad", function () { MS.ui.flash("광고 보상은 앱(스토어) 버전에서 열려요", ""); });
+      on("ad", function () { MS.ads.watch().then(function (r) { if (r && r.rewarded) render(); }); });
       on("login", function () { MS.auth.start(); });
       on("acct", function () { if (MS.store.get().gLinked) MS.auth.logout(); else MS.auth.start(); });
       on("noti", function () {

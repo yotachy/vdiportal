@@ -1,0 +1,7 @@
+{
+  "appId": "com.moneyscoop.app",
+  "appName": "머니스쿱",
+  "webDir": "www",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false, "backgroundColor": "#06070a" }
+}

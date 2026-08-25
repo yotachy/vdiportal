@@ -133,3 +133,64 @@ Capacitor 는 `androidScheme: "https"` 로 `https://localhost/` 에서 서빙한
 
 `assembleRelease` 는 서명 키(keystore)가 있어야 한다. 스토어 등록·`versionCode` 정책·난독화와 함께
 다룰 일이라 여기서는 다루지 않는다. 8d(AdMob)도 릴리스 서명이 필요한 시점이 온다.
+
+---
+
+# 2026-08-25 — 새 앱 셸 `map/app-shell/` (P10)
+
+위 절차의 `map/mobile` 은 **봉쇄된 옛 트랙**(`_archive/`)이다. 새 앱(`map/app/`)의 셸은 `map/app-shell/` 이고
+같은 툴체인(~/tools 의 JDK 21 · Android SDK 36)을 그대로 쓴다. 달라진 점만 적는다.
+
+## 구조 — www 는 생성물, 엔진은 서버
+
+```
+map/app-shell/
+  package.json          # @capacitor/core·cli·android 8.5.0 · @capacitor/app 8.1.1 · @capacitor-community/admob 8.1.0 (전부 exact)
+  capacitor.config.json # appId com.moneyscoop.app · webDir www · androidScheme https
+  build-www.mjs         # ../app → www/ 복사기(테스트·md 제외) + index.html 치환. 번들·트랜스파일 없음
+  build-www.test.mjs    # 치환·제외 규칙 관문(run.sh app-shell 스위트)
+  www/                  # 생성물(gitignore)
+  android/              # cap add android 생성물 — 커밋 대상(생성물 표시 파일 포함), build·local.properties 제외
+```
+
+- **엔진 사본은 없다.** `build-www` 가 `<script src="../forge-core.js">` 를 **서버 절대 URL**
+  (`https://parksvc.mycafe24.com/map/forge-core.js`)로 바꾼다 — PC·웹앱·APK 가 같은 서버 스냅샷을 본다
+  (CLAUDE.md §②·열린 엔진). 부팅에 네트워크가 필요하지만 시세도 서버라 새 제약은 아니다.
+- `window.MS_SERVER_BASE` 를 엔진보다 먼저 주입 → `app-data.serverBase()` 가 API·시세 경로를 절대 URL 로 만든다.
+  웹 배포(`www/map/app/`)는 이 값이 없어 종전대로 `..` 상대 경로다.
+- 하드웨어 뒤로가기는 `app-main.bindHardwareBack`(시트 닫기 → 홈 → 종료). 광고는 `app-ads.js`
+  (`Capacitor.Plugins.AdMob` — 번들러 없이 네이티브 등록 플러그인을 직접 잡는다).
+
+## 빌드
+
+```bash
+export JAVA_HOME=$(echo ~/tools/jdk-21*) ANDROID_HOME=~/tools/android-sdk ANDROID_SDK_ROOT=~/tools/android-sdk
+export PATH="$JAVA_HOME/bin:$PATH"
+cd map/app-shell
+npm install                        # node_modules 는 커밋 안 됨 — 새 작업본은 필수
+npm run cap:sync                   # build-www + cap sync (www 갱신·플러그인 Gradle 배선)
+echo "sdk.dir=$ANDROID_HOME" > android/local.properties
+cd android && ./gradlew assembleDebug --no-daemon
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+`variables.gradle` 에 `playServicesAdsVersion='25.4.0'`·`userMessagingPlatformVersion='4.0.0'` 을 못 박았다
+(플러그인 기본 `25.4.+` 동적 버전 금지). 매니페스트 AdMob 앱 ID 는 구글 공개 테스트 ID — 실 ID 는 배포 시점에 교체.
+
+## 광고를 켜는 순서(서버 킬 스위치)
+
+1. 코드(`app-api.php`·`wallet-lib.php`·`wallet-ssv.php`)가 서버에 있고 살아 있는지 확인.
+2. AdMob 콘솔: 보상형 유닛 생성 → SSV 콜백 URL `https://parksvc.mycafe24.com/map/wallet-ssv.php` 등록.
+3. **마지막에** `<data>/ad_units.json` 업로드 — `{"quick":{"unitId":"...","reward":3},"full":{"unitId":"...","reward":3}}`.
+   이 파일이 없으면 `ad_config` 가 `ads-disabled` → 앱은 "지금은 광고를 준비 중이에요". 문제가 생기면 이 파일부터 내린다.
+4. 앱의 `customData` = 서버가 준 계정 id 그대로(가공 금지) — SSV 가 모양이 다르면 콜백을 조용히 버린다.
+
+## 릴리스 트랙(아직 안 한 것)
+
+- **서명 키**: `keytool -genkeypair -v -keystore moneyscoop-release.jks -alias moneyscoop -keyalg RSA -keysize 2048 -validity 10000`
+  → 저장소 밖(`~/tools/keys/`)에 보관, `android/keystore.properties`(gitignore)로 참조, `app/build.gradle` 에 `signingConfigs.release`.
+- `versionCode` 는 릴리스마다 +1(정수 단조), `versionName` 은 `POLICY.app.version` 과 맞춘다.
+- R8/리소스 축소는 `assembleRelease` 에서 `minifyEnabled true` + 광고 SDK proguard 규칙(플러그인 동봉) 확인 후.
+- **FCM 푸시는 Firebase 프로젝트(google-services.json)가 있어야 시작할 수 있다** — `@capacitor-firebase/messaging 8.x` +
+  `com.google.gms.google-services` 플러그인. 시그널 서버 스캔 승격과 한 세트라 그때 같이 연다.
+- 실기기: `adb install -r app-debug.apk`(WSL 은 usbipd 또는 윈도우 adb.exe). APK 는 **진짜 지갑 계정**을 만든다(W_IP_DAILY 상한 소진 주의).

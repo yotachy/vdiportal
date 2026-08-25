@@ -167,6 +167,21 @@ try {
     al_out(array("ok" => true));
   }
 
+  // ── 광고 ops(P10 AdMob) — 유닛 설정·잔여 횟수. 실지급은 wallet-ssv.php(구글 SSV 콜백) →
+  // w_ad_grant 의 몫이고 여기서는 절대 지급하지 않는다. customData = 해석된 계정 id(w_account_id
+  // 모양 그대로 — 가공하면 SSV 가 조용히 버린다, wallet-api adConfig 주석 참조).
+  if ($op === "ad_config" || $op === "ad_state") {
+    $wdb = w_db($AL_DIR);
+    $res = app_acct_resolve($wdb, $AL_DIR, $device);
+    if ($op === "ad_config") {
+      $u = w_ad_units($AL_DIR);
+      if (!$u) al_out(array("ok" => false, "error" => "ads-disabled"));   // ad_units.json 부재 = 킬 스위치
+      al_out(array("ok" => true, "quick" => $u["quick"], "full" => $u["full"], "customData" => $res["acct"]["id"]));
+    }
+    $st = w_ad_state($wdb, $res["acct"]["id"]);
+    al_out(array("ok" => true, "remaining" => $st["remaining"], "nextAt" => $st["nextAt"]));
+  }
+
   // ── 지갑 ops(P5 — P8 부터 구글 연결 기기는 병합된 계정을 본다) ──
   if ($op === "wallet_state" || $op === "wallet_spend" || $op === "wallet_refund" || $op === "wallet_checkin") {
     $wdb = w_db($AL_DIR);

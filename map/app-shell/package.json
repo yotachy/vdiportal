@@ -1,0 +1,18 @@
+{
+  "name": "moneyscoop-app-shell",
+  "version": "1.0.0",
+  "private": true,
+  "description": "머니스쿱 앱 — Capacitor 안드로이드 셸(P10). www/ 는 build-www.mjs 가 ../app 에서 생성한다.",
+  "scripts": {
+    "build:www": "node build-www.mjs",
+    "cap:sync": "node build-www.mjs && npx cap sync android",
+    "test": "node --test ./*.test.mjs"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "8.1.0",
+    "@capacitor/android": "8.5.0",
+    "@capacitor/app": "8.1.1",
+    "@capacitor/cli": "8.5.0",
+    "@capacitor/core": "8.5.0"
+  }
+}

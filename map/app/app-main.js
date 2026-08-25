@@ -80,6 +80,21 @@
     go(restored ? "home" : "boot");
     if (restored && MS.wallet) MS.wallet.state();   // 서버 잔액 동기화 + 적중 환급 스위프
     if (MS.auth) MS.auth.init();                     // 연결 기기: 변경 푸시 훅 + 부팅 pull(P8)
+    bindHardwareBack();                              // 앱 셸 하드웨어 뒤로가기(P10)
+  }
+
+  // 하드웨어 뒤로가기(Capacitor @capacitor/app — 순수 DOM 으로는 잡을 수 없다, CLAUDE.md §⑥):
+  // 시트 열림 → 시트 닫기 · 실행/조절/보조 화면 → 홈 · 홈 → 앱 종료(OS 기본)
+  function bindHardwareBack() {
+    const cap = window.Capacitor;
+    const App = cap && cap.Plugins && cap.Plugins.App;
+    if (!App || typeof App.addListener !== "function") return;
+    App.addListener("backButton", function () {
+      const s = store.get();
+      if (s.sheet) { MS.ui.closeSheet(); return; }
+      if (currentName && currentName !== "home" && currentName !== "boot") { go("home"); return; }
+      if (typeof App.exitApp === "function") App.exitApp();
+    });
   }
 
   MS.router = { register: register, go: go, onChrome: onChrome, boot: boot };
