@@ -2801,8 +2801,7 @@
     _scanning = true; _scanU = 0; drawEvidence();
     // 차트 외 시각화 초기화: 레이더·신호보드 전부 흐리게(아직 계산 전), 예측·국면은 0에서 형성
     _playReveal = { ids: new Set(), u: 0 };
-    renderNodeAnalysis(lastResult); renderSignalBoard();
-    _redrawOscForPlay(0);   // 오실레이터 비우고 시작 → 데모 진행에 맞춰 좌→우로 그려짐
+    if (!(typeof EMBED !== "undefined" && EMBED)) { renderNodeAnalysis(lastResult); renderSignalBoard(); _redrawOscForPlay(0); }   // 오실레이터 비우고 시작 → 데모 진행에 맞춰 좌→우로 그려짐
     { const _lb0 = document.getElementById("analyzeLogBody"); if (_lb0) _lb0.innerHTML = ""; }
     const hud = document.getElementById("playHud"); if (hud) { hud.classList.add("on"); if (!_playHudUserCollapsed) { hud.classList.remove("collapsed"); const _mb = document.getElementById("playHudMin"); if (_mb) _mb.textContent = "–"; } _restoreHudPos(HUD_POS_KEYS.playHud, hud); _clampPanel(hud); }   // 시뮬레이션 = 진행로그 자동 펼침(사용자가 접어둔 경우 제외)
     const progEl = document.getElementById("analyzeProg");
@@ -2848,7 +2847,7 @@
           _analyzeNode = tk.n.id;            // 현재 동작 노드 추적(드로펄스 활성 효과용)
           if (typeof _playSeq !== "undefined" && _playSeq) { _seqStart[tk.n.id] = performance.now(); _seqDur[tk.n.id] = Math.max(400, tk.steps.length * STEP_SUB); }   // 순차 작도: 이 지표의 단계 길이만큼 그어짐
           // 차트 외 시각화 동기: 이 지표가 계산되면 레이더 막대·신호보드 행이 점등
-          if (_playReveal.ids) { _playReveal.ids.add(tk.n.id); renderNodeAnalysis(lastResult); renderSignalBoard(); }
+          if (_playReveal.ids && !(typeof EMBED !== "undefined" && EMBED)) { _playReveal.ids.add(tk.n.id); renderNodeAnalysis(lastResult); renderSignalBoard(); }
         }
         _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
         _logAppend(tk.n, tk.st.text, tk.sIdx === tk.steps.length - 1);   // 각 지표의 마지막 단계 = 의견/결론 → 강조
@@ -2870,15 +2869,18 @@
       const u = Math.min(1, (now - t0) / total), e = _ease(u);
       _scanU = e;
       // 무거운 캔버스 작도(19지표 근거+오실레이터+콘)는 ~28fps로 스로틀 → 응답없음 방지(RAF는 계속 돌되 그리기만 제한)
+      const _emb = (typeof EMBED !== "undefined" && EMBED);   // 임베드: 근거 작도만(PC 오실레이터·콘·매트릭스·판정패널은 화면에 없음) → 스레드 여유로 순차 표시·합성이 실제로 일어남
       if (now - _lastDraw > _drawEvery || u >= 1) {
         _lastDraw = now;
         drawEvidence();               // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
-        _redrawOscForPlay(e);         // RSI·거래량 계산되며 그려짐(메인 차트와 동기)
-        _playPred = lerpPred(flat, finPred, e); _playE = e;   // 현재 프레임 보관(조작 재드로우용)
-        fcRenderForecast(_playPred);
+        if (!_emb) {
+          _redrawOscForPlay(e);         // RSI·거래량 계산되며 그려짐(메인 차트와 동기)
+          _playPred = lerpPred(flat, finPred, e); _playE = e;   // 현재 프레임 보관(조작 재드로우용)
+          fcRenderForecast(_playPred);
+        }
       }
       _playReveal.u = e;
-      if (now - _lastCU > 70) {   // DOM 게이지 갱신 ~14fps로 스로틀(충분히 부드럽고 가벼움)
+      if (!_emb && now - _lastCU > 70) {   // DOM 게이지 갱신 ~14fps로 스로틀(충분히 부드럽고 가벼움)
         _lastCU = now;
         renderHorizons(lastResult, e);
         if (fin.verdict) renderVerdict(fin.verdict, e);
