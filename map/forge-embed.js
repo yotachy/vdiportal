@@ -93,6 +93,7 @@
     // 순차 작도 + 총 길이(기본 5지표는 짧게) — 서사(step)와 그림이 같은 박자로 간다. 근거는 시연이 켠다(load 는 evidence:false 로 올 수 있음)
     _playSeq = true; _playTotalMs = _lastTier === "basic" ? 8000 : 16000;
     _evidenceShow = true;
+    document.body.classList.remove("evhide");   // ⚠ _evidenceShow 직접 세팅은 evhide 클래스를 안 벗긴다(toggleEvidence 만 벗김) → 근거 캔버스가 display:none 으로 숨어 있었다(2026-08-25 진단)
     // preview(웹분석 전) 상태면 drawEvidence 가 작도를 통째로 건너뛴다 → 시연 동안 근거가 안 보인다.
     // 이 종목을 '웹분석 후'로 승격해 preview 해제(콘은 _drawWide 가 계속 숨긴다).
     if (typeof _deepSessionDocs !== "undefined") _deepSessionDocs.add(activeId);
