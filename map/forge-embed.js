@@ -84,77 +84,57 @@
 
   const WIDE_BARS = 120;
   let _draft = false;   // 시연 중 전폭에 놓을 캔들 수(폰 폭 기준 봉당 ~3px — 작도가 읽히는 밀도)
-  // ── 지표별 카메라: 그 지표가 실제로 분석하는 봉 범위(lookback/파라미터)에 카메라를 맞춘다 ──
-  // 예) 피보 len120 → 약 120봉을 프레임 / 볼린저 len20 → 가까이 / 엘리어트·사이클 → 아주 멀리.
-  // 봉 범위가 지표마다 크게 달라 확대·축소 폭이 넓고(단조롭지 않게), 실제 작도 범위와 일치한다.
-  function _p(n, k, d) { return (n.params && isFinite(n.params[k])) ? n.params[k] : d; }
-  function _spanBars(n, N) {
-    var t = n.blockType, span;
-    switch (t) {
-      case "fib": span = _p(n, "len", 120); break;
-      case "volumeprofile": span = _p(n, "len", 120); break;
-      case "gann": span = 120; break;
-      case "ichimoku": span = _p(n, "kijun", 26) + _p(n, "senkouB", 52) + _p(n, "shift", 26); break;   // ~104
-      case "cycle": span = Math.min(420, _p(n, "pmax", 120) * 3); break;        // 최소 3주기
-      case "phasefold": span = Math.min(440, _p(n, "pmax", 128) * 3); break;
-      case "elliott": span = 460; break;          // 파동 전개 = 최대 조망
-      case "structure": span = 380; break;
-      case "smc": span = 200; break;
-      case "trend": span = Math.max(_p(n, "len", 40) * 3, Math.round(N * 0.45)); break;   // 장기 추세창까지
-      case "ma": span = 130; break;                                // 20·60·120선 → 120선이 보이게
-      case "macd": span = _p(n, "slow", 26) * 2 + 20; break;       // ~72
-      case "supertrend": span = 100; break;
-      case "psar": span = 90; break;
-      case "vwap": span = _p(n, "len", 20) * 3; break;             // ~60
-      case "keltner": span = _p(n, "len", 20) * 3; break;
-      case "donchian": span = _p(n, "len", 20) * 3; break;
-      case "bollinger": span = _p(n, "len", 20) * 2.6; break;      // ~52 (가까이)
-      case "aroon": span = _p(n, "period", 25) * 2.2; break;
-      case "adx": span = _p(n, "period", 14) * 3; break;           // ~42
-      case "atr": span = _p(n, "period", 14) * 3; break;
-      case "cci": span = _p(n, "period", 20) * 2.6; break;
-      case "mfi": span = _p(n, "period", 14) * 3; break;
-      case "cmf": span = _p(n, "period", 20) * 2.6; break;
-      case "roc": span = _p(n, "period", 12) * 3; break;
-      case "ao": span = _p(n, "slow", 34) * 1.6; break;
-      case "rsi": span = _p(n, "period", 14) * 2.0; break;         // ~28 (가장 가까이·타이트)
-      case "stochastic": span = _p(n, "kLen", 14) * 2.2; break;
-      case "williams": span = _p(n, "period", 14) * 2.2; break;
-      case "pivot": span = 55; break;
-      case "volume": span = 70; break;
-      case "pattern": span = 70; break;
-      default: span = 90;
-    }
-    return Math.max(22, Math.min(N, 460, Math.round(span * 1.15)));   // 하한 22(아주 가까이) · 상한 460(멀리·캔들 보이는 선)
-  }
-  // 창 [start, start+count) 의 실제 고·저(OHLC) — Y 프레이밍용
+  // ── 지표별 카메라: 그 지표가 '실제로 그리는 도형의 좌표'(엔진 결과)로 이동한다 ──
+  // 오버레이(추세·피보·일목·구조 등)만 도형 위치로 카메라를 옮기고, 가격차트에 그림이 없는
+  // 오실레이터(RSI·MACD 등, 서브패널이라 임베드선 숨김)는 화면을 고정한다(의미 없는 줌 반복 제거).
+  var _OSC = { rsi:1, macd:1, stochastic:1, cci:1, williams:1, mfi:1, cmf:1, roc:1, ao:1, adx:1, atr:1, volume:1, aroon:1, cycle:1, phasefold:1 };
+  function _pp(n, k, d) { return (n.params && isFinite(n.params[k])) ? n.params[k] : d; }
+  // 창 [start,start+count) 실제 고·저(Y 프레이밍 보완)
   function _winPriceRange(start, count) {
     var oh = (typeof priceOHLC === "function") ? priceOHLC() : null;
-    var lo = Infinity, hi = -Infinity, s = Math.max(0, start), e = Math.min((oh ? oh.length : 0), start + count);
-    if (oh) { for (var i = s; i < e; i++) { var d = oh[i]; if (!d) continue; if (d.l < lo) lo = d.l; if (d.h > hi) hi = d.h; } }
-    else { var px = (currentData().price || []); for (var j = s; j < Math.min(px.length, start + count); j++) { var v = px[j]; if (v < lo) lo = v; if (v > hi) hi = v; } }
-    if (!isFinite(lo) || !isFinite(hi) || hi <= lo) return null;
-    return { lo: lo, hi: hi };
+    var lo = Infinity, hi = -Infinity, s = Math.max(0, start), e0 = start + count;
+    if (oh) { var e = Math.min(oh.length, e0); for (var i = s; i < e; i++) { var d = oh[i]; if (!d) continue; if (d.l < lo) lo = d.l; if (d.h > hi) hi = d.h; } }
+    else { var px = (currentData().price || []); var e2 = Math.min(px.length, e0); for (var j = s; j < e2; j++) { var v = px[j]; if (v < lo) lo = v; if (v > hi) hi = v; } }
+    return (isFinite(lo) && isFinite(hi) && hi > lo) ? { lo: lo, hi: hi } : null;
   }
-  // 지표 성격별 Y 여백(레벨·확장을 그리는 지표는 넉넉히 — 화면 밖으로 안 나가게)
-  var _YPAD = { fib: 0.34, gann: 0.34, pivot: 0.26, elliott: 0.20, structure: 0.16, volumeprofile: 0.20,
-    trend: 0.18, ma: 0.14, ichimoku: 0.14, cycle: 0.16, phasefold: 0.16, smc: 0.18,
-    bollinger: 0.12, keltner: 0.12, donchian: 0.12, supertrend: 0.12, psar: 0.10, vwap: 0.10,
-    rsi: 0.10, stochastic: 0.10, williams: 0.10, cci: 0.10, mfi: 0.10, cmf: 0.10, macd: 0.10,
-    adx: 0.10, atr: 0.12, aroon: 0.10, roc: 0.10, ao: 0.10, volume: 0.10, pattern: 0.14 };
-  function _camWinNode(n, N) {
-    var c = _spanBars(n, N);
-    var start = Math.max(0, N - c);
-    var pr = _winPriceRange(start, c);
+  // 지표가 그리는 도형의 봉·가격 좌표(엔진 결과에서). 오실레이터=null(카메라 고정).
+  function _regionForNode(n, N) {
+    var t = n.blockType; if (_OSC[t]) return null;
+    var C = window.ForgeCore, price = (currentData().price || []); if (!C || price.length < 5) return null;
+    var pts = [];
+    try {
+      if (t === "fib") { var r = C.analyzeFib(price, { len: _pp(n,"len",120) }); if (r && r.swing) { pts.push({ i: r.swing.fromIdx, p: r.swing.fromPrice }, { i: r.swing.toIdx, p: r.swing.toPrice }); (r.levels||[]).forEach(function(l){ pts.push({ p: l.price }); }); } }
+      else if (t === "trend") { var r = C.analyzeTrend(price, {}); var w = r.windows[r.dominant] || r.windows.long || r.windows.mid || r.windows.short; if (w) { var v = function(i){ return Math.exp(w.bLog + w.slopeLog*(i-w.startIdx)); }; pts.push({ i: w.startIdx, p: v(w.startIdx) }, { i: N-1, p: v(N-1) }); } }
+      else if (t === "elliott") { var r = C.analyzeElliott(price, { swing: _pp(n,"swing",3) }); (r.waves||[]).forEach(function(wv){ pts.push({ i: wv.idx, p: wv.price }); }); pts.push({ i: N-1 }); }
+      else if (t === "structure" || t === "smc") { var r = C.analyzeStructure(price, { swing: _pp(n,"swing",3) }); (r.swings||[]).forEach(function(sw){ pts.push({ i: sw.idx, p: sw.price }); }); if (!pts.length) { pts.push({ i: Math.max(0,N-200) }, { i: N-1 }); } }
+      else if (t === "ma") { pts.push({ i: Math.max(0, N-130) }, { i: N-1 }); }
+      else if (t === "ichimoku") { pts.push({ i: Math.max(0, N-(_pp(n,"kijun",26)+_pp(n,"senkouB",52)+_pp(n,"shift",26))) }, { i: N-1 }); }
+      else if (t === "gann") { pts.push({ i: Math.max(0, N-120) }, { i: N-1 }); }
+      else if (t === "volumeprofile") { pts.push({ i: Math.max(0, N-_pp(n,"len",120)) }, { i: N-1 }); }
+      else if (t === "bollinger" || t === "keltner" || t === "donchian") { pts.push({ i: Math.max(0, N-_pp(n,"len",20)*3) }, { i: N-1 }); }
+      else if (t === "supertrend" || t === "psar" || t === "vwap" || t === "pivot" || t === "pattern") { pts.push({ i: Math.max(0, N-70) }, { i: N-1 }); }
+      else return null;
+    } catch (e) { return null; }
+    if (!pts.length) return null;
+    var bl=1e9, bh=-1e9, pl=1e9, ph=-1e9;
+    pts.forEach(function(q){ if (q.i!=null){ if(q.i<bl)bl=q.i; if(q.i>bh)bh=q.i; } if (q.p!=null && isFinite(q.p)){ if(q.p<pl)pl=q.p; if(q.p>ph)ph=q.p; } });
+    if (bh < 0) return null;
+    return { bl: Math.max(0,bl), bh: Math.max(bh, N-1), pl: (isFinite(pl)&&isFinite(ph)&&ph>pl)?pl:null, ph:(isFinite(pl)&&isFinite(ph)&&ph>pl)?ph:null };
+  }
+  // 영역 → 카메라 목표창(X+Y). 최소 문맥 48봉 확보, 도형 가격대를 캔들 범위와 합집합.
+  function _frameFromRegion(reg, N) {
+    var minBars = 48;
+    var featBars = reg.bh - reg.bl + 1;
+    var count = Math.max(minBars, Math.min(N, 340, Math.round(featBars * 1.2)));   // 상한 340: 그 이상 넓히면 급등주는 최근 캔들이 위로 눌려 안 읽힌다
+    var start = Math.max(0, Math.min(N - count, reg.bh - count + 1));
+    var pr = _winPriceRange(start, count) || { lo: reg.pl, hi: reg.ph };
+    var lo = pr.lo, hi = pr.hi;
+    if (reg.pl != null) { lo = Math.min(lo, reg.pl); hi = Math.max(hi, reg.ph); }   // 도형(피보 확장 등)이 화면 안에 들어오게 합집합
     var ylo = null, yhi = null;
-    if (pr) {
-      var pad = (_YPAD[n.blockType] != null ? _YPAD[n.blockType] : 0.12) * (pr.hi - pr.lo);
-      ylo = pr.lo - pad; yhi = pr.hi + pad;
-    }
-    return { count: c, start: start, ylo: ylo, yhi: yhi };
+    if (isFinite(lo) && isFinite(hi) && hi > lo) { var pad = 0.10 * (hi - lo); ylo = lo - pad; yhi = hi + pad; }
+    return { count: count, start: start, ylo: ylo, yhi: yhi };
   }
 
-  // _chartWin 을 목표 창으로 부드럽게 이동  // _chartWin 을 목표 창으로 부드럽게 이동(짧은 트윈 — 카메라가 미끄러지듯). 스텝마다 캔들+근거 재그림.
   function _camTween(target, steps, done) {
     var s0 = _chartWin.start, c0 = _chartWin.count;
     // Y 시작값: 현재 manual 이면 그 값, 아니면 현재 창의 자동 범위에서 출발
@@ -178,7 +158,7 @@
     step();
   }
 
-  // ── 임베드 자체 시연(가벼움)  // ── 임베드 자체 시연(가벼움) — PC 의 무거운 morph RAF + 100+ setTimeout 틱(HUD/로그 DOM) 대신,
+  // ── 임베드 자체 시연(가벼움) — PC 의 무거운 morph RAF + 100+ setTimeout 틱(HUD/로그 DOM) 대신,
   //    지표를 하나씩 넉넉한 간격으로 그린다. 매 스텝 사이 스레드가 쉬어 느린 폰에서도 화면이 갱신되고
   //    순차 작도가 실제로 보인다(2026-08-25: PC morph 는 폰 스레드를 20초 독점해 끝에 한 번에 나타남). ──
   var _embT = null, _embI = 0, _embNodes = [], _camT = null;
@@ -204,40 +184,56 @@
     drawEvidence();   // 시작: 캔들만(아직 공개된 지표 없음)
     _embI = 0;
     var _now = function () { return typeof performance !== "undefined" ? performance.now() : Date.now(); };
+    // 이 지표의 목표 프레임이 지금 화면과 '의미 있게' 다른가 — 미세한 80→72→84 흔들림(그냥 확대·축소 반복)을
+    // 이동으로 치지 않는다. 시작점이 화면폭의 12% 넘게 밀리거나, 배율이 0.72배 밖으로 벌어질 때만 카메라를 움직인다.
+    function _frameDiffers(t, N) {
+      if (!t) return false;
+      var dStart = Math.abs((t.start || 0) - (_chartWin.start || 0)) / Math.max(1, N);
+      var r = (t.count || 1) / Math.max(1, _chartWin.count || 1);
+      return dStart > 0.12 || r < 0.72 || r > 1.38;
+    }
     function revealNext() {
       _embT = null;
       if (!_playing) return;
       if (_embI >= _embNodes.length) { _embFinish(); return; }
       var n = _embNodes[_embI];
       var N2 = (currentData().price || []).length;
-      var target = _camWinNode(n, N2);
-      // 한 지표당 시간 배분(서두르지 않게): 카메라 글라이드 → 손그림 스트로크 → 잠깐 머무름
-      var per = Math.max(520, Math.min(1300, Math.round(_playTotalMs / Math.max(1, _embNodes.length))));
-      var camMs = Math.min(360, Math.round(per * 0.32)), drawMs = Math.round(per * 0.52), holdMs = Math.max(120, per - camMs - drawMs);
-      var camSteps = Math.max(6, Math.round(camMs / 40));
-      // ① 카메라를 이 지표의 스케일 시야로 부드럽게 이동(누적 작도는 시야 따라 함께 움직임)
-      _camTween(target, camSteps, function () {
+      var reg = _regionForNode(n, N2);
+      var target = reg ? _frameFromRegion(reg, N2) : null;   // null=오실레이터=가격차트에 오버레이 없음
+      var move = _frameDiffers(target, N2);                  // 카메라를 실제로 옮길 때만 true(가까우면 고정)
+      // 카메라 이동은 드물게·깊게. 옮길 때는 넉넉한 글라이드, 고정일 때는 손그림에 집중.
+      var per = Math.max(560, Math.min(1300, Math.round(_playTotalMs / Math.max(1, _embNodes.length))));
+      var camMs = move ? Math.min(760, Math.max(360, Math.round(per * 0.62))) : 0;
+      var drawMs = Math.round(per * (move ? 0.62 : 0.9)), holdMs = Math.max(120, Math.round(per * 0.24));
+      var osc = !target;
+      var runDraw = function () {   // ② 내레이션 emit + 손그림 스트로크(지표 고유 작도가 0→1 로 그어짐) → 머무름 → 다음
         if (!_playing) return;
         var txt = "";
         try { if (lastResult && lastResult.nodeText) txt = lastResult.nodeText[n.id] || ""; } catch (e) {}
         emit("step", { idx: _embI, total: _embNodes.length, type: n.blockType,
           label: (typeof BTLABEL !== "undefined" && BTLABEL[n.blockType]) || n.blockType,
-          sIdx: 0, sTotal: 1, text: txt, last: true, cam: _spanBars(n, (currentData().price||[]).length) });
+          sIdx: 0, sTotal: 1, text: txt, last: true, cam: (target ? target.count : 0), osc: osc, moved: move });
         _scanU = Math.min(0.999, (_embI + 1) / _embNodes.length);
-        // ② 손그림 스트로크: _seqStart=지금 → drawEvidence 의 _skFrac(=경과/드로시간)이 0→1 로 자라며
-        //    이 지표가 '그어지는' 느낌(선은 긋고, 82% 지나면 라벨·점·레벨이 얹힘 — 지표별 고유 작도 그대로).
-        _seqDur[n.id] = drawMs;
-        _seqStart[n.id] = _now();
+        if (osc) {   // 오실레이터: 가격차트에 오버레이 없음 → 화면 고정, 짧게 지나감(정적 꼬리 방지)
+          _seqStart[n.id] = _now() - 999; _seqDur[n.id] = 1;
+          try { drawEvidence(); } catch (e) {}
+          _embI++; _embT = setTimeout(revealNext, 280); return;
+        }
+        // 손그림: _skFrac(경과/드로시간) 0→1 로 자라며 선을 긋고, 82% 지나면 라벨·점·레벨이 얹힌다.
+        _seqDur[n.id] = drawMs; _seqStart[n.id] = _now();
         var t0 = _now();
         (function stroke() {
           if (!_playing) return;
           try { drawEvidence(); } catch (e) {}
-          if (_now() - t0 < drawMs) { _embT = setTimeout(stroke, 42); return; }   // ~24fps 손그림(가볍다: drawEvidence ≈ 4ms)
+          if (_now() - t0 < drawMs) { _embT = setTimeout(stroke, 42); return; }   // ~24fps 손그림(drawEvidence ≈ 4ms)
           try { drawEvidence(); } catch (e) {}   // 완성 프레임
           _embI++;
-          _embT = setTimeout(revealNext, holdMs);   // ③ 잠깐 머무른 뒤 다음 지표
+          _embT = setTimeout(revealNext, holdMs);
         })();
-      });
+      };
+      // ① 카메라: 실제로 다른 구간을 볼 때만 넉넉히 글라이드, 아니면 지금 화면에서 바로 작도(미세 줌 흔들림 제거)
+      if (move) _camTween(target, Math.max(9, Math.round(camMs / 34)), runDraw);
+      else runDraw();
     }
     _embT = setTimeout(revealNext, 400);
     return;
@@ -285,7 +281,7 @@
         document.body.appendChild(el); }
       var ev = -1; try { var cv = document.getElementById("fcEvidence"); var c = cv.getContext("2d"); var d = c.getImageData(0,0,cv.width,cv.height).data; ev = 0; for (var i=3;i<d.length;i+=8) if (d[i]>60) ev++; } catch (e) {}
       var cs = getComputedStyle(document.getElementById("fcEvidence"));
-      el.textContent = "DIAG v=20260825l evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
+      el.textContent = "DIAG v=20260825p evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
     }, 700);
   }
   if (/[?&]demo=1/.test(location.search)) {
