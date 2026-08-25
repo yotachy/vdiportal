@@ -48,7 +48,14 @@ function sync_merge_state($server, $incoming, $picksMax = 12) {
   $out["personaIdx"] = (int)max($num($s, "personaIdx"), $num($c, "personaIdx"));
   $sa = isset($s["personaAns"]) && is_array($s["personaAns"]) ? $s["personaAns"] : array();
   $ca = isset($c["personaAns"]) && is_array($c["personaAns"]) ? $c["personaAns"] : array();
-  $out["personaAns"] = count($sa) > count($ca) ? $sa : $ca;
+  // personaGroups(클라 파생 {t,m,v,q,s} — 통계 집계용)는 답 스냅샷을 따라간다(더 진행된 쪽과 정합)
+  if (count($sa) > count($ca)) {
+    $out["personaAns"] = $sa;
+    $out["personaGroups"] = isset($s["personaGroups"]) ? $s["personaGroups"] : (isset($c["personaGroups"]) ? $c["personaGroups"] : null);
+  } else {
+    $out["personaAns"] = $ca;
+    // personaGroups 은 $c 것($out 기본값)을 유지 — 이미 들어있음
+  }
   $sr = isset($s["sigRead"]) && is_array($s["sigRead"]) ? $s["sigRead"] : array();
   $cr = isset($c["sigRead"]) && is_array($c["sigRead"]) ? $c["sigRead"] : array();
   $out["sigRead"] = array_merge($sr, $cr);
@@ -99,4 +106,28 @@ function sync_delete($db, $sub) {
   $st = $db->prepare("delete from app_sync where sub = ?");
   $st->execute(array($sub));
   return $st->rowCount();
+}
+
+// 페르소나 성향 분포(익명 집계) — app_sync 의 personaGroups(클라 파생 {t,m,v,q,s})에서 계정별 우세 그룹 집계.
+// 답을 충분히 한 계정만(personaAns >= minAns) 세어 미분화(전부 ~1) 노이즈를 컷. 표본 minN 미달이면 null(정직 표기).
+// 개별 계정은 노출하지 않는다 — 그룹별 카운트와 총 표본수만.
+function sync_persona_dist($db, $minAns = 3, $minN = 5) {
+  $rows = $db->query("select state from app_sync")->fetchAll();
+  $counts = array("t" => 0, "m" => 0, "v" => 0, "q" => 0, "s" => 0);
+  $n = 0;
+  foreach ($rows as $row) {
+    $state = json_decode($row["state"], true);
+    if (!is_array($state)) continue;
+    $ans = isset($state["personaAns"]) && is_array($state["personaAns"]) ? $state["personaAns"] : array();
+    $g = isset($state["personaGroups"]) && is_array($state["personaGroups"]) ? $state["personaGroups"] : null;
+    if (count($ans) < $minAns || !$g) continue;
+    $best = null; $bv = -INF;
+    foreach (array("t", "m", "v", "q", "s") as $k) {
+      $vv = isset($g[$k]) ? (float)$g[$k] : 0;
+      if ($vv > $bv) { $bv = $vv; $best = $k; }   // 우세 그룹(동률이면 t·m·v·q·s 순 첫 축)
+    }
+    if ($best !== null) { $counts[$best]++; $n++; }
+  }
+  if ($n < $minN) return null;
+  return array("counts" => $counts, "n" => $n);
 }

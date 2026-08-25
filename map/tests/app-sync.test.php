@@ -82,6 +82,30 @@ $res3 = app_acct_resolve($wdb, $dir, $D2);
 ok($res3["linked"] === false && $res3["acct"]["id"] === $a2["id"] && w_true_balance($wdb, $a2["id"]) === 0,
   "resolve: 탈퇴 후 병합-이동 기기는 빈 기기 계정(재발행 없음)");
 
+// ── personaGroups 병합(답 스냅샷 따라감) ──
+$mg = sync_merge_state(
+  array("personaAns" => array(1, 2, 3, 4, 5), "personaGroups" => array("t" => 1.1, "m" => 1, "v" => 1, "q" => 1, "s" => 0.9)),
+  array("personaAns" => array(1, 2), "personaGroups" => array("t" => 0.9, "m" => 1, "v" => 1, "q" => 1, "s" => 1.1)));
+ok(count($mg["personaAns"]) === 5 && abs($mg["personaGroups"]["t"] - 1.1) < 1e-9, "merge: personaGroups 는 더 진행된 답 쪽을 따른다");
+
+// ── 페르소나 성향 분포 집계 ──
+$distDir = sys_get_temp_dir() . "/as_dist_" . getmypid();
+@mkdir($distDir, 0700, true); @unlink($distDir . "/app_ledger.db");
+$ddb = al_db($distDir); sync_migrate($ddb);
+$mk = function ($g) { $a = array(); for ($i = 0; $i < 4; $i++) $a[] = array("j" => 0, "d" => 0, "l" => 0); return array("personaAns" => $a, "personaGroups" => $g); };
+sync_put($ddb, "u1", $mk(array("t" => 1.10, "m" => 1, "v" => 1, "q" => 1, "s" => 1)), 1756000000);
+sync_put($ddb, "u2", $mk(array("t" => 1.12, "m" => 1, "v" => 0.9, "q" => 1, "s" => 1)), 1756000000);
+sync_put($ddb, "u3", $mk(array("t" => 1.05, "m" => 1, "v" => 1, "q" => 1, "s" => 1)), 1756000000);
+sync_put($ddb, "u4", $mk(array("t" => 1, "m" => 1.10, "v" => 1, "q" => 1, "s" => 1)), 1756000000);
+sync_put($ddb, "u5", $mk(array("t" => 1, "m" => 1.08, "v" => 1, "q" => 1, "s" => 1)), 1756000000);
+$pd = sync_persona_dist($ddb, 3, 5);
+ok($pd !== null && $pd["n"] === 5 && $pd["counts"]["t"] === 3 && $pd["counts"]["m"] === 2, "personaDist: 우세 그룹 분포(t3·m2·표본5)");
+// 답 3개 미만 계정은 제외(표본 불변)
+sync_put($ddb, "u6", array("personaAns" => array(array("j" => 0)), "personaGroups" => array("t" => 1.2, "m" => 1, "v" => 1, "q" => 1, "s" => 1)), 1756000000);
+ok(sync_persona_dist($ddb, 3, 5)["n"] === 5, "personaDist: 답 minAns 미만 계정 제외");
+// 표본 minN 미달이면 null(정직 표기)
+ok(sync_persona_dist($ddb, 3, 6) === null, "personaDist: 표본 minN 미달이면 null");
+
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
 exit($FAIL ? 1 : 0);

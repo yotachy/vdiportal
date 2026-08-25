@@ -171,9 +171,28 @@
 
   // ── 성향 분포(P8 전 준비 중) ──
   function piesCard() {
-    return card(head("다들 어떤 성향일까", "페르소나 답변 기준") +
-      pendingBody("위기 대응 · 매매 호흡 · 먼저 보는 것 — 분포 도넛 3종",
-        "페르소나 답변이 서버로 모이기 시작하면(구글 로그인 연동) 익명 분포로 열려요."));
+    const pd = stats && stats.personaDist;
+    if (!pd || !pd.n) {
+      return card(head("다들 어떤 성향일까", "페르소나 답변 기준") +
+        pendingBody("가장 중요하게 보는 관점 — 성향 분포",
+          "페르소나에 충분히 답한 구글 연결 사용자 " + (stats ? stats.minN : 5) + "명 이상 모이면 익명 분포로 열려요."));
+    }
+    const GN = { t: "추세형", m: "모멘텀형", v: "변동성형", q: "거래량형", s: "구조형" };
+    const GC = { t: "#22d3ee", m: "#7b6cff", v: "#f0a020", q: "#2ed9a0", s: "#e06a6a" };
+    const items = Object.keys(GN).map(function (k) { return { k: k, n: pd.counts[k] || 0 }; })
+      .sort(function (a, b) { return b.n - a.n; });
+    const mx = items[0].n || 1;
+    let rows = "";
+    items.forEach(function (it) {
+      const pct = Math.round(it.n / pd.n * 100);
+      rows += '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span style="width:70px;flex:none;font-size:13px;font-weight:600">' + GN[it.k] + "</span>" +
+        '<div style="flex:1;height:8px;border-radius:4px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:' + Math.max(3, Math.round(it.n / mx * 100)) + '%;border-radius:4px;background:' + GC[it.k] + '"></div></div>' +
+        '<span class="mono" style="font-size:13px;font-weight:700;color:var(--t1);width:38px;text-align:right;flex:none">' + pct + "%</span></div>";
+    });
+    return card(head("다들 어떤 성향일까", "페르소나 답변 기준 · " + fmtN(pd.n) + "명") +
+      '<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">' + rows + "</div>" +
+      '<div style="margin-top:10px;font-size:11.5px;color:var(--m1);line-height:1.6">가장 많은 성향은 <b style="color:var(--t2)">' + GN[items[0].k] + "</b> — 나와 다른 성향이 시장을 어떻게 보는지 참고해요.</div>");
   }
 
   // ── 가중치 집계(준비 중) ──
