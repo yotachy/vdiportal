@@ -23,8 +23,9 @@ def stamp_html(path, patterns):
     if s != orig: open(p, "w").write(s)
     print(path, "→", n, "refs stamped")
 
-# 앱: app-*.js · app.css (엔진 ../forge-core.js 는 서버 상대참조라 forge.html 쪽에서 관리)
-stamp_html("app/index.html", [r'app[\w-]*\.js', r'app\.css'])
+# 앱: app-*.js · app.css · ../forge-core.js (앱의 채점 analyze 가 직접 로드하는 엔진 — 반드시 버스트).
+# 엔진을 상대참조하지만 캐시버스터가 없으면 앱은 옛 엔진을 7일 물고 있게 된다(cycle 성능 사고 계열).
+stamp_html("app/index.html", [r'app[\w-]*\.js', r'app\.css', r'\.\./forge-core\.js'])
 # 포지: forge-*.js · forge.css
 stamp_html("forge.html", [r'forge[\w-]*\.js', r'forge\.css'])
 

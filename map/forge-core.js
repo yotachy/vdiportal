@@ -1836,23 +1836,35 @@
   /* ── 사이클(주기 위상) — 지배주기 검출 + 현재 위상·방향·다음 전환시점 ── */
   function analyzeCycle(price, opts) {
     opts = opts || {};
-    const P = price.length;
+    const Pfull = price.length;
     const EMPTY = { period: 0, phase: 0, phaseLabel: "—", amp: 0, strength: 0, clarity: 0, dir: "flat", nextTurn: null, bias: 0, fit: [], w: 0, phi: 0 };
-    if (P < 24) return EMPTY;
+    if (Pfull < 24) return EMPTY;
+    // 검출은 최근 CYC_WIN 봉만 본다 — dftSpectrum(naive DFT, O(n²))·PDM 스캔의 O(n²)를 상수로 묶고,
+    // 백테스트(LOOKBACK 600)와 동일한 입력 영역으로 맞춘다(전량 이력에서 통계적으로 약한 초장주기를 잡던
+    // 것을 제거 — 그 장주기 검출은 검증된 적이 없다). ≤CYC_WIN 입력이면 off=0 → 기존과 완전히 동일(no-op).
+    // 결과(w·phi·icpt·fit)는 전체 배열 인덱스 좌표로 되돌려, cycleSeries·작도가 그대로 정합한다.
+    const CYC_WIN = opts.win || 600;
+    const off = Pfull > CYC_WIN ? Pfull - CYC_WIN : 0;
+    const wp = off > 0 ? price.slice(off) : price;   // 검출 윈도우(윈도우 인덱스 j = 0..P-1, 전체 i = j+off)
+    const P = wp.length;
     let sx = 0, sy = 0, sxx = 0, sxy = 0;
-    for (let i = 0; i < P; i++) { sx += i; sy += price[i]; sxx += i * i; sxy += i * price[i]; }
-    const den = P * sxx - sx * sx, slope = den ? (P * sxy - sx * sy) / den : 0, icpt = (sy - slope * sx) / P;
-    const base = [], z = [];
-    for (let i = 0; i < P; i++) { const b = icpt + slope * i; base.push(b); z.push(price[i] - b); }
+    for (let i = 0; i < P; i++) { sx += i; sy += wp[i]; sxx += i * i; sxy += i * wp[i]; }
+    const den = P * sxx - sx * sx, slope = den ? (P * sxy - sx * sy) / den : 0, icptW = (sy - slope * sx) / P;
+    const z = [];
+    for (let i = 0; i < P; i++) z.push(wp[i] - (icptW + slope * i));
     const sc = scanPeriod(z, { pmin: (opts.pmin || 10), pmax: (opts.pmax || Math.floor(P / 2.5)) });
     const per = sc.best, strength = sc.strength || 0;
-    if (!(per > 2)) return Object.assign({}, EMPTY, { base });
+    // 전체 배열 좌표 절편(윈도우 시작 off 만큼 평행이동): base(i) = icptW + slope·(i−off) = icpt + slope·i
+    const icpt = icptW - slope * off;
+    const base = []; for (let i = 0; i < Pfull; i++) base.push(icpt + slope * i);
+    if (!(per > 2)) return Object.assign({}, EMPTY, { base: base, slope: slope, icpt: icpt });
     const w = 2 * Math.PI / per;
     let cc = 0, cs = 0;
     for (let i = 0; i < P; i++) { cc += z[i] * Math.cos(w * i); cs += z[i] * Math.sin(w * i); }
     cc *= 2 / P; cs *= 2 / P;
-    const amp = Math.hypot(cc, cs), phi = Math.atan2(cs, cc);   // z ≈ amp·cos(w·i − phi)
-    let theta = (w * (P - 1) - phi) % (2 * Math.PI); if (theta < 0) theta += 2 * Math.PI;
+    const amp = Math.hypot(cc, cs), phiW = Math.atan2(cs, cc);   // 윈도우 좌표: z ≈ amp·cos(w·j − phiW)
+    const phi = phiW + w * off;   // 전체 배열 좌표: cos(w·(i−off) − phiW) = cos(w·i − phi)
+    let theta = (w * (P - 1) - phiW) % (2 * Math.PI); if (theta < 0) theta += 2 * Math.PI;   // 최신 봉 위상(윈도우=전체 동일)
     const deriv = -Math.sin(theta), cosv = Math.cos(theta);   // deriv>0 상승중
     const clarity = Math.max(0, Math.min(1, (strength - 1) / 2.5));
     const bias = Math.max(-1, Math.min(1, deriv * (0.5 + 0.5 * clarity)));
@@ -1861,7 +1873,7 @@
     const toPeak = ((2 * Math.PI - theta) % (2 * Math.PI)), toTrough = ((Math.PI - theta + 2 * Math.PI) % (2 * Math.PI));
     const barsPeak = Math.round(toPeak / w), barsTrough = Math.round(toTrough / w);
     const nextTurn = barsPeak <= barsTrough ? { type: "peak", bars: barsPeak } : { type: "trough", bars: barsTrough };
-    const fit = []; for (let i = 0; i < P; i++) fit.push(base[i] + amp * Math.cos(w * i - phi));
+    const fit = []; for (let i = 0; i < Pfull; i++) fit.push(base[i] + amp * Math.cos(w * i - phi));   // 전체 배열 곡선
     return { period: per, phase: theta, phaseLabel, amp, strength, clarity, dir, nextTurn, bias, fit, base, slope, icpt, w, phi };
   }
   function cycleSeries(price, pmin, pmax) { const cy = analyzeCycle(price, { pmin, pmax }); if (!cy.period) return price.map(() => 0); const { w, phi, clarity } = cy; return price.map((p, i) => Math.max(-1, Math.min(1, Math.cos(w * i - phi) * (0.4 + 0.6 * (clarity || 0))))); }
