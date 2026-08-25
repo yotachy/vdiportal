@@ -97,28 +97,10 @@
   }
 
   // ── XP · 레벨 (게스트 게이트 — 지침서 §8) ──
-  function xpPop(text, sub, guest) {
-    const app = document.getElementById("msApp");
-    if (!app) return;
-    const old = document.getElementById("msXpFx");
-    if (old && old.parentNode) old.parentNode.removeChild(old);
-    const el = document.createElement("div");
-    el.id = "msXpFx";
-    el.style.cssText = "position:absolute;left:50%;bottom:150px;z-index:55;transform:translateX(-50%);pointer-events:none;" +
-      "display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 16px;border-radius:12px;" +
-      (guest ? "border:1px dashed var(--ln2);background:rgba(var(--ovr),0.92);" : "border:1px solid rgba(46,217,160,0.4);background:rgba(var(--ovr),0.94);") +
-      "animation:msXpPop 2.2s cubic-bezier(0.2,0.8,0.25,1) both";
-    el.innerHTML = '<span style="font-size:13px;font-weight:700;color:' + (guest ? "var(--m1)" : "var(--up)") + '">' + text + "</span>" +
-      (sub ? '<span style="font-size:10.5px;color:var(--m2)">' + sub + "</span>" : "");
-    app.appendChild(el);
-    setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, 2300);
-  }
-
   function addXp(n, label) {
     const s = MS.store.get();
-    if (!s.gLinked) {   // 게스트 — 적립 없음, 유도 팝만(프로토 L2272)
-      MS.ui.hap("tick");
-      xpPop("경험치 +" + n, "구글 로그인하면 쌓여요", true);
+    if (!s.gLinked) {   // 게스트 — 적립 없음. 콘텐츠를 가리는 중앙 팝 대신 하단 토스트로 로그인만 유도
+      MS.ui.flash("로그인하면 경험치가 쌓여요", "");   // '+N'(실제 안 받음) 표기 제거 — 오해 소지
       return;
     }
     const was = MS.config.levelOf(s.xp);

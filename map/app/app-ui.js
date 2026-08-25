@@ -331,6 +331,12 @@
     store = theStore;
     appEl = els.app;
     mainEl = els.main;
+    // 전역 탭 촉각 피드백 — 탭바·액션 버튼·CTA·press 요소를 누르면 가벼운 진동(tick).
+    // 시각 press(:active scale)는 이미 있고, 여기서 손끝 진동을 얹어 앱 전체가 tactile 하게.
+    // capture 단계라 자식 핸들러의 stopPropagation 과 무관하게 항상 먼저 울린다.
+    appEl.addEventListener("click", function (e) {
+      if (e.target.closest("[data-tab],[data-act],.ms-cta-primary,.ms-press,button")) hap("tick");
+    }, true);
     renderHeader(els.header);
     renderTabbar(els.tabbar);
     store.subscribe(function (keys) {
