@@ -1942,7 +1942,7 @@
   }
   function startFx() {
     stopFx();
-    if (typeof prefersReducedMotion === "function" && prefersReducedMotion()) { drawFx(0); return; }   // 정적 1회, 루프 없음
+    if ((typeof EMBED !== "undefined" && EMBED) || (typeof prefersReducedMotion === "function" && prefersReducedMotion())) { drawFx(0); return; }   // 임베드/저모션=정적 1회(상시 rAF 금지 — 폰 부하)
     _fxLast = 0; _fxRaf = requestAnimationFrame(_fxLoop);
   }
   function stopFx() { if (_fxRaf) { cancelAnimationFrame(_fxRaf); _fxRaf = null; } }
@@ -2864,12 +2864,13 @@
     const flat = { path: finPred.path.map(() => A), lo: finPred.path.map(() => A), hi: finPred.path.map(() => A), anchor: A };
     const total = Math.max(2600, ticks.length * STEP_SUB + 800), t0 = performance.now();
     let _lastCU = 0, _lastDraw = 0;
+    var _drawEvery = (typeof EMBED !== "undefined" && EMBED) ? 130 : 35;   // 임베드=폰 부하 완화(약 7fps, 손그림엔 충분)
     function morph(now) {
       if (!_playing) return;
       const u = Math.min(1, (now - t0) / total), e = _ease(u);
       _scanU = e;
       // 무거운 캔버스 작도(19지표 근거+오실레이터+콘)는 ~28fps로 스로틀 → 응답없음 방지(RAF는 계속 돌되 그리기만 제한)
-      if (now - _lastDraw > 35 || u >= 1) {
+      if (now - _lastDraw > _drawEvery || u >= 1) {
         _lastDraw = now;
         drawEvidence();               // 손그림 진행도 반영 — 모든 도구가 동시에 그어짐
         _redrawOscForPlay(e);         // RSI·거래량 계산되며 그려짐(메인 차트와 동기)
@@ -3577,7 +3578,7 @@
   _rmq.addEventListener("change", () => { if (_ovResult) renderOverlay(_ovResult, _ovGraph); });
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) { stopPulse(); if (typeof stopFx === "function") stopFx(); }
-    else { if (_ovResult && !prefersReducedMotion()) startPulse(); if (typeof startFx === "function") startFx(); }
+    else { if (_ovResult && !prefersReducedMotion() && !(typeof EMBED !== "undefined" && EMBED)) startPulse(); if (typeof startFx === "function") startFx(); }
   });
   let _ovRz = null;
   window.addEventListener("resize", () => {

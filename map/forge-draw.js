@@ -921,7 +921,7 @@
     cx.restore();
     _cometRAF = requestAnimationFrame(_drawComets);
   }
-  function _startComets() { if (_reduceMotion()) { _drawComets(); return; } if (!_cometRAF) _cometRAF = requestAnimationFrame(_drawComets); }
+  function _startComets() { if (_reduceMotion() || (typeof EMBED !== "undefined" && EMBED)) { _drawComets(); return; } if (!_cometRAF) _cometRAF = requestAnimationFrame(_drawComets); }
   function _renderChartLegend(pd) {
     const el = document.getElementById("fcLegend"); if (!el) return;
     const band = pd > 0 ? "rgba(70,194,142,.72)" : pd < 0 ? "rgba(224,106,106,.72)" : _warmA(.72);
