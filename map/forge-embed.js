@@ -84,10 +84,41 @@
 
   const WIDE_BARS = 120;
   let _draft = false;   // 시연 중 전폭에 놓을 캔들 수(폰 폭 기준 봉당 ~3px — 작도가 읽히는 밀도)
+  // ── 지표별 카메라(작도 목적에 맞춰 시야 이동) — 큰 그림 지표는 멀리(줌아웃), 근접 지표는 가까이(줌인) ──
+  // wide=장기·구조 전체 조망 / mid=중기 / near=최근 근접. 실제 작도가 "멀리서 보고 가까이서 본다"는 느낌.
+  var _CAM = {
+    trend:"wide", ma:"wide", ichimoku:"wide", fib:"wide", elliott:"wide", structure:"wide",
+    cycle:"wide", gann:"wide", smc:"wide", volumeprofile:"wide", phasefold:"wide",
+    adx:"mid", macd:"mid", supertrend:"mid", vwap:"mid", aroon:"mid", roc:"mid", ao:"mid",
+    donchian:"mid", keltner:"mid",
+    bollinger:"near", rsi:"near", stochastic:"near", cci:"near", williams:"near", mfi:"near",
+    cmf:"near", psar:"near", pivot:"near", pattern:"near", volume:"near", atr:"near"
+  };
+  function _camWin(kind, N) {
+    var c = kind === "wide" ? Math.min(N, 220) : kind === "mid" ? Math.min(N, 90) : Math.min(N, 44);
+    c = Math.max(20, c);
+    return { count: c, start: Math.max(0, N - c) };
+  }
+  // _chartWin 을 목표 창으로 부드럽게 이동(짧은 트윈 — 카메라가 미끄러지듯). 스텝마다 캔들+근거 재그림.
+  function _camTween(target, steps, done) {
+    var s0 = _chartWin.start, c0 = _chartWin.count, i = 0;
+    steps = Math.max(1, steps);
+    function step() {
+      if (!_playing) { if (done) done(); return; }
+      i++;
+      var t = i / steps, e = 1 - Math.pow(1 - t, 3);   // easeOutCubic
+      _chartWin.count = Math.round(c0 + (target.count - c0) * e);
+      _chartWin.start = Math.round(s0 + (target.start - s0) * e);
+      try { renderHeroZoom(); } catch (err) {}
+      if (i < steps) { _camT = setTimeout(step, 55); } else { if (done) done(); }
+    }
+    step();
+  }
+
   // ── 임베드 자체 시연(가벼움) — PC 의 무거운 morph RAF + 100+ setTimeout 틱(HUD/로그 DOM) 대신,
   //    지표를 하나씩 넉넉한 간격으로 그린다. 매 스텝 사이 스레드가 쉬어 느린 폰에서도 화면이 갱신되고
   //    순차 작도가 실제로 보인다(2026-08-25: PC morph 는 폰 스레드를 20초 독점해 끝에 한 번에 나타남). ──
-  var _embT = null, _embI = 0, _embNodes = [];
+  var _embT = null, _embI = 0, _embNodes = [], _camT = null;
   function onPlay() {
     if (!hasRealSeries()) { emit("error", { msg: "no-series" }); return; }
     if (_playing || _embT) return;
@@ -97,7 +128,7 @@
     if (typeof _deepSessionDocs !== "undefined") _deepSessionDocs.add(activeId);
     if (typeof window !== "undefined") window._fcPreview = false;
     var N = (currentData().price || []).length;
-    _chartWin.count = Math.min(N, WIDE_BARS); _chartWin.start = Math.max(0, N - _chartWin.count);
+    var w0 = _camWin("wide", N); _chartWin.count = w0.count; _chartWin.start = w0.start;   // 시작=전체 조망
     _yScale = { mode: "auto", lo: null, hi: null };
     // 표시할 지표(보드에 놓인·표시집합) — 순서대로 하나씩 공개
     _embNodes = (typeof evIndicatorNodes === "function" ? evIndicatorNodes() : boardState.nodes.filter(function (n) { return n.kind === "block" && EV_COLORS[n.blockType]; }))
@@ -115,25 +146,30 @@
       if (!_playing) return;
       if (_embI >= _embNodes.length) { _embFinish(); return; }
       var n = _embNodes[_embI];
-      // _seqStart 를 과거로 → drawEvidence 의 _skFrac=(now-start)/dur 가 즉시 1 = 이 지표가 공개 순간 완전히 그려진다(pop-in).
-      // 한 스텝당 한 번만 그려도 되므로 스레드가 스텝 사이에 쉰다(느린 폰에서 화면 갱신·순차 표시 보장).
-      _seqDur[n.id] = per * 0.85;
-      _seqStart[n.id] = (typeof performance !== "undefined" ? performance.now() : Date.now()) - _seqDur[n.id] - 1;
-      _scanU = Math.min(0.999, (_embI + 1) / _embNodes.length);
-      var txt = "";
-      try { if (lastResult && lastResult.nodeText) txt = lastResult.nodeText[n.id] || ""; } catch (e) {}
-      emit("step", { idx: _embI, total: _embNodes.length, type: n.blockType,
-        label: (typeof BTLABEL !== "undefined" && BTLABEL[n.blockType]) || n.blockType,
-        sIdx: 0, sTotal: 1, text: txt, last: true });
-      drawEvidence();   // 지금까지 공개된 지표 + 이번 지표(스케치 진행도 _skFrac)
-      _embI++;
-      _embT = setTimeout(revealNext, per);
+      var N2 = (currentData().price || []).length;
+      var target = _camWin(_CAM[n.blockType] || "mid", N2);
+      // 카메라를 이 지표의 목적에 맞는 시야로 이동(멀리/중간/가까이) → 도착하면 지표를 그린다
+      _camTween(target, 4, function () {
+        if (!_playing) return;
+        // _seqStart 를 과거로 → 공개 순간 완전 작도(pop-in). 스텝 사이 스레드가 쉬어 느린 폰서도 갱신.
+        _seqDur[n.id] = per * 0.85;
+        _seqStart[n.id] = (typeof performance !== "undefined" ? performance.now() : Date.now()) - _seqDur[n.id] - 1;
+        _scanU = Math.min(0.999, (_embI + 1) / _embNodes.length);
+        var txt = "";
+        try { if (lastResult && lastResult.nodeText) txt = lastResult.nodeText[n.id] || ""; } catch (e) {}
+        emit("step", { idx: _embI, total: _embNodes.length, type: n.blockType,
+          label: (typeof BTLABEL !== "undefined" && BTLABEL[n.blockType]) || n.blockType,
+          sIdx: 0, sTotal: 1, text: txt, last: true, cam: _CAM[n.blockType] || "mid" });
+        try { renderHeroZoom(); } catch (e) {}   // 도착한 시야에서 캔들+누적 근거+이번 지표
+        _embI++;
+        _embT = setTimeout(revealNext, per);
+      });
     }
     _embT = setTimeout(revealNext, 350);
     return;
   }
   function _embFinish() {
-    _embT = null; _embNodes = [];
+    _embT = null; if (_camT) { clearTimeout(_camT); _camT = null; } _embNodes = [];
     _scanning = false; _scanU = 1; _playSeq = false; _seqStart = {};
     _evidenceSet = new Set((typeof evIndicatorNodes === "function" ? evIndicatorNodes() : []).map(function (n) { return n.id; }));
     _playing = false;
@@ -142,6 +178,7 @@
   }
   function _embStop() {
     if (_embT) { clearTimeout(_embT); _embT = null; }
+    if (_camT) { clearTimeout(_camT); _camT = null; }
     if (!_playing && !_drawWide) return;
     _embNodes = []; _scanning = false; _scanU = 1; _playSeq = false; _seqStart = {}; _playing = false;
     if (typeof updatePlayBtn === "function") { try { updatePlayBtn(); } catch (e) {} }
@@ -174,7 +211,7 @@
         document.body.appendChild(el); }
       var ev = -1; try { var cv = document.getElementById("fcEvidence"); var c = cv.getContext("2d"); var d = c.getImageData(0,0,cv.width,cv.height).data; ev = 0; for (var i=3;i<d.length;i+=8) if (d[i]>60) ev++; } catch (e) {}
       var cs = getComputedStyle(document.getElementById("fcEvidence"));
-      el.textContent = "DIAG v=20260825g evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
+      el.textContent = "DIAG v=20260825h evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
     }, 700);
   }
   if (/[?&]demo=1/.test(location.search)) {
