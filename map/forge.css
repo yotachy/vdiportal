@@ -1766,3 +1766,4 @@
   html.embed .fc-hero{flex:1 1 auto;min-height:0;height:auto!important;aspect-ratio:auto!important;gap:0}
   html.embed #fcMainChart{height:100%!important;min-height:0!important}
   html.embed .fc-hero canvas{touch-action:none!important}   /* 프레임 안에서는 항상 차트 조작(앱 스크롤은 프레임 밖) */
+  html.embed .fc-evidence{opacity:0.92!important}   /* PC 는 0.5(희미) — 모바일 작은 화면·캔들 위에선 작도가 씻겨 안 보여 선명하게 */
