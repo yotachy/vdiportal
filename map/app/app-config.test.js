@@ -65,7 +65,6 @@ test("정책 기준선 스모크 — 지침서 §8·§10 수치", () => {
   assert.equal(P.xp.personaAnswer, 1);
   assert.equal(P.xp.drawToggle.perDay, 3);
   assert.equal(P.limits.stocksMax, 12);
-  assert.equal(P.limits.stockOpsPerDay, 6);
   assert.equal(P.limits.signal.keepDays, 3);
   assert.equal(P.limits.signal.page, 20);
   assert.equal(P.limits.score.keepDays, 90);

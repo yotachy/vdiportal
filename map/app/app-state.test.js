@@ -49,7 +49,7 @@ test("serialize→restore 왕복: persistKeys 전부 보존", () => {
   s.xp = 44;
   s.weights = { "이동평균": 2 };
   s.indOff = { 3: 1 };
-  s.dayCounters = { d: state.dayKey(now), stockOps: 2, personaToday: 1 }; // 일일 리셋 비발동 조건
+  s.dayCounters = { d: state.dayKey(now), stockAddXp: 2, personaToday: 1 }; // 일일 리셋 비발동 조건
   s.analyzed = { "NVDA|일": "deep" };
   s.analyzedAt = { "NVDA|일": now - 1000 };
   const raw = state.serialize(s);
@@ -87,15 +87,15 @@ test("restore: 값 보정 — scoops 비수치→15, theme 이상값→dark", ()
 test("restore: dayCounters·xpToday 는 오늘 것만 살린다(dayKey 불일치 시 리셋)", () => {
   const now = Date.UTC(2026, 7, 24, 3, 0); // KST 2026-08-24 12:00
   const rawToday = JSON.stringify({ v: 1, picks: ["A"], xpToday: 7,
-    dayCounters: { d: "2026-08-24", stockOps: 4 } });
+    dayCounters: { d: "2026-08-24", stockAddXp: 4 } });
   const rToday = state.restore(rawToday, now);
   assert.equal(rToday.xpToday, 7);
-  assert.equal(rToday.dayCounters.stockOps, 4);
+  assert.equal(rToday.dayCounters.stockAddXp, 4);
   const rawOld = JSON.stringify({ v: 1, picks: ["A"], xpToday: 7,
-    dayCounters: { d: "2026-08-23", stockOps: 4 } });
+    dayCounters: { d: "2026-08-23", stockAddXp: 4 } });
   const rOld = state.restore(rawOld, now);
   assert.equal(rOld.xpToday, 0);
-  assert.equal(rOld.dayCounters.stockOps, 0);
+  assert.equal(rOld.dayCounters.stockAddXp, 0);
   assert.equal(rOld.dayCounters.d, "2026-08-24");
 });
 

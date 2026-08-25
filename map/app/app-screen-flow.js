@@ -471,22 +471,6 @@
           }).catch(function () {});
         });
       }
-      function opGuard() {
-        const dc = MS.store.get().dayCounters;
-        if (dc.stockOps >= P().limits.stockOpsPerDay) {
-          MS.ui.hap("warn");
-          MS.ui.flash("오늘은 종목 변경을 다 썼어요 — 내일 다시", "");
-          return false;
-        }
-        return true;
-      }
-      function bumpOps() {
-        const s = MS.store.get();
-        const dc = {};
-        Object.keys(s.dayCounters).forEach(function (k) { dc[k] = s.dayCounters[k]; });
-        dc.stockOps++;
-        MS.store.set({ dayCounters: dc });
-      }
       function addSym(sym, goChart) {
         const s = MS.store.get();
         if (s.picks.indexOf(sym) >= 0) {
@@ -494,8 +478,6 @@
           return;
         }
         if (s.picks.length >= P().limits.stocksMax) { MS.ui.hap("warn"); MS.ui.flash("가득 찼어요(12/12) — 하나를 빼고 추가하세요", ""); return; }
-        if (!opGuard()) return;
-        bumpOps();
         MS.store.set({ picks: s.picks.concat([sym]), ticker: s.ticker || sym });
         MS.store.persistSoon();
         MS.ui.hap("earn");
@@ -571,11 +553,9 @@
         });
         body.querySelectorAll("[data-del]").forEach(function (el) {
           el.addEventListener("click", function () {
-            if (!opGuard()) return;
             const sym = el.getAttribute("data-del");
             const s2 = MS.store.get();
             const next = s2.picks.filter(function (p2) { return p2 !== sym; });
-            bumpOps();
             MS.store.set({ picks: next, ticker: s2.ticker === sym ? (next[0] || null) : s2.ticker });
             MS.store.persistSoon();
             MS.ui.flash(sym + " 을 뺐어요", "");

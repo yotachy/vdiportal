@@ -43,7 +43,7 @@
       runLive: 0, runSym: null, runTf: null, runFrom: null, runDoneN: null, runErr: 0,
       // 일일
       dayVisit: null,
-      dayCounters: { d: null, stockOps: 0, stockAddXp: 0, personaToday: 0, drawXp: 0, streak: 0 },
+      dayCounters: { d: null, stockAddXp: 0, personaToday: 0, drawXp: 0, streak: 0 },
       // UI 휘발
       toast: "", skel: 0
     };
@@ -90,7 +90,7 @@
     const today = dayKey(now);
     const dc = (s.dayCounters && typeof s.dayCounters === "object") ? s.dayCounters : {};
     if (dc.d !== today) {
-      s.dayCounters = { d: today, stockOps: 0, stockAddXp: 0, personaToday: 0, drawXp: 0,
+      s.dayCounters = { d: today, stockAddXp: 0, personaToday: 0, drawXp: 0,
         streak: (typeof dc.streak === "number" ? dc.streak : 0) };  // 연속 방문은 날짜 리셋 대상 아님
       s.xpToday = 0;
     }

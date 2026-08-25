@@ -44,7 +44,6 @@
     },
     limits: {
       stocksMax: 12,
-      stockOpsPerDay: 6,           // 추가+삭제 합산
       signal: { keepDays: 3, page: 20, more: 10 },
       score: { keepDays: 90, page: 20, more: 10 },
       persona: { perDay: 5, guestMax: 3 }

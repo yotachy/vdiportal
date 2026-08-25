@@ -321,15 +321,9 @@
       host.querySelectorAll("[data-del]").forEach(function (el) {
         el.addEventListener("click", function () {
           const s = MS.store.get();
-          const dc = s.dayCounters;
-          if (dc.stockOps >= MS.config.POLICY.limits.stockOpsPerDay) {
-            MS.ui.hap("warn"); MS.ui.flash("오늘은 종목 변경을 다 썼어요 — 내일 다시", ""); return;
-          }
           const sym = el.getAttribute("data-del");
           const next = s.picks.filter(function (p) { return p !== sym; });
-          const dc2 = {}; Object.keys(dc).forEach(function (k) { dc2[k] = dc[k]; });
-          dc2.stockOps++;
-          MS.store.set({ picks: next, ticker: next[0] || null, dayCounters: dc2 });
+          MS.store.set({ picks: next, ticker: next[0] || null });
           MS.store.persistSoon();
           MS.ui.flash(sym + " 을 뺐어요", "");
           render();
