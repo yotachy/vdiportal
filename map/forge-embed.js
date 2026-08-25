@@ -140,7 +140,7 @@
     if (typeof updatePlayBtn === "function") { try { updatePlayBtn(); } catch (e) {} }
     drawEvidence();   // 시작: 캔들만(아직 공개된 지표 없음)
     _embI = 0;
-    var per = Math.max(280, Math.round(_playTotalMs / Math.max(1, _embNodes.length)));
+    var _now = function () { return typeof performance !== "undefined" ? performance.now() : Date.now(); };
     function revealNext() {
       _embT = null;
       if (!_playing) return;
@@ -148,24 +148,35 @@
       var n = _embNodes[_embI];
       var N2 = (currentData().price || []).length;
       var target = _camWin(_CAM[n.blockType] || "mid", N2);
-      // 카메라를 이 지표의 목적에 맞는 시야로 이동(멀리/중간/가까이) → 도착하면 지표를 그린다
-      _camTween(target, 4, function () {
+      // 한 지표당 시간 배분(서두르지 않게): 카메라 글라이드 → 손그림 스트로크 → 잠깐 머무름
+      var per = Math.max(520, Math.min(1300, Math.round(_playTotalMs / Math.max(1, _embNodes.length))));
+      var camMs = Math.min(360, Math.round(per * 0.32)), drawMs = Math.round(per * 0.52), holdMs = Math.max(120, per - camMs - drawMs);
+      var camSteps = Math.max(6, Math.round(camMs / 40));
+      // ① 카메라를 이 지표의 스케일 시야로 부드럽게 이동(누적 작도는 시야 따라 함께 움직임)
+      _camTween(target, camSteps, function () {
         if (!_playing) return;
-        // _seqStart 를 과거로 → 공개 순간 완전 작도(pop-in). 스텝 사이 스레드가 쉬어 느린 폰서도 갱신.
-        _seqDur[n.id] = per * 0.85;
-        _seqStart[n.id] = (typeof performance !== "undefined" ? performance.now() : Date.now()) - _seqDur[n.id] - 1;
-        _scanU = Math.min(0.999, (_embI + 1) / _embNodes.length);
         var txt = "";
         try { if (lastResult && lastResult.nodeText) txt = lastResult.nodeText[n.id] || ""; } catch (e) {}
         emit("step", { idx: _embI, total: _embNodes.length, type: n.blockType,
           label: (typeof BTLABEL !== "undefined" && BTLABEL[n.blockType]) || n.blockType,
           sIdx: 0, sTotal: 1, text: txt, last: true, cam: _CAM[n.blockType] || "mid" });
-        try { renderHeroZoom(); } catch (e) {}   // 도착한 시야에서 캔들+누적 근거+이번 지표
-        _embI++;
-        _embT = setTimeout(revealNext, per);
+        _scanU = Math.min(0.999, (_embI + 1) / _embNodes.length);
+        // ② 손그림 스트로크: _seqStart=지금 → drawEvidence 의 _skFrac(=경과/드로시간)이 0→1 로 자라며
+        //    이 지표가 '그어지는' 느낌(선은 긋고, 82% 지나면 라벨·점·레벨이 얹힘 — 지표별 고유 작도 그대로).
+        _seqDur[n.id] = drawMs;
+        _seqStart[n.id] = _now();
+        var t0 = _now();
+        (function stroke() {
+          if (!_playing) return;
+          try { drawEvidence(); } catch (e) {}
+          if (_now() - t0 < drawMs) { _embT = setTimeout(stroke, 42); return; }   // ~24fps 손그림(가볍다: drawEvidence ≈ 4ms)
+          try { drawEvidence(); } catch (e) {}   // 완성 프레임
+          _embI++;
+          _embT = setTimeout(revealNext, holdMs);   // ③ 잠깐 머무른 뒤 다음 지표
+        })();
       });
     }
-    _embT = setTimeout(revealNext, 350);
+    _embT = setTimeout(revealNext, 400);
     return;
   }
   function _embFinish() {
@@ -211,7 +222,7 @@
         document.body.appendChild(el); }
       var ev = -1; try { var cv = document.getElementById("fcEvidence"); var c = cv.getContext("2d"); var d = c.getImageData(0,0,cv.width,cv.height).data; ev = 0; for (var i=3;i<d.length;i+=8) if (d[i]>60) ev++; } catch (e) {}
       var cs = getComputedStyle(document.getElementById("fcEvidence"));
-      el.textContent = "DIAG v=20260825h evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
+      el.textContent = "DIAG v=20260825i evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
     }, 700);
   }
   if (/[?&]demo=1/.test(location.search)) {
