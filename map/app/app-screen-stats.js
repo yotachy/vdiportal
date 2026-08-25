@@ -64,7 +64,8 @@
     stats.trend.forEach(function (r, i) {
       const last = i === stats.trend.length - 1;
       const h = Math.max(3, Math.round(r.n / mx * 46));
-      bars += '<span style="flex:1;height:' + h + "px;border-radius:3px 3px 0 0;background:" +
+      const dl = String(r.day || "").replace(/^\d{4}-/, "").replace("-", "/");   // 08-25 → 08/25
+      bars += '<span data-barv="' + esc((last ? "오늘" : dl) + " · " + r.n + "건") + '" style="flex:1;cursor:pointer;min-width:6px;height:' + h + "px;border-radius:3px 3px 0 0;background:" +
         (last ? "linear-gradient(180deg,#9d93ff,#7b6cff)" : "rgba(123,108,255," + (0.18 + i / stats.trend.length * 0.4).toFixed(2) + ")") +
         (last ? ";animation:msPredPulse 1.6s ease-in-out infinite" : "") + '"></span>';
     });

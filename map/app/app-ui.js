@@ -438,7 +438,10 @@
     // capture 단계라 자식 핸들러의 stopPropagation 과 무관하게 항상 먼저 울린다.
     appEl.addEventListener("click", function (e) {
       // 버튼·CTA 뿐 아니라 화면을 넘기거나 펼치는 카드(종목·매트릭스·시그널·채점 항목)도 손끝에 울린다
-      if (e.target.closest("[data-tab],[data-act],[data-go],[data-goadd],[data-sig],[data-cell],[data-row],[data-del],.ms-cta-primary,.ms-press,button")) hap("tick");
+      if (e.target.closest("[data-tab],[data-act],[data-go],[data-goadd],[data-sig],[data-cell],[data-row],[data-del],[data-barv],.ms-cta-primary,.ms-press,button")) hap("tick");
+      // 수치 라벨이 없는 막대(데이터 시각화) — 누르면 값이 토스트로 뜬다(막대만 있는 경우)
+      const bv = e.target.closest("[data-barv]");
+      if (bv) flash(bv.getAttribute("data-barv"), "");
     }, true);
     renderHeader(els.header);
     renderTabbar(els.tabbar);

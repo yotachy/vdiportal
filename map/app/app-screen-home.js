@@ -20,12 +20,14 @@
   function mount(host, ctx) {
     if (homeUnsub) { homeUnsub(); homeUnsub = null; }
     let quotes = {};   // sym → {price, chg, up}
+    let pqNext = null;   // 다음 페르소나 질문 프리페치 — 답하면 로딩 없이 바로 이어지게(화면 튐·재묻기 제거)
     const s0 = MS.store.get();
 
     function render() {
       const s = MS.store.get();
       const picks = s.picks;
       if (!picks.length) { renderEmpty(); return; }
+      const _keepTop = host.scrollTop;   // 재렌더가 스크롤을 top 으로 튕기지 않게(페르소나 답변 등)
       const now = new Date();
       const meta = (now.getMonth() + 1) + "." + now.getDate() + " " +
         String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0") + " 기준";
@@ -173,6 +175,7 @@
         "</div>";
 
       bind();
+      if (_keepTop) host.scrollTop = _keepTop;   // 스크롤 위치 복원(화면 튐 방지)
     }
 
     // ── 페르소나 카드(지침서 §9·03 §6 — 총량 표기 금지) ──
@@ -188,7 +191,9 @@
       const stage = MS.persona.stageOf(idx, P2.persona.stages, P2.persona.stageNames);
       const chips = MS.persona.chips(answers);
       const q = s._pq;   // 현재 로드된 질문 {i,q,opts,more}
-      const pqOn = !gLock && !dayFull && (dayN === 0 || s._pqPull) && q && q.i === idx;
+      // 답하면 한도까지 다음 질문이 바로 이어진다(다시 물어보는 '받기' 버튼 없음 — 사용자 지시).
+      // q.q 가 있어야 질문(빈 질문=은행 소진). 한도 진행은 아래 카운트로만 표현.
+      const pqOn = !gLock && !dayFull && q && q.i === idx && q.q;
 
       let inner =
         '<div style="display:flex;align-items:center;gap:8px">' +
@@ -225,20 +230,28 @@
       } else if (q && q.i === idx && !q.q) {
         inner += '<div style="margin-top:12px;border-radius:10px;background:var(--sf2);padding:12px;text-align:center;font-size:12px;color:var(--m1)">준비된 질문을 다 봤어요 — 새 질문이 계속 추가돼요</div>';
       } else {
-        inner += '<button data-act="ppull" style="margin-top:12px;width:100%;min-height:44px;border-radius:10px;border:1px solid rgba(210,165,22,0.4);background:rgba(210,165,22,0.08);color:var(--cu);font-size:12.5px;font-weight:600;cursor:pointer;font-family:inherit">질문 하나 더 받기 · 오늘 ' + dayN + "/" + P2.limits.persona.perDay + "</button>";
+        // 다음 질문 불러오는 사이(짧은 fetch) — 다시 묻지 않고 바로 이어짐. 진행은 카운트로.
+        inner += '<div style="margin-top:12px;border-radius:10px;background:var(--sf2);padding:12px;text-align:center;font-size:12px;color:var(--m2)">다음 질문 불러오는 중… · 오늘 ' + dayN + "/" + P2.limits.persona.perDay + "</div>";
       }
 
       return '<div id="msPersonaCard" style="margin:16px 16px 0;border:1px solid rgba(210,165,22,0.3);border-radius:14px;background:var(--sf1);padding:16px">' + inner + "</div>";
     }
 
+    function prefetchPersonaQ(i) {   // 다음 질문을 미리 받아 pqNext 에 캐시(답변 시 즉시 사용)
+      if (pqNext && pqNext.i === i) return;
+      MS.data.api("persona_q", { i: i }).then(function (r) {
+        if (r && r.ok) pqNext = { i: i, q: r.q, opts: r.opts || [], more: r.more };
+      }).catch(function () {});
+    }
     function loadPersonaQ() {
       const s = MS.store.get();
       const idx = s.personaIdx || 0;
-      if (s._pq && s._pq.i === idx) { render(); return; }
+      if (s._pq && s._pq.i === idx) { prefetchPersonaQ(idx + 1); render(); return; }
       MS.data.api("persona_q", { i: idx }).then(function (r) {
         if (r && r.ok) {
           MS.store.set({ _pq: { i: idx, q: r.q, opts: r.opts || [], more: r.more } });
           if (MS.store.get().screen === "home") render();
+          prefetchPersonaQ(idx + 1);
         }
       }).catch(function () {});
     }
@@ -257,13 +270,16 @@
           Object.keys(st.dayCounters).forEach(function (k) { dc[k] = st.dayCounters[k]; });
           dc.personaToday = (dc.personaToday || 0) + 1;
           MS.ui.hap("tick");
-          MS.store.set({ personaAns: ans, personaIdx: (st.personaIdx || 0) + 1, dayCounters: dc, _pq: null, _pqPull: 0 });
+          const newIdx = (st.personaIdx || 0) + 1;
+          // 프리페치된 다음 질문이 있으면 바로 붙인다 — 로딩·화면 튐·재묻기 없이 즉시 이어짐
+          const next = (pqNext && pqNext.i === newIdx && pqNext.q) ? pqNext : null;
+          pqNext = null;
+          MS.store.set({ personaAns: ans, personaIdx: newIdx, dayCounters: dc, _pq: next, _pqPull: 0 });
           MS.store.persistSoon();
           MS.xp.add(MS.config.POLICY.xp.personaAnswer, "페르소나");
-          const idx2 = (st.personaIdx || 0) + 1;
           if (!q.more) MS.ui.flash("답변 저장 · 커스텀 분석이 나에게 맞춰집니다", "");
           render();
-          loadPersonaQ();
+          loadPersonaQ();   // next 없었으면 fetch, 있었으면 다음 것 프리페치만
         });
       });
       const pb = host.querySelector('[data-act="pback"]');
