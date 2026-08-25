@@ -245,6 +245,7 @@
   }
   // 모바일: 고정 헤더 서브바 생성 + 티커를 그 안으로 이동(데스크톱 복귀 시 원위치). 본문 padding-top 보정.
   function syncMobileHead() {
+    if (typeof EMBED !== "undefined" && EMBED) return;   // 임베드: 모바일 헤더·티커 줄 구성 안 함(차트만)
     const top = document.querySelector(".forge-top"); if (!top) return;
     const shell = document.querySelector(".forge-shell"), tk = document.getElementById("tkPanel");
     const mobile = window.innerWidth <= 860;

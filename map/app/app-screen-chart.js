@@ -17,8 +17,11 @@
     return v >= 1000 ? Math.round(v).toLocaleString("en-US") : (Math.round(v * 100) / 100).toFixed(2);
   }
 
+  const FRAME_H = 396;   // 프로토 차트 높이(L393) — 프레임 안에서 PC 차트가 이 높이를 꽉 채운다
+
   function mount(host) {
     let candles = null, quote = null, rebuilding = false;
+    let frameKey = null, evKey = null;   // 프레임 재로드 억제(세그 전환 등 재렌더에서 같은 요청 반복 금지)
     let zoom = 1, panX = 0, panY = 0;   // 핀치·팬(세션 휘발)
 
     function key() { const s = MS.store.get(); return s.ticker + "|" + s.tf; }
@@ -99,27 +102,21 @@
       } else if (!candles) {
         chartHtml = '<div style="height:396px;display:flex;align-items:center;justify-content:center;font-size:13px;color:var(--m1)">실봉 불러오는 중…</div>';
       } else {
-        const model = MS.chart.build(candles, rep ? rep.prediction : null, {});
-        const off = s.indOff || {};
-        const inner = MS.chart.svg(model, rep ? {
-          report: rep, off: off, deep: deepTier,
-          cone: !off.__cone, coneBasic: tier === "basic", pred: !off.__p1,
-          p2: deepTier && !off.__p2, p3: tier === "custom" && !off.__p2,
-          ma: true, boll: true
-        } : {});
+        // 차트 = 포지 프레임(forge.html?embed=app — PC 차트 코드 그대로: 캔들·콘·32종 작도·핀치줌·축 드래그).
+        // 자리표시자 위에 iframe 이 오버레이로 얹힌다(app-forge-frame). 버튼·범례는 프레임을 가리지 않게 아래 줄에.
         chartHtml =
-          '<div data-zoom style="position:relative;overflow:hidden;touch-action:none;height:396px">' +
-          '<div data-zoominner style="transform-origin:0 0;height:100%">' + inner + "</div>" +
-          (!rep ? '<span style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);font-size:12px;color:var(--m1);border:1px dashed var(--ln2);border-radius:99px;padding:6px 14px;background:rgba(var(--ovr),0.85);white-space:nowrap">분석 전 — 예측 없음</span>' : "") +
+          '<div data-forge style="position:relative;height:' + FRAME_H + 'px;background:var(--sf0)">' +
+          (!rep ? '<span style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);font-size:12px;color:var(--m1)">차트 준비 중…</span>' : "") + "</div>" +
+          '<div style="display:flex;align-items:center;gap:8px;padding:8px 16px 0;min-height:34px">' +
           (rep && dc ?
-            '<button data-act="draws" style="position:absolute;left:10px;top:10px;display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t1);border:1px solid var(--ln1);border-radius:99px;padding:5px 11px;background:rgba(var(--ovr),0.85);cursor:pointer;font-family:inherit;animation:' + (!s.coachDone ? "msRing 1.8s ease-out infinite" : "none") + '">' +
-            '<span style="display:flex;gap:2px"><span style="width:8px;height:2px;background:var(--bl);border-radius:1px;margin-top:4px"></span><span style="width:8px;height:2px;background:var(--cy);border-radius:1px;margin-top:4px"></span><span style="width:8px;height:2px;background:var(--cu);border-radius:1px;margin-top:4px"></span></span>' +
+            '<button data-act="draws" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t1);border:1px solid var(--ln1);border-radius:99px;padding:5px 11px;background:var(--sf1);cursor:pointer;font-family:inherit">' +
+            '<span style="display:flex;gap:2px"><span style="width:8px;height:2px;background:var(--bl);border-radius:1px;margin-top:4px"></span><span style="width:8px;height:2px;background:var(--cy);border-radius:1px;margin-top:4px"></span><span style="width:8px;height:2px;background:var(--am);border-radius:1px;margin-top:4px"></span></span>' +
             "작도 " + dc.on + "/" + dc.total + ' <span style="color:var(--m1)">지표별 보기·숨기기</span> ›</button>' : "") +
+          (!rep ? '<span style="font-size:11px;color:var(--m1);border:1px dashed var(--ln2);border-radius:99px;padding:5px 12px">분석 전 — 예측 미확정</span>' : "") +
           (rep && deepTier ?
-            '<div style="position:absolute;right:10px;bottom:26px;display:flex;flex-direction:column;gap:3px;font-size:9.5px;background:rgba(var(--ovr),0.82);border:1px solid var(--ln0);border-radius:8px;padding:6px 9px;pointer-events:none">' +
-            '<span style="color:var(--ac)">— 1차 종합</span><span style="color:var(--cy)">--- 2차 반대 시나리오</span>' +
-            (tier === "custom" ? '<span style="color:var(--cu)">--- 3차 가중치·페르소나</span>' : "") + "</div>" : "") +
-          (rep && deepTier ? '<span style="position:absolute;right:10px;bottom:6px;font-size:9.5px;color:var(--m2);pointer-events:none">신뢰지평 · 멀어질수록 확률 낮아짐</span>' : "") +
+            '<span style="margin-left:auto;display:flex;gap:8px;font-size:9.5px;color:var(--m2);white-space:nowrap">' +
+            '<span style="color:var(--up)">— 1차 종합' + (tier === "custom" ? "(가중·페르소나 반영)" : "") + '</span><span style="color:var(--dn)">--- 반대 시나리오</span>' +
+            "</span>" : "") +
           "</div>" +
           (rep ? MS.chart.badgeHtml(rep, s.indOff) : "");   // 오실레이터 배지 — 차트 아래(오버레이 금지)
       }
@@ -167,14 +164,14 @@
           '<span class="mono" style="font-size:13px;color:var(--dn)">▼' + (100 - v.prob) + "</span>" +
           '<div style="flex:1;position:relative;height:9px;border-radius:5px;background:var(--sf3)">' +
           '<div style="position:absolute;left:0;top:0;bottom:0;width:' + v.prob + '%;border-radius:5px;background:linear-gradient(90deg,var(--updeep),var(--up))"></div>' +
-          '<div style="position:absolute;left:60.96%;top:-3px;bottom:-3px;width:2px;background:var(--ac)"></div></div>' +
+          '<div style="position:absolute;left:' + MS.config.POLICY.stats.backtest.base + '%;top:-3px;bottom:-3px;width:2px;background:var(--ac)"></div></div>' +
           '<span class="mono" style="font-size:13px;color:var(--up)">▲' + v.prob + "</span></div>" +
-          '<div style="margin-top:4px;text-align:right;font-size:11.5px;color:var(--ac)">세로 표시 = 시장 평균 60.96%</div>' +
+          '<div style="margin-top:4px;text-align:right;font-size:11.5px;color:var(--ac)">세로 표시 = 기준선(항상 상승) ' + MS.config.POLICY.stats.backtest.base + '%</div>' +
           (deepTier && (regimeTxt || oppTxt) ?
             '<div style="margin-top:12px;display:flex;flex-wrap:wrap;gap:8px">' +
             (regimeTxt ? '<span style="font-size:13px;color:var(--t1);border:1px solid var(--ln2);border-radius:99px;padding:4px 12px;background:var(--sf2)">' + regimeTxt + "</span>" : "") +
             (oppTxt ? '<span style="font-size:13px;color:var(--ac);border:1px solid rgba(123,108,255,0.3);border-radius:99px;padding:4px 12px;background:rgba(123,108,255,0.1)">' + oppTxt + "</span>" : "") + "</div>" : "") +
-          '<div style="margin-top:12px;font-size:13.5px;color:var(--t1)">지표 ' + v.totalInd + "개 중 " + v.agree + "개가 같은 방향을 봅니다 · 상승 확률 " + v.prob + "%</div>" +
+          '<div style="margin-top:12px;font-size:13.5px;color:var(--t1)">방향 의견을 낸 지표 ' + v.totalInd + "개 중 " + v.agree + "개가 같은 방향을 봅니다 · 상승 확률 " + v.prob + "%</div>" +
           '<div style="margin-top:4px;font-size:13px;color:var(--t2);line-height:1.55">현재가 기준 목표 ' + fmtPrice(v.target) + " · " + fmtPrice(v.invalid) + " 아래로 내려가면 이 예측은 접습니다</div>" +
           '<div style="margin-top:8px;display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--t2)">' +
           "<span>예상 범위 <b style=\"color:var(--t1)\">" + fmtPrice(v.rangeLo) + " ~ " + fmtPrice(v.rangeHi) + "</b></span>" +
@@ -219,7 +216,7 @@
 
       renderFab(tier);
       bind(rep, tier);
-      applyZoom();
+      syncFrame(rep, tier);
     }
 
     // FAB — 앱 프레임(#msApp) 내부 absolute(뷰포트 fixed 금지 — 프레임 밖 이탈 사고 2026-08-24)
@@ -453,6 +450,24 @@
       panY = Math.min(0, Math.max(r.height * (1 - zoom), panY));
     }
 
+    // 포지 프레임 동기 — 종목·주기·티어·가중치·확정 여부가 바뀔 때만 로드, 작도 on/off 는 별도 메시지
+    function syncFrame(rep, tier) {
+      const ph = host.querySelector("[data-forge]");
+      if (!ph || !MS.forgeFrame) return;
+      MS.forgeFrame.attach(ph);
+      const s = MS.store.get();
+      const off = Object.keys(s.indOff || {}).filter(function (k) { return s.indOff[k] && k.charAt(0) !== "_"; });
+      const k = [s.ticker, s.tf, tier || "basic", !!rep, rep ? JSON.stringify(rep.weightsApplied || {}) : ""].join("|");
+      if (k !== frameKey) {
+        frameKey = k; evKey = off.join(",");
+        MS.forgeFrame.load({ symbol: s.ticker, tf: s.tf, tier: tier || "basic",
+          weights: rep ? rep.weightsApplied : null, confirmed: !!rep, evidenceOff: off });
+      } else if (off.join(",") !== evKey) {
+        evKey = off.join(",");
+        MS.forgeFrame.evidence({ off: off });
+      }
+    }
+
     function bind(rep, tier) {
       host.querySelector('[data-act="back"]').addEventListener("click", function () { MS.router.go("home"); });
       host.querySelectorAll("[data-tf]").forEach(function (b) {
@@ -481,7 +496,7 @@
       if (dr) dr.addEventListener("click", openDraws);
       const stk = host.querySelector('[data-act="stocks"]');
       if (stk) stk.addEventListener("click", function () { MS.flow.openStocks(); });
-      bindZoom();
+      // 핀치·팬은 프레임(PC 차트 코드)이 담당 — 앱 측 제스처 없음
       // FAB 스크롤 숨김(프로토 chScroll — 아래로 숨고 위로 복귀)
       let lastY = 0;
       host.addEventListener("scroll", function () {
@@ -498,6 +513,6 @@
 
   MS.router.register("chart", {
     mount: mount,
-    unmount: function () { if (mount._removeFab) mount._removeFab(); }
+    unmount: function () { if (mount._removeFab) mount._removeFab(); if (MS.forgeFrame) MS.forgeFrame.detach(); }
   });
 })();

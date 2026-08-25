@@ -227,6 +227,9 @@ try {
     }
   }
   al_out(array("ok" => false, "error" => "op"), 400);
+} catch (WalletRateLimitException $e) {
+  // IP 당 하루 신규 계정 상한(W_IP_DAILY) — 서버 오류가 아니라 정책 거절. 클라는 로컬 폴백으로 계속 쓴다.
+  al_out(array("ok" => false, "error" => "rate-limited"), 429);
 } catch (Throwable $e) {
   al_out(array("ok" => false, "error" => "server"), 500);
 }

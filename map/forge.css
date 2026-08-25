@@ -1747,3 +1747,22 @@
   body.chart-fs .fc-scrolldown{display:inline-flex;align-items:center;position:fixed;bottom:16px;left:calc((100vw - 186px)/2);transform:translateX(-50%);z-index:95;background:var(--panel);color:var(--ink);padding:8px 15px;border-radius:999px;box-shadow:0 8px 24px var(--scrim);border:1px solid var(--line);font-size:12.5px;font-weight:700;letter-spacing:-.01em;cursor:pointer;font-family:inherit}
   body.chart-fs .fc-scrolldown:hover{background:var(--hover)}
   body.chart-fs .fc-fs-dock .hlbl{display:inline}
+
+  /* ── 앱 임베드 모드(html.embed — ?embed=app, 머니스쿱 앱 iframe): 차트 hero 만 남기고 전부 숨김. 프레임을 꽉 채운다 ── */
+  html.embed body{padding:0!important;margin:0;overflow:hidden;background:var(--chart-bg)}
+  html.embed .forge-top,html.embed .forge-side,html.embed .board-pane,html.embed .forge-gutter,html.embed .ind-rail,
+  html.embed .forge-legal,html.embed #playHud,html.embed #drawPop,html.embed #chartPresetPop,html.embed .fc-phead,
+  html.embed .fc-verdict-bar,html.embed .fc-vgutter,html.embed .fc-panel:not(.fc-panel-hero),html.embed #bToast,
+  html.embed .fc-lock,html.embed #chartLockBtn,html.embed .m-sub,html.embed #mSub,html.embed #fcIdle,html.embed #fcHeroImg,
+  html.embed .forge-palette,html.embed #paramPanel,html.embed .fc-zoom,html.embed #tkPanel,html.embed .tk-panel{display:none!important}
+  html.embed .forge-shell{padding-top:0!important}
+  html.embed #fcLegend{display:none!important}   /* 범례는 앱이 자기 줄에 그린다(작은 프레임에서 차트를 가리지 않게) */
+  html.embed .forge-shell{height:100vh;height:100dvh;flex-direction:column!important;min-height:0}
+  html.embed .forge-split{flex:1 1 auto;min-height:0;flex-direction:column!important}
+  html.embed .chart-pane{order:0!important;flex:1 1 auto!important;width:100%;min-width:0;min-height:0;height:100%}
+  html.embed .fc-wrap{padding:0!important;gap:0!important;overflow:hidden!important;flex:1 1 auto;min-height:0}
+  html.embed .fc-panel-hero{flex:1 1 auto!important;min-height:0;display:flex;flex-direction:column;height:100%}
+  html.embed .fc-panel-hero .fc-pbody{flex:1 1 auto;min-height:0;display:flex;padding:0!important}
+  html.embed .fc-hero{flex:1 1 auto;min-height:0;height:auto!important;aspect-ratio:auto!important;gap:0}
+  html.embed #fcMainChart{height:100%!important;min-height:0!important}
+  html.embed .fc-hero canvas{touch-action:none!important}   /* 프레임 안에서는 항상 차트 조작(앱 스크롤은 프레임 밖) */
