@@ -1,7 +1,7 @@
 # 머니스쿱 앱 — 진행 로그 · 재개 지점
 
 **세션이 끊기면 이 문서 하나로 이어진다.** 페이즈 완료·배포·중요 결정 때마다 갱신한다(갱신 규칙은 맨 아래).
-최종 갱신: **2026-08-25 (P10 앱 셸 완료 — 전 페이즈 종료)**
+최종 갱신: **2026-08-26 (실 출시 배선 감사 + SSV 배포 공백 수습 · 활성화 러너북)**
 
 ---
 
@@ -20,7 +20,7 @@
 | P8 계정 | ✅ | 실 구글 OAuth(wallet-auth.php+w_merge 재사용 — auth_start/auth_poll)·게스트→계정 병합(서버 규칙: xp/페르소나 max·읽음/종목 합집합)·닉네임 자동 생성·XP 실적립 게이트 해제·변경 디바운스 push+부팅 pull·로그아웃/탈퇴·계정 해석 3갈래(최초 링크/병합-이동 기기/게스트) |
 | P9 마감 | ✅ | 반응형 §16 3단계(compact/medium 2패널·480 다이얼로그/expanded 좌측 레일)·접근성(tablist·dialog·Esc·포커스·aria-label)·fixture 로컬 호스트 게이트·앱 버전 상수·닉네임 리더보드 해금(적중·다작) |
 | P10 앱 셸 | ✅ | `app-shell/` Capacitor 8 안드로이드 셸(APK 빌드 성공 · 엔진은 서버 절대 URL — 사본 없음)·AdMob 보상 광고 배선(app-ads.js ↔ ad_config/ad_state ↔ wallet-ssv 실지급)·하드웨어 뒤로가기·빌드/광고 활성/릴리스 절차 문서 |
-| **다음** | — | 외부 자원 대기: 실 OAuth 파일 · AdMob 실유닛(ad_units.json) · Firebase(FCM) · 릴리스 서명 키. 코드 트랙은 이월 목록(§5 P7~P9)과 지속 개선(작도 PC 동조) |
+| **다음** | — | **활성화 러너북 = [`LAUNCH.md`](LAUNCH.md)**(4기능 켜는 순서·포맷·검증 단일 출처). 외부 자원 대기: ① OAuth `forge_google_oauth.json`(웹 turnkey) · ② AdMob 유닛(SSV 404 수습 완료 — 콘솔+`ad_units.json`만) · ③ FCM(미구축·구축 과제) · ④ 서명 키. 코드 트랙은 이월·지속 개선(작도 PC 동조) |
 
 **라이브**: https://parksvc.mycafe24.com/map/app/ (실데이터 — cafe24에서만 시세 프록시 동작. 로컬은 `?fixture=1`)
 
@@ -92,6 +92,13 @@
 - **PC 추세선 정비 백로그 등록(339cfea, docs/BACKLOG.md)**: 앱 시연서 의미없는/부정확한 추세선 발견 → PC 엔진 트랙으로 이관(작도 vs 엔진 분해·§② 관문). 모바일은 forge 임베드라 PC 수정+배포 시 자동 상속.
 - **동시 개발 프로토콜 §⑦ 지침화(37d49ca, map/CLAUDE.md)**: 세 트랙(엔진·웹PC·모바일) 결합 비대칭 → 현행 2레인(A 엔진+웹, B 모바일)·공유 이음새 2곳(forge-embed·지표 레지스트리)·배포 직렬화. 3트랙은 이후 개선.
 - 관문 954건 유지. **다음(사용자 선택)**: 서비스 손맛·시각 폴리시 계속.
+
+### 2026-08-26 — 실 출시 준비 배선·검증 (외부 자원 4기능 활성화 감사)
+- **활성화 러너북 신설 `docs/design-v2/LAUNCH.md`**: 구글 로그인·AdMob·FCM·서명 4기능을 켜는 순서·파일 포맷·검증법의 단일 체크리스트. AdMob 활성 순서·릴리스 서명은 ANDROID-BUILD.md(§광고 켜는 순서·§릴리스 트랙)를 인용, **문서에 없던 OAuth 활성 러너북(콘솔 웹 클라이언트·리디렉션 URI `.../map/wallet-auth.php`·`forge_google_oauth.json` 웹루트 업로드·auth_start 검증)**을 채웠다.
+- **라이브 게이트 실측(2026-08-26)**: `auth_start`→`auth-disabled` ✓·`ad_config`→`ads-disabled` ✓·`wallet-auth.php`→400 ✓ (전부 정상 활성화-대기 — 배선 살아있고 config 파일만 대기). `w_oauth_conf()` 게이트 스텁 검증(config 없음=NULL·스텁=활성·빈 client_id=무효).
+- **★배포 공백 수습 — `wallet-ssv.php` 라이브 404**: 2026-08-15 커밋됐으나 cafe24 에 배포된 적 없었다(CLAUDE.md §④ 가 경고한 지뢰 — AdMob 활성 시 구글 SSV 콜백 404 → 아무도 보상 못 받음). ads-disabled 상태라 무해했으나 **AdMob 활성화의 0번 선행조건**. 해소: `./tests/run.sh concurrency` 6종 통과 → 지갑 세트(wallet-ssv·wallet-lib·wallet-api) 동반 배포 → `wallet-ssv.php` HTTP 200 확인.
+- **배선 상태 확정**: ① OAuth = 서버·클라 완결, 웹 turnkey(셸 불필요) ② AdMob = 서버·클라·셸 완결(SSV 수습 후 콘솔+ad_units.json 만) ③ FCM = **전무**(app-shell 플러그인에도 없음 — Firebase 프로젝트부터 짓는 과제, 시그널 서버 스캔 승격과 한 세트) ④ 서명 = release 빌드타입만·서명/R8 없음(스토어 제출 직전). 엔진↔서버 동조 불변(셸은 엔진을 서버 절대 URL 참조 — APK 빌드 전 www/map 현행 확인).
+- **다음(외부 자원 열리는 순서)**: ① `forge_google_oauth.json` 업로드 → 실 로그인 라이브 검증(오늘 가능) ② AdMob 콘솔 유닛+SSV URL → `ad_units.json` ③ 서명 키 → assembleRelease ④ Firebase → FCM. 코드 이월은 §5 상단 목록 유지.
 
 ---
 
