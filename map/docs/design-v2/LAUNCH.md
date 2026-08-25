@@ -93,6 +93,30 @@
 
 ---
 
+## 4-B. 도메인·경로 전환 — parksvc → `moneyscoop.co.kr/app` (출시 전, 사용자 확정 2026-08-26)
+
+**개발은 `parksvc.mycafe24.com/map/`(cafe24 기본 서브도메인·실 데이터·noindex 비공개), 출시 얼굴은 `moneyscoop.co.kr/app/`.**
+parksvc 는 버려지는 테스트 서버가 아니라 지금 모든 게 도는 라이브 호스트다 — 전환은 서버 이전이 아니라 **주소를 하나 더 다는 것**.
+
+**왜 쉬운가**: 웹 앱은 백엔드 형제(엔진·app-api·wallet-*·forge.html)를 전부 **상대경로 `..`**(`app-data.serverBase()`)로 참조한다.
+경로 구조만 유지되면 웹 코드는 0줄 바뀐다. 절대 URL 을 쓰는 건 **APK 셸뿐**(build-www 가 주입하는 `MS_SERVER_BASE`).
+
+**정석 = cafe24 멀티도메인 연결폴더로 `www/map/` 를 moneyscoop.co.kr 루트에 매핑**(파일 이동·데이터 이사 없음):
+
+| 주소 | 실제 파일 |
+|---|---|
+| `moneyscoop.co.kr/app/` | `www/map/app/` |
+| `moneyscoop.co.kr/` | `www/map/index.html`(랜딩=홈) |
+| `moneyscoop.co.kr/forge-core.js` · `/app-api.php` · `/wallet-auth.php` · `/wallet-ssv.php` · `/forge.html` | 각 `www/map/…` |
+
+전환 시 실제로 바뀌는 것(한 번):
+1. **cafe24**: moneyscoop.co.kr 연결(연결폴더 = `map`) + SSL(OAuth·광고 HTTPS 필수).
+2. **APK 상수에서 `/map` 제거 → 재빌드**: `app-shell/build-www.mjs` `SERVER_BASE`, `app/app-forge-frame.js` `PROD_BASE` 를 `https://moneyscoop.co.kr` 로. (웹은 상대경로라 무변경 — 셸만 절대 URL)
+3. **구글 콘솔 리디렉션 URI 추가**: `https://moneyscoop.co.kr/wallet-auth.php`(parksvc 와 병기 가능 — 여러 개 등록됨).
+4. **AdMob SSV URL**: `https://moneyscoop.co.kr/wallet-ssv.php`(AdMob 세팅 시 애초에 이 주소로).
+
+**parksvc 로 지금 하는 OAuth 세팅은 안 버려진다** — redirect_uri 는 `wallet-auth.php` 가 요청 호스트에서 파생(`$SELF`, 하드코딩 아님)하고 콘솔은 URI 를 여러 개 받는다. 개발은 parksvc, 출시는 moneyscoop 을 같은 클라이언트에 나란히.
+
 ## 5. 활성화 후 회귀 검증 (공통)
 
 - OAuth/AdMob 파일을 올렸으면 `./tests/run.sh` 전량(엔진·원장 회귀) + wallet 을 만졌으면 `./tests/run.sh concurrency`.
