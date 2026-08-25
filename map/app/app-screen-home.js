@@ -16,7 +16,9 @@
   }
   function fmtChg(c) { return (c >= 0 ? "▲" : "▼") + Math.abs(c).toFixed(2) + "%"; }
 
+  let homeUnsub = null;   // picks 변경 시 홈 재렌더 구독 — 재마운트마다 정리(누수 방지)
   function mount(host, ctx) {
+    if (homeUnsub) { homeUnsub(); homeUnsub = null; }
     let quotes = {};   // sym → {price, chg, up}
     const s0 = MS.store.get();
 
@@ -297,7 +299,9 @@
         '<div style="margin-top:6px;font-size:12.5px;color:var(--m1);line-height:1.7">' + str("home.emptyDesc") + "</div>" +
         '<button class="ms-cta-primary" data-act="pick" style="margin-top:16px;max-width:240px;margin-left:auto;margin-right:auto"><span class="t">' + str("home.emptyCta") + "</span></button></div></div>";
       const b = host.querySelector('[data-act="pick"]');
-      if (b) b.addEventListener("click", function () { MS.router.go("pick"); });
+      // 관심종목 0 → 홈에 머물며 종목추가 시트로 안내(온보딩 pick 전체화면으로 튀지 않는다).
+      // 정상 홈의 '+추가'(openStocks)와 동일한 진입점 — 담으면 홈이 곧바로 채워진다.
+      if (b) b.addEventListener("click", function () { MS.flow.openStocks(); });
     }
 
     function bind() {
@@ -344,6 +348,11 @@
     }
 
     render();
+    // 관심종목이 바뀌면(시트·다른 화면에서 담거나 빼도) 홈이 즉시 반영 — 빈 홈에서 담으면 곧바로 채워지고,
+    // 마지막 종목을 빼면 빈 안내(renderEmpty)로 자동 전환. 화면이 홈일 때만 렌더.
+    homeUnsub = MS.store.subscribe(function (keys) {
+      if (keys.indexOf("picks") >= 0 && MS.store.get().screen === "home") render();
+    });
     // 채점 요약(서버) — 배지·히어로 실값
     MS.data.api("list", { limit: 200 }).then(function (r) {
       if (r && r.ok) {
