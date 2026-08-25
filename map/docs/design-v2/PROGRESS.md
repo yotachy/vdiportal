@@ -48,6 +48,7 @@
 - **엔진**: 앱은 서버의 `www/map/forge-core.js` 를 상대참조 — **엔진 커밋 미배포 시 앱이 죽는다**(aggUpProb 사고, CLAUDE.md 기록). 엔진 올릴 땐 forge 동반 세트 확인.
 - **불가침**: `<data>/app_ledger.db`(예측·채점 원장) + 기존 forge_*·wallet 목록.
 - **앱 셸(APK)**: `map/app-shell/` — 스토어 릴리스 트랙(커밋+푸시 한 세트, 배포 별도). 절차·릴리스 준비 목록은 `docs/ANDROID-BUILD.md` 하단 절. 디버그 APK 44MB(인트로 mp4 3종 포함 — 릴리스 전 R8·에셋 다이어트 과제).
+- **⚠ 캐시버스터 필수(2026-08-25)**: cafe24 가 css/js 를 `max-age 604800`(7일)로 캐시한다 — **버전 쿼리 없이 배포하면 돌아온 사용자가 7일간 옛 파일을 본다**(작도·수정이 안 먹던 실제 원인). app/index.html·forge.html 은 캐시버스터가 붙는다. **배포 직전 반드시** `python3 scripts/stamp-cachebust.py <STAMP>`(예 20260825b) 실행 → 바뀐 css/js 의 ?v= 를 새로 찍고, app-forge-frame 의 iframe forge.html?…&v= 도 같이 올린다. 그 뒤 index.html·forge.html·바뀐 자산을 함께 배포. HTML 은 캐시헤더가 없어(휴리스틱) 곧 재검증되므로 새 버전 쿼리가 곧 반영된다.
 - 배포 방법: `lftp -u "parksvc,<메모리 scoopforge-deploy 참조>" sftp://parksvc.mycafe24.com` → put. **호스트는 mycafe24.com — `parksvc.cafe24.com`은 22 포트가 닫혀 있어 무한 대기한다**(2026-08-25 확인). `set net:timeout 15` 걸고 올릴 것.
 
 ## 4. 개발 환경 메모 (재개 시 그대로 씀)
