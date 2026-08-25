@@ -244,6 +244,30 @@
         '<div style="flex:1;height:7px;border-radius:4px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:' + Math.round(r.n / vmx * 100) + '%;border-radius:4px;background:linear-gradient(90deg,#7b6cff,#d2a516)"></div></div>' +
         '<span class="mono" style="font-size:13px;font-weight:700;color:var(--cu);width:52px;text-align:right;flex:none">' + fmtN(r.n) + "회</span></div>";
     });
+    // 레벨 보드(활동 XP — 원장 파생: 통산 등록·적중. 참여 XP 와 별개) — §15 서버 검증 충족으로 해금
+    const levels = (stats && stats.levels) || [], myLevel = stats && stats.myLevel;
+    const lmx = levels.length ? levels[0].xp : 1;
+    let lvRows = "";
+    levels.forEach(function (r, i) {
+      lvRows += '<div style="display:flex;align-items:center;gap:8px">' +
+        '<span class="mono" style="font-size:12.5px;color:#22d3ee;flex:none">' + rk(i) + "</span>" +
+        '<div style="width:104px;flex:none;overflow:hidden"><div style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(r.nick) + "</div></div>" +
+        '<div style="flex:1;height:7px;border-radius:4px;background:var(--sf3);overflow:hidden"><div style="height:100%;width:' + Math.max(6, Math.round(r.xp / lmx * 100)) + '%;border-radius:4px;background:linear-gradient(90deg,#22d3ee,#7b6cff)"></div></div>' +
+        '<span class="mono" style="font-size:12.5px;font-weight:700;color:var(--t1);width:34px;text-align:right;flex:none">Lv' + r.level + "</span>" +
+        '<span class="mono" style="font-size:11.5px;color:var(--m1);width:46px;text-align:right;flex:none">' + fmtN(r.xp) + "점</span></div>";
+    });
+    const minReg = myLevel ? myLevel.minReg : 10;
+    const levelBlock = levels.length
+      ? '<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">' + lvRows + "</div>"
+      : pendingBody("레벨 리더보드(닉네임)", "구글 연결 사용자 중 등록 분석 " + minReg + "건 이상이 생기면 열려요.");
+    const myLvLine = (myLevel && myLevel.reg > 0)
+      ? '<div style="margin-top:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">' +
+        '<span style="font-size:12.5px;color:var(--t2)">나의 활동 레벨</span>' +
+        '<span class="mono" style="font-size:13.5px;font-weight:700;color:#22d3ee">Lv' + myLevel.level + "</span>" +
+        '<span class="mono" style="font-size:12.5px;color:var(--m1)">' + fmtN(myLevel.xp) + "점</span>" +
+        '<span style="font-size:12.5px;color:var(--m1)">— ' + (myLevel.rank != null ? "상위 " + myLevel.rank + "위" : "등록 " + minReg + "건부터 순위가 나와요") + "</span></div>"
+      : "";
+
     const leadBlock = leads.length
       ? '<div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">' + leadRows + "</div>"
       : pendingBody("적중 리더보드(닉네임)", "구글 연결 사용자 중 최근 90일 채점 30회 이상이 생기면 열려요.");
@@ -254,8 +278,8 @@
       '<div style="margin-top:12px;border-top:1px dashed var(--ln1);padding-top:12px">' +
       head("분석을 많이 한 사용자", "최근 30일 · 닉네임") + volBlock + "</div>" +
       '<div style="margin-top:12px;border-top:1px dashed var(--ln1);padding-top:12px">' +
-      head("레벨이 높은 사용자", "누적 경험치 · 닉네임") +
-      pendingBody("레벨 리더보드(닉네임)", "경험치 서버 검증이 붙은 뒤 열려요 — 검증 전 수치는 올리지 않아요.") + "</div>" + mine +
+      head("레벨이 높은 사용자", "통산 분석·적중 · 닉네임") + levelBlock + myLvLine +
+      '<div style="margin-top:8px;font-size:11px;color:var(--m2);line-height:1.6">활동 레벨은 실제 분석 등록·적중 기록으로만 매겨요(방문·둘러보기 경험치와 별개).</div>' + "</div>" + mine +
       '<div style="margin-top:8px;font-size:11.5px;color:var(--m1);line-height:1.6">뼈대 엔진은 모두 같아요. 관점과 가중치, <b style="color:var(--t2)">투자 페르소나</b>에 따라 예측이 달라지니, 적중률도 사람마다 다릅니다.</div>');
   }
 

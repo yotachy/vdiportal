@@ -115,6 +115,24 @@ ok($P["me"]["n"] === 6 && $P["me"]["hit"] === 4 && $P["me"]["rank"] === 50, "pee
 $P = al_peers_stats($db, "dev_a", $P_NOW, 7);
 ok(count($P["styleFit"]) === 0 && $P["me"]["rank"] === null, "peers: minN 미달이면 프리셋·순위 비공개");
 
+// ── 레벨(활동) XP — 원장 파생(통산 활동 + 적중 가중) ──
+ok(al_level_xp(0, 0) === 0, "levelXp: 무활동 0");
+ok(al_level_xp(10, 0) === 30, "levelXp: 등록 10 = 30(base 3)");
+ok(al_level_xp(10, 4) === 38, "levelXp: 등록 10·적중 4 = 30 + 8(hit 2)");
+ok(al_activity_level(0) === 1 && al_activity_level(14) === 1, "activityLevel: <15 = Lv1");
+ok(al_activity_level(15) === 2 && al_activity_level(44) === 2, "activityLevel: 15~44 = Lv2");
+ok(al_activity_level(45) === 3 && al_activity_level(90) === 4 && al_activity_level(150) === 5, "activityLevel: 삼각수 곡선 확장");
+// 랭킹 — 위 peers 시드 재사용(dev_a 6등록·4적중=26 · dev_b 6등록·2적중=22)
+$ranks = al_level_ranks($db, 5);
+$byDev = array(); foreach ($ranks as $r) $byDev[$r["device"]] = $r;
+ok(isset($byDev["dev_a"]) && $byDev["dev_a"]["xp"] === 26, "levelRanks: dev_a xp = 6*3+4*2 = 26");
+ok(isset($byDev["dev_b"]) && $byDev["dev_b"]["xp"] === 22, "levelRanks: dev_b xp = 6*3+2*2 = 22");
+$ia = -1; $ib = -1; foreach ($ranks as $i => $r) { if ($r["device"] === "dev_a") $ia = $i; if ($r["device"] === "dev_b") $ib = $i; }
+ok($ia >= 0 && $ib >= 0 && $ia < $ib, "levelRanks: 높은 xp 가 먼저(dev_a < dev_b)");
+$ranks10 = al_level_ranks($db, 10);
+$has6 = false; foreach ($ranks10 as $r) if ($r["device"] === "dev_a") $has6 = true;
+ok(!$has6, "levelRanks: minReg 미달(6<10) 제외");
+
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
 exit($FAIL ? 1 : 0);

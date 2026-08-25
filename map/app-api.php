@@ -105,6 +105,26 @@ try {
     }
     $ps["leads"] = $leads;
     $ps["vols"] = $vols;
+    // 레벨 보드(활동 XP — 원장 파생: 통산 등록×3 + 적중×2). §15 'XP 서버 검증' 조건 충족 → 해금.
+    // leads/vols 와 동일: 구글 연결+닉네임만, 기기 id 비노출, 최소 등록(AL_LV_MINREG)으로 스팸 컷.
+    $lvRanks = al_level_ranks($db);
+    $levels = array();
+    foreach ($lvRanks as $lr) {
+      $nick = $nickOf($lr["device"]);
+      if ($nick === null) continue;
+      $levels[] = array("nick" => $nick, "xp" => $lr["xp"], "level" => $lr["level"]);
+      if (count($levels) >= 4) break;
+    }
+    $mrow = $db->prepare("select count(*) reg, sum(case when status='hit' then 1 else 0 end) hits from predictions where device=:d");
+    $mrow->execute(array(":d" => $device));
+    $mr = $mrow->fetch();
+    $myReg = (int)$mr["reg"]; $myXp = al_level_xp($myReg, (int)$mr["hits"]); $myRank = null;
+    if ($myReg >= AL_LV_MINREG) {   // 자격 있을 때만 순위(미달이면 xp·레벨은 보이되 순위는 null)
+      $better = 0; foreach ($lvRanks as $lr) { if ($lr["xp"] > $myXp) $better++; }
+      $myRank = $better + 1;
+    }
+    $ps["levels"] = $levels;
+    $ps["myLevel"] = array("xp" => $myXp, "level" => al_activity_level($myXp), "reg" => $myReg, "rank" => $myRank, "minReg" => AL_LV_MINREG);
     al_out($ps);
   }
   // ── 페르소나 질문(P6) — 인덱스로 다음 질문만, 총량은 절대 싣지 않는다(Q4) ──

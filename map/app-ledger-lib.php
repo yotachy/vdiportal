@@ -269,3 +269,35 @@ function al_claim_refunds($db, $device) {
     return count($ids);
   } catch (Throwable $e) { $db->exec("rollback"); throw $e; }
 }
+
+// ── 레벨(활동) XP — 원장 파생. 리더보드 레벨 보드용. 통산 활동 + 적중 가중(브레인스토밍 확정 2026-08-25).
+//    참여 XP(방문·메뉴 등 클라)와 별개 — 이건 서버가 아는 실활동만 세어 위조 불가(leads/vols 와 같은 원장 기반).
+if (!defined("AL_LV_BASE")) define("AL_LV_BASE", 3);    // 등록 분석 1건당
+if (!defined("AL_LV_HIT")) define("AL_LV_HIT", 2);      // 적중(status=hit) 1건당 보너스
+if (!defined("AL_LV_MINREG")) define("AL_LV_MINREG", 10); // 리더보드 노출 최소 등록 수(스팸 컷)
+
+function al_level_xp($reg, $hits) {
+  return AL_LV_BASE * (int)$reg + AL_LV_HIT * (int)$hits;
+}
+// 확장형 레벨(상한 없음) — 도달 임계 = 15·(L-1)·L/2 삼각수. L1:0 L2:15 L3:45 L4:90 L5:150 L6:225 …
+function al_activity_level($xp) {
+  $L = 1;
+  while ($xp >= 15 * $L * ($L + 1) / 2) $L++;
+  return $L;
+}
+// 기기별 통산 등록·적중 → levelXp 로 정렬(내림차). minReg 미달 제외. 닉네임 해석은 호출부(app-api).
+function al_level_ranks($db, $minReg = AL_LV_MINREG) {
+  // HAVING 에 바인딩 파라미터를 쓰면 SQLite/PDO 가 집계 비교를 잘못 처리해 0행을 낸다(실측).
+  // minReg 는 내부 int 이므로 캐스팅 후 리터럴로 인라인(주입 위험 없음).
+  $m = (int)$minReg;
+  $st = $db->query("select device, count(*) reg, sum(case when status='hit' then 1 else 0 end) hits
+    from predictions group by device having count(*) >= " . $m);
+  $rows = array();
+  foreach ($st->fetchAll() as $r) {
+    $xp = al_level_xp((int)$r["reg"], (int)$r["hits"]);
+    $rows[] = array("device" => $r["device"], "reg" => (int)$r["reg"], "hits" => (int)$r["hits"],
+      "xp" => $xp, "level" => al_activity_level($xp));
+  }
+  usort($rows, function ($a, $b) { return ($b["xp"] - $a["xp"]) ?: strcmp($a["device"], $b["device"]); });
+  return $rows;
+}
