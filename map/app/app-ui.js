@@ -178,6 +178,54 @@
     setTimeout(function () { if (el.parentNode) el.parentNode.removeChild(el); }, dur + 700);
   }
 
+  // 리워드 버스트 — 스쿱·경험치 '획득' 순간 전용(일반 토스트와 구분되는 강한 손맛).
+  // kind: "scoop"(◈ 골드) | "xp"(✦ 그린) · amount: 양수 · opts.label: 아래 작은 사유.
+  // 진동은 획득 크기 비례(reward / rewardBig). 획득이 아닌 안내는 flash() 를 쓴다.
+  function reward(kind, amount, opts) {
+    opts = opts || {};
+    const app = appEl || document.getElementById("msApp");
+    if (!app || !(amount > 0)) return;
+    const scoop = kind !== "xp";
+    const col = scoop ? "var(--cu)" : "var(--up)";
+    const ico = scoop ? "◈" : "✦";
+    hap(amount >= 10 ? "rewardBig" : "reward");
+    const old = app.querySelector(".ms-rwfx");
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    const fx = document.createElement("div");
+    fx.className = "ms-rwfx";
+    fx.style.setProperty("--rw-ms", ((POLICY.ui.rewardMs || 1500) / 1000) + "s");
+    fx.style.setProperty("--rw-col", col);
+    const ring = document.createElement("div");
+    ring.className = "rw-ring";
+    fx.appendChild(ring);
+    const NS = 8;   // 스파크 8개 — 균등 각 + 인덱스 지터(무작위 없이 결정적)
+    for (let i = 0; i < NS; i++) {
+      const a = (Math.PI * 2 * i) / NS + (i % 2 ? 0.34 : -0.16);
+      const r = 52 + (i % 3) * 9;
+      const sp = document.createElement("div");
+      sp.className = "rw-spark";
+      sp.style.setProperty("--tx", Math.round(Math.cos(a) * r) + "px");
+      sp.style.setProperty("--ty", Math.round(Math.sin(a) * r) + "px");
+      sp.style.animationDelay = (i * 12) + "ms";
+      fx.appendChild(sp);
+    }
+    const card = document.createElement("div");
+    card.className = "rw-card";
+    card.style.border = "1px solid " + col;
+    card.style.boxShadow = "0 14px 40px -8px rgba(0,0,0,0.6), 0 0 32px -2px " + col;
+    card.innerHTML = '<span class="rw-ico" style="color:' + col + '">' + ico + "</span>" +
+      '<span class="rw-num" style="color:' + col + '">+' + amount + "</span>";
+    fx.appendChild(card);
+    if (opts.label) {
+      const sub = document.createElement("div");
+      sub.className = "rw-sub";
+      sub.textContent = opts.label;
+      fx.appendChild(sub);
+    }
+    app.appendChild(fx);
+    setTimeout(function () { if (fx.parentNode) fx.parentNode.removeChild(fx); }, (POLICY.ui.rewardMs || 1500) + 200);
+  }
+
   // ── 바텀시트 — 탭바를 가리지 않음(딤 bottom 88px), 본문 전체 드래그 닫기 90px + 스크롤 가드 ──
   function openSheet(name, build) {
     closeSheet();
@@ -337,6 +385,6 @@
     });
   }
 
-  MS.ui = { init: init, flash: flash, openSheet: openSheet, closeSheet: closeSheet,
+  MS.ui = { init: init, flash: flash, reward: reward, openSheet: openSheet, closeSheet: closeSheet,
     openAbout: openAbout, skeleton: skeleton, hap: hap, TAB_SCREENS: TAB_SCREENS };
 })();

@@ -68,9 +68,11 @@
       skeletonMs: 180,
       toastMs: 1800,
       toastNegMs: 3200,
+      rewardMs: 1500,
       swipePx: 40,
       haptics: {
-        deduct: [30, 40, 30], done: [15, 30, 60], earn: [20],
+        deduct: [30, 40, 30], done: [15, 30, 60], earn: [15, 35, 20],
+        reward: [15, 40, 25, 60], rewardBig: [22, 45, 30, 55, 40, 80],
         warn: [60, 50, 60], stop: [25], tick: [12]
       }
     }

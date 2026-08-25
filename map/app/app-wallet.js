@@ -31,8 +31,7 @@
         MS.store.set(patch);
         MS.store.persistSoon();
         if (r.hitRefunds > 0) {
-          MS.ui.hap("earn");
-          MS.ui.flash("적중 환급 ◈+" + r.hitRefunds + " 이 들어왔어요", "+" + r.hitRefunds);
+          MS.ui.reward("scoop", r.hitRefunds, { label: "적중 환급" });
         }
         return r;
       }
@@ -84,9 +83,8 @@
       if (r && r.ok) {
         MS.store.set({ scoops: r.balance, canCheckin: false, streakDays: r.streakDays || 0 });
         MS.store.persistSoon();
-        MS.ui.hap("earn");
         const chest = r.granted > P().scoop.checkin.amount;
-        MS.ui.flash(chest ? "연속 " + P().scoop.streak.days + "일 보너스까지 ◈+" + r.granted + "!" : "출석 ◈+" + r.granted, "+" + r.granted);
+        MS.ui.reward("scoop", r.granted, { label: chest ? ("연속 " + P().scoop.streak.days + "일 보너스!") : "출석 보상" });
         return r;
       }
       if (r && r.reason === "already") { MS.ui.flash("오늘 출석은 이미 받았어요 — 내일 다시", ""); MS.store.set({ canCheckin: false }); }
@@ -123,11 +121,10 @@
       xpPop("경험치 +" + n, "구글 로그인하면 쌓여요", true);
       return;
     }
-    MS.ui.hap(n >= 5 ? "earn" : "tick");
     const was = MS.config.levelOf(s.xp);
     MS.store.set({ xp: s.xp + n, xpToday: (s.xpToday || 0) + n });
     MS.store.persistSoon();
-    xpPop("경험치 +" + n, label || "", false);
+    MS.ui.reward("xp", n, { label: label || "" });   // 강한 손맛(버스트+비례 진동) — 진동은 reward 가 처리
     const now = MS.config.levelOf(s.xp + n);
     if (now > was) setTimeout(function () { levelUpOverlay(was, now); }, 650);
   }

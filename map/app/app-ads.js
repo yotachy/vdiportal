@@ -71,12 +71,12 @@
         MS.ui.flash("광고를 끝까지 보면 적립돼요", "");
         return { rewarded: false };
       }
-      MS.ui.hap("earn");
       MS.ui.flash("확인 중… 잠시 뒤 스쿱이 들어와요", "");
       const landed = await pollBalance(before);
       if (landed) {
-        MS.ui.flash("광고 보상 ◈+" + (MS.store.get().scoops - before) + " 이 들어왔어요", "+" + (MS.store.get().scoops - before));
-        if (MS.xp) MS.xp.add(MS.config.POLICY.scoop.ad.xp, "광고 완주");
+        MS.ui.reward("scoop", MS.store.get().scoops - before, { label: "광고 완주 보상" });
+        // ◈ 버스트가 끝난 뒤 XP 버스트가 이어지게(둘이 겹쳐 잘리지 않도록)
+        if (MS.xp) setTimeout(function () { MS.xp.add(MS.config.POLICY.scoop.ad.xp, "광고 완주"); }, (MS.config.POLICY.ui.rewardMs || 1500) - 150);
       } else {
         MS.ui.flash("보상 확인이 늦어지고 있어요 — 잠시 뒤 잔액을 확인해 주세요", "");
       }
