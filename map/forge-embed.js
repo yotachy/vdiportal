@@ -74,6 +74,7 @@
         _yScale = { mode: "auto", lo: null, hi: null };
         renderHeroZoom();
       } else {
+        if (!_evidenceShow) toggleEvidence();   // 결과 열람 = 근거 표시(앱은 웹분석 전/후 구분 없음)
         renderChart(lastResult, currentData());
         if (Array.isArray(m.evidenceOff) && m.evidenceOff.length) onEvidence({ off: m.evidenceOff });
         if (typeof fitPrediction === "function") { try { fitPrediction(); } catch (e) {} }

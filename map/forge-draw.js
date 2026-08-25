@@ -3047,7 +3047,9 @@
     _evLabelBoxes = _axisLabelBoxes.concat(_predLabelBoxes);   // 축 눈금·현재가 pill + 예측 차수 배지를 먼저 예약 → 근거 라벨이 이를 피함
     _skFrac = (_scanning && _scanU < 1) ? _scanU : null;   // 시연 중이면 진행형 작도(손그림)
     if (!_evidenceShow || !_evidenceSet.size || !lastResult) return;
-    if (typeof window !== "undefined" && window._fcPreview) return;   // 웹분석 전엔 분석근거 오버레이 미표시(버튼도 비활성 — CSS)
+    // 앱 임베드는 '웹분석 전/후' 구분이 없다 — 결과가 있으면(_evidenceShow) 항상 근거를 그린다(_fcPreview 무시).
+    // 로드 직후 캔들만 보여야 할 때는 _evidenceShow=false 로 통제(시연 시작 시 켠다). PC 는 종전대로 preview 게이트.
+    if (!(typeof EMBED !== "undefined" && EMBED) && typeof window !== "undefined" && window._fcPreview) return;   // 웹분석 전엔 분석근거 오버레이 미표시(버튼도 비활성 — CSS)
     // 예측을 계산한 바로 그 시계열을 사용(차트/콘과 동일) — 작도·예측 정합 보장
     const price = ((_fcLastData && _fcLastData.price) || currentData().price) || []; const P = price.length; if (P < 2) return;
     const mode = heroMode();
