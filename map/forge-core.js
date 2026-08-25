@@ -1999,7 +1999,7 @@
   function run(graph, data, opts) {
     const futW = Math.min(((opts && opts.futW) || 24), 60);   // 예측 horizon 상한(과도한 장기 외삽 방지)
     const _dw = (opts && opts.driftWeights) || {}, DW = t => (typeof _dw[t] === "number" && isFinite(_dw[t]) ? Math.max(0, Math.min(3, _dw[t])) : 1);   // 지표별 bias 기여 가중치(기본 1×, 0~3×)
-    const ev = evalBlocks(graph, data), { values, meta } = ev;
+    const ev = (opts && opts._ev) || evalBlocks(graph, data), { values, meta } = ev;   // _ev: 미리 계산한 블록값 재사용(커스텀 std·가중 2회 실행 시 중복 제거 — 출력 불변)
     const outNode = graph.nodes.find(n => n.kind === "block" && (n.blockType === "predict"));
     const inputsOf = buildDAG(graph).inputsOf;
     // 합성 시그널: 출력 입력(없으면 combine/마지막) 시계열을 정규화

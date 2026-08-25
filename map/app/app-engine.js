@@ -479,9 +479,9 @@
       const ind = { id: id, name: meta.name, group: meta.group, bias: c.bias || 0,
         strength: Math.max(0, Math.min(100, Math.round(Math.abs(c.bias || 0) * 100))), text: c.text };
       indicators.push(ind);
-      if (onStep) onStep({ i: i, total: set.length, id: id, name: meta.name, group: meta.group,
-        bias: ind.bias, strength: ind.strength, text: ind.text });
-      await tick();
+      if (onStep) { onStep({ i: i, total: set.length, id: id, name: meta.name, group: meta.group,
+        bias: ind.bias, strength: ind.strength, text: ind.text }); await tick(); }
+      // onStep(리보 연출) 없으면 yield 불필요 — 채점 전용 호출(차트·미리보기)은 동기로 빠르게
     }
 
     const futW = horizonForTF(req.tfKo);
@@ -493,9 +493,11 @@
 
     let mainRes, stdRes = null;
     if (tier === "custom") {
-      // 커스텀: 기준(종합) 실행 → 1·2차, 가중 실행 → 판정·콘·3차(R-B06 실좌표)
-      stdRes = core.run(graph, data, { futW: futW, timeframe: opts.timeframe, driftWeights: {} });
-      mainRes = core.run(graph, data, { futW: futW, timeframe: opts.timeframe, driftWeights: W });
+      // 커스텀: 기준(종합) 실행 → 1·2차, 가중 실행 → 판정·콘·3차(R-B06 실좌표).
+      // 블록값(evalBlocks)은 driftWeights 와 무관하므로 1회만 계산해 두 실행이 공유(중복 제거·출력 불변).
+      const ev = core.evalBlocks(graph, data);
+      stdRes = core.run(graph, data, { futW: futW, timeframe: opts.timeframe, driftWeights: {}, _ev: ev });
+      mainRes = core.run(graph, data, { futW: futW, timeframe: opts.timeframe, driftWeights: W, _ev: ev });
     } else {
       mainRes = core.run(graph, data, { futW: futW, timeframe: opts.timeframe, driftWeights: W });
     }
