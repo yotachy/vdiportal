@@ -14,6 +14,12 @@
   const CAT = ["var(--bl)", "var(--pk)", "var(--cy)", "var(--am)", "var(--lv)"];   // 추세·모멘텀·거래량·변동성·구조
   const CN = ["추세", "모멘텀", "거래량", "변동성", "구조"];
 
+  // 미리보기 분석 창 — 커스텀은 지표 계산을 3회(앱 루프+run 기준+run 가중) 돌려, 전량 이력(수천 봉)이면
+  // 폰에서 슬라이더·진입이 수 초씩 블로킹된다. 방향은 이력 길이에 안정적(봉 전송 정책 실측)이고 확정
+  // 채점은 pfit→runCustom 이 전량으로 다시 도므로, 미리보기만 최근 창으로 줄인다. 모든 지표 룩백(gann·
+  // 볼륨프로파일·피보 120, 일목 스팬 ~130)을 담고도 가벼운 값.
+  const PREVIEW_BARS = 400;
+
   // 커스텀 mix 슬라이더 7지표(시안 wts) → 엔진 id (Q5: 다이버전스 2종은 rsi·volume 가중으로 흡수)
   const MIX_ROWS = [
     { id: "ma", n: "이동평균", sign: 1 },
@@ -305,8 +311,10 @@
           if (!candles) return;
           try {
             const st = MS.store.get();
+            // 미리보기는 최근 창만으로(전량은 폰에서 수 초 블로킹) — 확정 채점은 runCustom 이 전량으로 재실행
+            const cds = candles.length > PREVIEW_BARS ? candles.slice(-PREVIEW_BARS) : candles;
             preview = await MS.engine.analyze({ symbol: st.ticker, tfKo: st.tf, tier: "custom",
-              preset: st.preset || "전체 종합", weights: effWeights(), candles: candles });
+              preset: st.preset || "전체 종합", weights: effWeights(), candles: cds });
             paintChart();
           } catch (e) { /* 미리보기 실패는 조용히 */ }
         }, 350);
