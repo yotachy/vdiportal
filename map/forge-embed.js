@@ -84,22 +84,55 @@
 
   const WIDE_BARS = 120;
   let _draft = false;   // 시연 중 전폭에 놓을 캔들 수(폰 폭 기준 봉당 ~3px — 작도가 읽히는 밀도)
-  // ── 지표별 카메라(작도 목적에 맞춰 시야 이동) — 큰 그림 지표는 멀리(줌아웃), 근접 지표는 가까이(줌인) ──
-  // wide=장기·구조 전체 조망 / mid=중기 / near=최근 근접. 실제 작도가 "멀리서 보고 가까이서 본다"는 느낌.
-  var _CAM = {
-    trend:"wide", ma:"wide", ichimoku:"wide", fib:"wide", elliott:"wide", structure:"wide",
-    cycle:"wide", gann:"wide", smc:"wide", volumeprofile:"wide", phasefold:"wide",
-    adx:"mid", macd:"mid", supertrend:"mid", vwap:"mid", aroon:"mid", roc:"mid", ao:"mid",
-    donchian:"mid", keltner:"mid",
-    bollinger:"near", rsi:"near", stochastic:"near", cci:"near", williams:"near", mfi:"near",
-    cmf:"near", psar:"near", pivot:"near", pattern:"near", volume:"near", atr:"near"
-  };
-  function _camWin(kind, N) {
-    var c = kind === "wide" ? Math.min(N, 220) : kind === "mid" ? Math.min(N, 90) : Math.min(N, 44);
-    c = Math.max(20, c);
+  // ── 지표별 카메라: 그 지표가 실제로 분석하는 봉 범위(lookback/파라미터)에 카메라를 맞춘다 ──
+  // 예) 피보 len120 → 약 120봉을 프레임 / 볼린저 len20 → 가까이 / 엘리어트·사이클 → 아주 멀리.
+  // 봉 범위가 지표마다 크게 달라 확대·축소 폭이 넓고(단조롭지 않게), 실제 작도 범위와 일치한다.
+  function _p(n, k, d) { return (n.params && isFinite(n.params[k])) ? n.params[k] : d; }
+  function _spanBars(n, N) {
+    var t = n.blockType, span;
+    switch (t) {
+      case "fib": span = _p(n, "len", 120); break;
+      case "volumeprofile": span = _p(n, "len", 120); break;
+      case "gann": span = 120; break;
+      case "ichimoku": span = _p(n, "kijun", 26) + _p(n, "senkouB", 52) + _p(n, "shift", 26); break;   // ~104
+      case "cycle": span = Math.min(320, _p(n, "pmax", 120) * 2.2); break;        // 최소 2주기(단 상한)
+      case "phasefold": span = Math.min(340, _p(n, "pmax", 128) * 2.2); break;
+      case "elliott": span = 360; break;          // 파동 전개 = 아주 멀리(단 캔들 보이는 선)
+      case "structure": span = 300; break;
+      case "smc": span = 200; break;
+      case "trend": span = Math.max(_p(n, "len", 40) * 3, Math.round(N * 0.45)); break;   // 장기 추세창까지
+      case "ma": span = 130; break;                                // 20·60·120선 → 120선이 보이게
+      case "macd": span = _p(n, "slow", 26) * 2 + 20; break;       // ~72
+      case "supertrend": span = 100; break;
+      case "psar": span = 90; break;
+      case "vwap": span = _p(n, "len", 20) * 3; break;             // ~60
+      case "keltner": span = _p(n, "len", 20) * 3; break;
+      case "donchian": span = _p(n, "len", 20) * 3; break;
+      case "bollinger": span = _p(n, "len", 20) * 2.6; break;      // ~52 (가까이)
+      case "aroon": span = _p(n, "period", 25) * 2.2; break;
+      case "adx": span = _p(n, "period", 14) * 3; break;           // ~42
+      case "atr": span = _p(n, "period", 14) * 3; break;
+      case "cci": span = _p(n, "period", 20) * 2.6; break;
+      case "mfi": span = _p(n, "period", 14) * 3; break;
+      case "cmf": span = _p(n, "period", 20) * 2.6; break;
+      case "roc": span = _p(n, "period", 12) * 3; break;
+      case "ao": span = _p(n, "slow", 34) * 1.6; break;
+      case "rsi": span = _p(n, "period", 14) * 2.0; break;         // ~28 (가장 가까이·타이트)
+      case "stochastic": span = _p(n, "kLen", 14) * 2.2; break;
+      case "williams": span = _p(n, "period", 14) * 2.2; break;
+      case "pivot": span = 55; break;
+      case "volume": span = 70; break;
+      case "pattern": span = 70; break;
+      default: span = 90;
+    }
+    return Math.max(26, Math.min(N, 380, Math.round(span * 1.25)));   // 여백 25% · 하한 26(아주 가까이) · 상한 380(멀어도 캔들 보이게)
+  }
+  function _camWinNode(n, N) {
+    var c = _spanBars(n, N);
     return { count: c, start: Math.max(0, N - c) };
   }
-  // _chartWin 을 목표 창으로 부드럽게 이동(짧은 트윈 — 카메라가 미끄러지듯). 스텝마다 캔들+근거 재그림.
+
+  // _chartWin 을 목표 창으로 부드럽게 이동  // _chartWin 을 목표 창으로 부드럽게 이동(짧은 트윈 — 카메라가 미끄러지듯). 스텝마다 캔들+근거 재그림.
   function _camTween(target, steps, done) {
     var s0 = _chartWin.start, c0 = _chartWin.count, i = 0;
     steps = Math.max(1, steps);
@@ -128,7 +161,7 @@
     if (typeof _deepSessionDocs !== "undefined") _deepSessionDocs.add(activeId);
     if (typeof window !== "undefined") window._fcPreview = false;
     var N = (currentData().price || []).length;
-    var w0 = _camWin("wide", N); _chartWin.count = w0.count; _chartWin.start = w0.start;   // 시작=전체 조망
+    var w0c = Math.min(N, 340); _chartWin.count = w0c; _chartWin.start = Math.max(0, N - w0c);   // 시작=넓은 조망(캔들 보이는 선)
     _yScale = { mode: "auto", lo: null, hi: null };
     // 표시할 지표(보드에 놓인·표시집합) — 순서대로 하나씩 공개
     _embNodes = (typeof evIndicatorNodes === "function" ? evIndicatorNodes() : boardState.nodes.filter(function (n) { return n.kind === "block" && EV_COLORS[n.blockType]; }))
@@ -147,7 +180,7 @@
       if (_embI >= _embNodes.length) { _embFinish(); return; }
       var n = _embNodes[_embI];
       var N2 = (currentData().price || []).length;
-      var target = _camWin(_CAM[n.blockType] || "mid", N2);
+      var target = _camWinNode(n, N2);
       // 한 지표당 시간 배분(서두르지 않게): 카메라 글라이드 → 손그림 스트로크 → 잠깐 머무름
       var per = Math.max(520, Math.min(1300, Math.round(_playTotalMs / Math.max(1, _embNodes.length))));
       var camMs = Math.min(360, Math.round(per * 0.32)), drawMs = Math.round(per * 0.52), holdMs = Math.max(120, per - camMs - drawMs);
@@ -159,7 +192,7 @@
         try { if (lastResult && lastResult.nodeText) txt = lastResult.nodeText[n.id] || ""; } catch (e) {}
         emit("step", { idx: _embI, total: _embNodes.length, type: n.blockType,
           label: (typeof BTLABEL !== "undefined" && BTLABEL[n.blockType]) || n.blockType,
-          sIdx: 0, sTotal: 1, text: txt, last: true, cam: _CAM[n.blockType] || "mid" });
+          sIdx: 0, sTotal: 1, text: txt, last: true, cam: _spanBars(n, (currentData().price||[]).length) });
         _scanU = Math.min(0.999, (_embI + 1) / _embNodes.length);
         // ② 손그림 스트로크: _seqStart=지금 → drawEvidence 의 _skFrac(=경과/드로시간)이 0→1 로 자라며
         //    이 지표가 '그어지는' 느낌(선은 긋고, 82% 지나면 라벨·점·레벨이 얹힘 — 지표별 고유 작도 그대로).
@@ -222,7 +255,7 @@
         document.body.appendChild(el); }
       var ev = -1; try { var cv = document.getElementById("fcEvidence"); var c = cv.getContext("2d"); var d = c.getImageData(0,0,cv.width,cv.height).data; ev = 0; for (var i=3;i<d.length;i+=8) if (d[i]>60) ev++; } catch (e) {}
       var cs = getComputedStyle(document.getElementById("fcEvidence"));
-      el.textContent = "DIAG v=20260825i evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
+      el.textContent = "DIAG v=20260825k evPx=" + ev + " disp=" + cs.display + " op=" + cs.opacity + " show=" + (typeof _evidenceShow!=="undefined"?_evidenceShow:"?") + " evhide=" + document.body.classList.contains("evhide");
     }, 700);
   }
   if (/[?&]demo=1/.test(location.search)) {
