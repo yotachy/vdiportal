@@ -21,6 +21,27 @@
     } catch (e) { /* 미지원 무시 */ }
   }
 
+  // 막대 값 툴팁 — 누른 막대 바로 위에 수치를 띄운다(하단 토스트 대신, 막대 근처). ~1.6초 후 사라짐.
+  function showBarTip(barEl, text) {
+    const app = appEl || document.getElementById("msApp");
+    if (!app) return;
+    const old = app.querySelector(".ms-bartip");
+    if (old && old.parentNode) old.parentNode.removeChild(old);
+    const r = barEl.getBoundingClientRect(), a = app.getBoundingClientRect();
+    const tip = document.createElement("div");
+    tip.className = "ms-bartip";
+    tip.textContent = text;
+    tip.style.left = (r.left - a.left + r.width / 2) + "px";
+    tip.style.top = (r.top - a.top) + "px";
+    app.appendChild(tip);
+    // 화면 밖으로 나가면 가로 위치 보정(막대가 가장자리일 때)
+    const tr = tip.getBoundingClientRect();
+    const half = tr.width / 2, cx = r.left - a.left + r.width / 2;
+    if (cx - half < 6) tip.style.left = (6 + half) + "px";
+    else if (cx + half > a.width - 6) tip.style.left = (a.width - 6 - half) + "px";
+    setTimeout(function () { if (tip.parentNode) tip.parentNode.removeChild(tip); }, 1600);
+  }
+
   // 숫자 카운트 트윈(잔액 변화 손맛) — 현재 표시값에서 목표까지 easeOutCubic
   function tweenNum(el, to) {
     const from = parseInt(el.textContent, 10);
@@ -439,9 +460,9 @@
     appEl.addEventListener("click", function (e) {
       // 버튼·CTA 뿐 아니라 화면을 넘기거나 펼치는 카드(종목·매트릭스·시그널·채점 항목)도 손끝에 울린다
       if (e.target.closest("[data-tab],[data-act],[data-go],[data-goadd],[data-sig],[data-cell],[data-row],[data-del],[data-barv],.ms-cta-primary,.ms-press,button")) hap("tick");
-      // 수치 라벨이 없는 막대(데이터 시각화) — 누르면 값이 토스트로 뜬다(막대만 있는 경우)
+      // 수치 라벨이 없는 막대(데이터 시각화) — 누르면 그 막대 바로 위에 값 툴팁(하단 토스트 아님)
       const bv = e.target.closest("[data-barv]");
-      if (bv) flash(bv.getAttribute("data-barv"), "");
+      if (bv) showBarTip(bv, bv.getAttribute("data-barv"));
     }, true);
     renderHeader(els.header);
     renderTabbar(els.tabbar);

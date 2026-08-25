@@ -149,6 +149,12 @@ a:hover{color:var(--ach)}
 /* ── 탭바 (프로토 L1643~1668) ── */
 .ms-tabbar{flex:none;display:flex;border-top:1px solid var(--sf3);
   background:rgba(var(--ovr),0.98);padding:6px 4px 14px}
+/* 막대 값 툴팁 — 막대 바로 위(하단 토스트 아님). transform 으로 위·중앙 정렬 + 살짝 뜸 */
+.ms-bartip{position:absolute;z-index:65;transform:translate(-50%,calc(-100% - 6px));pointer-events:none;
+  background:var(--snack-bg);color:var(--snack-fg);font-size:11.5px;font-weight:700;
+  padding:5px 9px;border-radius:8px;white-space:nowrap;box-shadow:0 6px 18px rgba(0,0,0,0.4);
+  animation:msBartip 0.16s ease}
+@keyframes msBartip{from{opacity:0;transform:translate(-50%,calc(-100% + 2px))}to{opacity:1}}
 /* 헤더 스쿱 잔액 변화 펄스 — 벌면 골드로 커졌다 돌아오고, 쓰면 살짝 줄었다 돌아온다 */
 @keyframes msScoopUp{0%{transform:scale(1)}32%{transform:scale(1.22);color:var(--cu)}100%{transform:scale(1)}}
 @keyframes msScoopDn{0%{transform:scale(1)}32%{transform:scale(0.86);opacity:0.55}100%{transform:scale(1)}}

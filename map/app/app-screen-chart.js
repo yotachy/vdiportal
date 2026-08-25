@@ -10,6 +10,7 @@
   const str = MS.str;
   const TIER_C = { basic: "#8b93a7", deep: "#7b6cff", custom: "var(--cu)" };
   const GC = { t: "var(--bl)", m: "var(--up)", v: "var(--cy)", q: "var(--am)", s: "var(--pk)" };
+  let chartTickerUnsub = null;   // 종목 없는 분석 화면에서 종목을 담으면 자동 로드(재마운트마다 정리)
 
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
   function fmtPrice(v) {
@@ -27,9 +28,21 @@
     function key() { const s = MS.store.get(); return s.ticker + "|" + s.tf; }
     function report() { return MS.reports[key()] || null; }
 
+    // 종목이 없으면 홈으로 튕기지 않고 분석 화면 안에서 안내한다(종목 없이는 존재할 수 없는 메뉴 — 사용자 지시).
+    function renderNoStock() {
+      candles = null;
+      host.innerHTML = '<div style="padding:16px 16px 0"><div style="font-size:19px;font-weight:700;letter-spacing:-0.03em">분석</div></div>' +
+        '<div style="margin:44px 16px 0;border:1px dashed var(--ln2);border-radius:14px;padding:34px 20px;text-align:center">' +
+        '<div style="font-size:14px;font-weight:600">분석할 종목이 없어요</div>' +
+        '<div style="margin-top:8px;font-size:12.5px;color:var(--m1);line-height:1.6">종목을 담으면 여기서 방향·시그널·채점을 분석해요.</div>' +
+        '<button class="ms-cta-primary" data-act="addstock" style="margin-top:18px;max-width:240px;margin-left:auto;margin-right:auto"><span class="t">종목 담으러 가기</span></button></div>';
+      const btn = host.querySelector('[data-act="addstock"]');
+      if (btn) btn.addEventListener("click", function () { MS.flow.openStocks(); });
+    }
+
     async function load() {
       const s = MS.store.get();
-      if (!s.ticker) { MS.router.go("home"); return; }
+      if (!s.ticker) { renderNoStock(); return; }
       candles = null; zoom = 1; panX = 0; panY = 0;
       render();
       try {
@@ -508,11 +521,22 @@
       }, { passive: true });
     }
 
+    // 종목 없는 분석 화면에서 종목을 담으면(ticker 세팅) 자동으로 로드 — 홈으로 튕기지 않는다
+    if (chartTickerUnsub) chartTickerUnsub();
+    chartTickerUnsub = MS.store.subscribe(function (keys) {
+      const st = MS.store.get();
+      if (keys.indexOf("ticker") >= 0 && st.screen === "chart" && st.ticker && candles === null) load();
+    });
+
     load();
   }
 
   MS.router.register("chart", {
     mount: mount,
-    unmount: function () { if (mount._removeFab) mount._removeFab(); if (MS.forgeFrame) MS.forgeFrame.detach(); }
+    unmount: function () {
+      if (chartTickerUnsub) { chartTickerUnsub(); chartTickerUnsub = null; }
+      if (mount._removeFab) mount._removeFab();
+      if (MS.forgeFrame) MS.forgeFrame.detach();
+    }
   });
 })();

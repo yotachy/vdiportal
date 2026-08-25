@@ -26,7 +26,9 @@
     function render() {
       const s = MS.store.get();
       const picks = s.picks;
-      if (!picks.length) { renderEmpty(); return; }
+      // 종목 0 이어도 홈은 홈으로 유지한다(전면 empty 화면으로 바꾸지 않는다 — 사용자 지시).
+      // empty 안내는 종목 없이 존재 불가한 메뉴(분석/차트)에서만. 홈은 관심종목·매트릭스 칸만 안내로.
+      const hasPicks = picks.length > 0;
       const _keepTop = host.scrollTop;   // 재렌더가 스크롤을 top 으로 튕기지 않게(페르소나 답변 등)
       const now = new Date();
       const meta = (now.getMonth() + 1) + "." + now.getDate() + " " +
@@ -68,7 +70,7 @@
         '<div style="display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--m1)"><span style="position:relative;width:6px;height:6px;flex:none"><span style="position:absolute;inset:0;border-radius:50%;background:var(--up)"></span><span style="position:absolute;inset:0;border-radius:50%;background:var(--up);animation:msPing 2.4s ease-out infinite"></span></span>오늘의 관심종목</div>' +
         '<div class="mono" style="margin-top:8px;font-size:22px;font-weight:700;color:' + (avg == null ? "var(--m1)" : avg >= 0 ? "var(--up)" : "var(--dn)") + ';line-height:1">' + (avg == null ? "—" : (avg >= 0 ? "+" : "") + avg.toFixed(2) + "%") + "</div>" +
         '<div style="margin-top:8px;display:flex;align-items:center;gap:4px"><span class="mono" style="font-size:11.5px;color:var(--up);flex:none">' + upN + '▲</span><div style="flex:1;display:flex;gap:2px;height:5px;border-radius:3px;overflow:hidden;background:var(--sf3)"><span style="width:' + upW + '%;background:var(--up)"></span><span style="width:' + (100 - upW) + '%;background:var(--dn)"></span></div><span class="mono" style="font-size:11.5px;color:var(--dn);flex:none">' + dnN + "▼</span></div>" +
-        '<div class="mono" style="margin-top:8px;font-size:11.5px;color:' + (top ? (top.chg >= 0 ? "var(--up)" : "var(--dn)") : "var(--m2)") + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (top ? esc(top.sym) + " " + fmtChg(top.chg) : "시세 불러오는 중") + "</div>" +
+        '<div class="mono" style="margin-top:8px;font-size:11.5px;color:' + (top ? (top.chg >= 0 ? "var(--up)" : "var(--dn)") : "var(--m2)") + ';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (top ? esc(top.sym) + " " + fmtChg(top.chg) : (hasPicks ? "시세 불러오는 중" : "종목을 담아보세요")) + "</div>" +
         "</div></div>" +
         (function () {
           const all = s.sigList || [];
@@ -111,7 +113,7 @@
         '<span style="font-size:15px;font-weight:700;letter-spacing:-0.02em;white-space:nowrap;flex:none">내 관심 종목</span>' +
         '<span class="mono" style="font-size:13px;color:var(--ac)">' + picks.length + "/" + MS.config.POLICY.limits.stocksMax + "</span>" +
         '<button data-act="add" style="margin-left:auto;font-size:13px;color:var(--ac);border:1px solid rgba(123,108,255,0.45);border-radius:99px;padding:4px 12px;cursor:pointer;white-space:nowrap;flex:none;background:none;font-family:inherit">＋ 추가</button></div>' +
-        '<div data-home="grid" style="margin:8px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px">' +
+        (hasPicks ? '<div data-home="grid" style="margin:8px 16px 0;display:grid;grid-template-columns:1fr 1fr;gap:4px">' +
         picks.map(function (p) {
           const q = quotes[p];
           const slots = ["일", "주", "월"].map(function (tf) {
@@ -126,7 +128,11 @@
             '<div class="mono" style="margin-top:1px;font-size:11.5px;font-weight:700;color:' + (q ? (q.up ? "var(--up)" : "var(--dn)") : "var(--m2)") + ';white-space:nowrap">' + (q ? fmtChg(q.chg) : "") + "</div></div>" +
             '<span data-del="' + esc(p) + '" style="width:30px;height:40px;display:flex;align-items:center;justify-content:center;color:var(--m2);cursor:pointer;flex:none"><svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" style="display:block"><path d="M6 6l12 12M18 6L6 18"></path></svg></span></div>';
         }).join("") + "</div>" +
-        '<div style="margin:8px 16px 0;display:flex;gap:12px;font-size:11.5px;color:var(--m2)"><span>✓ = 분석완료 <span style="color:#8b93a7">●기본</span> <span style="color:#7b6cff">●심화</span> <span style="color:var(--cu)">●커스텀</span></span></div>' +
+        '<div style="margin:8px 16px 0;display:flex;gap:12px;font-size:11.5px;color:var(--m2)"><span>✓ = 분석완료 <span style="color:#8b93a7">●기본</span> <span style="color:#7b6cff">●심화</span> <span style="color:var(--cu)">●커스텀</span></span></div>'
+        : '<div style="margin:8px 16px 0;border:1px dashed var(--ln2);border-radius:12px;padding:22px 16px;text-align:center">' +
+          '<div style="font-size:13px;font-weight:600">아직 담아둔 종목이 없어요</div>' +
+          '<div style="margin-top:6px;font-size:12px;color:var(--m1);line-height:1.6">종목을 담으면 오늘의 방향·시그널·채점이 여기에 모여요.</div>' +
+          '<button class="ms-cta-primary" data-act="add" style="margin-top:14px;max-width:220px;margin-left:auto;margin-right:auto"><span class="t">종목 담으러 가기</span></button></div>') +
 
         // 분석 현황 매트릭스 (+페르소나 카드 — medium 이상 2컬럼, 지침서 §16)
         '<div class="ms-home-duo">' +
@@ -136,7 +142,7 @@
         '<span style="font-size:11.5px;color:var(--m1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">채워진 칸 = 오늘 볼 수 있는 결과</span></div>' +
         '<div style="display:flex;align-items:center;gap:8px;margin-top:8px"><span style="width:78px;flex:none"></span>' +
         ["일봉", "주봉", "월봉"].map(function (t) { return '<span style="flex:1;text-align:center;font-size:11.5px;color:var(--m2)">' + t + "</span>"; }).join("") + "</div>" +
-        picks.map(function (p) {
+        (hasPicks ? picks.map(function (p) {
           return '<div style="display:flex;align-items:center;gap:8px;margin-top:8px">' +
             '<span style="width:78px;flex:none;font-size:13px;font-weight:600">' + esc(p) + "</span>" +
             ["일", "주", "월"].map(function (tf) {
@@ -164,7 +170,8 @@
         }).join("") +
         (anyAnal
           ? '<div style="margin-top:8px;font-size:11.5px;color:var(--m2)"><span style="color:#8b93a7">●</span> 기본 · <span style="color:#7b6cff">●</span> 심화 · <span style="color:var(--cu)">●</span> 커스텀 — 24시간이 지나면 자동 폐기</div>'
-          : '<div style="margin-top:10px;font-size:12px;color:var(--m1);line-height:1.6;text-align:center;padding:6px 2px 2px">아직 분석 기록이 없어요<br><span style="color:var(--t2);font-weight:600">칸을 눌러 첫 분석을 시작하세요</span></div>') + '</div>' +
+          : '<div style="margin-top:10px;font-size:12px;color:var(--m1);line-height:1.6;text-align:center;padding:6px 2px 2px">아직 분석 기록이 없어요<br><span style="color:var(--t2);font-weight:600">칸을 눌러 첫 분석을 시작하세요</span></div>')
+          : '<div style="margin-top:10px;font-size:12px;color:var(--m1);line-height:1.6;text-align:center;padding:10px 4px 4px">종목을 담으면 분석 현황이 여기 모여요</div>') + '</div>' +
 
         // 페르소나 카드(P6 — 즉시 질문·풀 배급·게스트 3문 잠금)
         personaCardHtml() +
@@ -312,20 +319,6 @@
         '<div style="margin-top:4px;font-size:11.5px;color:var(--m1);white-space:nowrap">' + line2 + " ›</div></div></div>";
     }
 
-    function renderEmpty() {
-      host.innerHTML =
-        '<div style="padding:14px 16px 90px">' +
-        '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:19px;font-weight:700;letter-spacing:-0.03em">' + str("home.todayTitle") + "</span></div>" +
-        '<div style="margin-top:14px;border:1px dashed var(--ln2);border-radius:12px;padding:24px 16px;text-align:center">' +
-        '<div style="font-size:13.5px;font-weight:600">' + str("home.emptyTitle") + "</div>" +
-        '<div style="margin-top:6px;font-size:12.5px;color:var(--m1);line-height:1.7">' + str("home.emptyDesc") + "</div>" +
-        '<button class="ms-cta-primary" data-act="pick" style="margin-top:16px;max-width:240px;margin-left:auto;margin-right:auto"><span class="t">' + str("home.emptyCta") + "</span></button></div></div>";
-      const b = host.querySelector('[data-act="pick"]');
-      // 관심종목 0 → 홈에 머물며 종목추가 시트로 안내(온보딩 pick 전체화면으로 튀지 않는다).
-      // 정상 홈의 '+추가'(openStocks)와 동일한 진입점 — 담으면 홈이 곧바로 채워진다.
-      if (b) b.addEventListener("click", function () { MS.flow.openStocks(); });
-    }
-
     function bind() {
       host.querySelectorAll("[data-go]").forEach(function (el) {
         el.addEventListener("click", function (e) {
@@ -365,7 +358,7 @@
 
     render();
     // 관심종목이 바뀌면(시트·다른 화면에서 담거나 빼도) 홈이 즉시 반영 — 빈 홈에서 담으면 곧바로 채워지고,
-    // 마지막 종목을 빼면 빈 안내(renderEmpty)로 자동 전환. 화면이 홈일 때만 렌더.
+    // 마지막 종목을 빼면 관심종목 안내 카드로 전환. 화면이 홈일 때만 렌더.
     homeUnsub = MS.store.subscribe(function (keys) {
       if (keys.indexOf("picks") >= 0 && MS.store.get().screen === "home") render();
     });
