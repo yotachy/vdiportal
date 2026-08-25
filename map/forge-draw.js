@@ -1872,6 +1872,7 @@
   }
   function _evLegend(c, x0, topY, items) {
     if (typeof window !== "undefined" && window.innerWidth > 860) { _legendHits = []; return; }   // 데스크톱=지표 레일이 대체(범례 숨김) · 모바일 유지
+    if (typeof EMBED !== "undefined" && EMBED) { _legendHits = []; return; }   // 앱 임베드: 지표 표시/숨김은 앱의 작도 시트가 담당(evidence 메시지)
     _legendHits = [];
     const px = x0, py = topY + 8;
     c.textAlign = "left"; c.textBaseline = "alphabetic";

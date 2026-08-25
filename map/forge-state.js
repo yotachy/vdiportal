@@ -121,6 +121,10 @@
   let _nudged = false;
   function guestNudge() { if (_nudged || _bootIdle) return; _nudged = true; if (typeof bToast === "function") bToast("체험 모드 — 로그인하면 포지가 저장됩니다"); }   // 부팅 자동경로에선 억제(첫 사용자 액션에서만)
   let _firstIdle = false;   // 첫 진입: 티커 자동 선택/분석 없음(워치리스트 하이라이트도 없음). 사용자가 종목 클릭 시 해제.
+  // 앱 임베드 모드(머니스쿱 앱이 iframe 으로 여는 차트 전용 실행 — docs/superpowers/specs/2026-08-25-app-forge-embed.md).
+  // 이 플래그가 켜지면: 서버 문서 로드·저장 전면 차단, 보드는 로컬 시드, 제어는 forge-embed.js 의 postMessage 뿐. PC 동작 무변경.
+  const EMBED = (typeof location !== "undefined") && /[?&]embed=app(&|$)/.test(location.search);
+  if (EMBED && typeof document !== "undefined") document.documentElement.classList.add("embed");
   async function apiGet(qs) {
     try { const r = await fetch(FORGE_API + (qs || ""), { cache: "no-store" });
       if (!r.ok) throw 0; SERVER_OK = true; return await r.json(); }
@@ -524,6 +528,7 @@
     return out;
   }
   async function writeBackActive() {
+    if (EMBED) return;   // 임베드: 저장 없음
     if (!canSave()) { guestNudge(); return; }   // 체험 모드: 서버 저장 없음(서버도 401로 이중 방어)
     const dc = serializeActive(); if (!dc) return;
     if (!SERVER_OK) return;
@@ -532,8 +537,8 @@
     setSaveState(r && r.ok ? "saved" : "offline");
   }
   let _saveT = null;
-  function markDirty() { if (!canSave()) { guestNudge(); return; } if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
-  async function saveMeta() { if (!canSave()) return; if (!SERVER_OK) return; _ensureGroups(); await apiPost({ op: "meta", meta: { library: LIBRARY, activeId, groups: META.groups, docGroups: META.docGroups } }); }
+  function markDirty() { if (EMBED) return; if (!canSave()) { guestNudge(); return; } if (!SERVER_OK) return; clearTimeout(_saveT); _saveT = setTimeout(writeBackActive, 800); }
+  async function saveMeta() { if (EMBED) return; if (!canSave()) return; if (!SERVER_OK) return; _ensureGroups(); await apiPost({ op: "meta", meta: { library: LIBRARY, activeId, groups: META.groups, docGroups: META.docGroups } }); }
   function setDocLoading(on) {
     ["boardPane", "chartPane"].forEach(pid => {
       const pane = document.getElementById(pid); if (!pane) return;
@@ -637,6 +642,18 @@
   async function loadImages() { const m = await apiGet("?images=1"); if (m && typeof m === "object") Object.assign(IMAGES, m); }
   let _bootIdle = false;
   async function boot() {
+    if (EMBED) {   // 임베드: 서버 문서·인증·이미지 없이 로컬 보드만 시드 → 앱의 load 메시지를 기다린다
+      _bootIdle = true;
+      seedDefaultStrategy(); autoLayout("v");
+      const dc = { id: uid("doc"), title: "embed", themeImgId: null, nodes: boardState.nodes, edges: boardState.edges,
+        view: { tx: 30, ty: 20, scale: 1 }, updated: new Date().toISOString() };
+      DOCS = [dc]; activeId = dc.id; META = { library: [], activeId: dc.id };
+      _bootIdle = false; _firstIdle = false;
+      if (typeof renderBoard === "function") { try { renderBoard(); } catch (e) {} }
+      setSaveState("offline");
+      if (window._embedEmit) window._embedEmit("ready", {});
+      return;
+    }
     _bootIdle = true;   // 초기 진입: 자동 분석/재fetch 억제(종목 선택 전 idle 화면 — 로딩 없음)
     await fetchAuth();   // 인증 상태 선확인 — 게스트면 서버 GET이 null → 아래 샘플 시드 = 체험 모드
     if (typeof updateAuthUI === "function") updateAuthUI();

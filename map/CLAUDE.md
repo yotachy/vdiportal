@@ -146,7 +146,7 @@
 - **격리**: `_archive/`(봉쇄)·`map.html`·`potflow/` 불간섭. 커밋 스코프 `app`.
 - **배포(2026-08-24 확정)**: cafe24 SFTP `www/map/app/` — `index.html`·`app.css`·`app-*.js`(**`*.test.js` 제외**)·`assets/`. **서버 동반 세트(P3~)**: `map/app-api.php` + `map/app-ledger-lib.php`(채점 원장 — 같이 올리고 같이 검증). **배포 불가침**: `<data>/app_ledger.db`(사용자 예측·채점 원장 — 웹루트 밖·절대 덮어쓰기 금지). 라이브 `https://parksvc.mycafe24.com/map/app/`. **엔진은 업로드 대상이 아니라 서버의 `www/map/forge-core.js` 를 상대참조**하므로, 엔진 커밋이 서버에 안 올라가 있으면 앱이 죽는다 — 2026-08-24 실제 사고: 90a2ca8(aggUpProb 엔진 이동)이 미배포 상태라 `core.aggUpProb is not a function`. **엔진을 고쳤으면 forge 동반 세트(§③)와 앱이 같은 서버 스냅샷을 보는지 확인하고 배포한다.**
 - **협의 확정(2026-08-24)**: Q1 적중 환급 +1 구현 · Q2 레벨 기저 제거(0 시작) · Q3 24h 재분석 무차감 심화·커스텀 대칭 · Q5 지표 32종은 엔진이 정본 · Q4 페르소나 은행 출시 300문+·무한 추가·**총량 사용자 비공개**(카피에 총량 숫자 금지).
-- **차트·작도 품질 하한**: 모바일 차트·작도는 **PC 웹버전과 동일**(최소 기준 — 사용자 지시 2026-08-24). forge-draw 의미와 동일 이식, 핀치줌·팬 동일 감각, 모바일용 단순화 금지.
+- **차트·작도 품질 하한**: 모바일 차트·작도는 **PC 웹버전과 동일**(최소 기준 — 사용자 지시 2026-08-24). **2026-08-25 확정 구현 = forge.html 임베드**: 앱의 분석·실행 화면은 `forge.html?embed=app` 을 iframe(`app/app-forge-frame.js` 단일 브리지·오버레이 배치)으로 실행해 **PC 차트 코드(forge-draw·forge-app 의 캔들·콘·32종 근거·손그림 시연·핀치줌·팬·축 드래그)를 그대로** 쓴다 — 사본·재구현 없음. 앱 측 SVG 차트(`app-chart.js`)는 폐기 대상(실행 연출·분석 화면에서 더 이상 그리지 않음). 임베드 계약·파일은 [`docs/superpowers/specs/2026-08-25-app-forge-embed.md`](docs/superpowers/specs/2026-08-25-app-forge-embed.md). forge 배포 세트에 **`forge-embed.js` 동반 필수**(빠지면 앱 차트가 ready 를 못 받는다).
 
 # 🔥 스쿱포지 (Scoop Forge) — 플래그십
 
@@ -155,7 +155,7 @@
 ## 파일
 
 - `forge.html` — 마크업 + `<link>`/`<script src>` 참조만(현 241줄). **UI는 소스순서 4분할**: `forge-state.js`(상태·`BLOCK_DEFS`·`IND_TIERS`·서버·`boot`·CRUD) → `forge-ui.js`(레일·보드·`renderParams`·HUD·`boardInit`·`seedDefaultStrategy`) → `forge-draw.js`(`FC_*`·`_syncChartColors`·`fcDraw*`·`EV_COLORS`/`INDICATOR_INFO`·엘리어트/피보 레이어) → `forge-tools.js`(차트 드로잉 — 추세선·평행채널·수평선·수직선·등락폭/기간 재기·마그넷, 앵커=(날짜,가격). **UMD·단위테스트** `node --test forge-tools.test.js`) → `forge-app.js`(`renderChart`·`analysisSteps`·`nodeExpert`·`THEMES`/`applyTheme`·`playAnalysis`·`runForge`·부팅 IIFE). 스타일은 `forge.css`. **여러 classic script가 전역 스코프 공유** — 로드 순서(core→state→ui→draw→tools→app) 고정, `defer`/`async` 금지, 중복 최상위 선언 금지. `forge-core.js` — 분석 엔진(**UMD**: 브라우저 `window.ForgeCore` + node `module.exports`. `node --test forge-core.test.js`, 현재 259케이스). `forge-api.php` — 서버 저장 + 티커 OHLC 프록시. `forge-engine.html` — **엔진 백서**(작동 원리 + 검증 성적, 2026-08-19 통합).
-- **동반 배포 필수**(상대 `<script src>`/`<link>` 동위치): `forge.html` + `forge.css` + `forge-core.js` + `forge-state.js` + `forge-ui.js` + `forge-draw.js` + `forge-tools.js` + `forge-app.js`. 하나라도 빠지면 동작 불가. `forge-core.test.js`·`forge-tools.test.js`·`forge-tools.sweep.js`는 배포 제외.
+- **동반 배포 필수**(상대 `<script src>`/`<link>` 동위치): `forge.html` + `forge.css` + `forge-core.js` + `forge-state.js` + `forge-ui.js` + `forge-draw.js` + `forge-tools.js` + `forge-app.js` + **`forge-embed.js`**(앱 임베드 API — 2026-08-25). 하나라도 빠지면 동작 불가. `forge-core.test.js`·`forge-tools.test.js`·`forge-tools.sweep.js`는 배포 제외.
 - **배포 불가침**(서버 생성·사용자 데이터): `forge_data.json`·`forge_images.json`·`forge_jobs.json`·`forge_td_key.txt`·`forge_ohlc_cache_*.json`. 배포는 위 8개 정적 파일 + `forge-api.php`만.
 - **단독 문서 페이지**(의존 없음 · 개별 배포 가능):
   - **`forge-engine.html`(엔진 백서 — 2026-08-19 통합)** = 구 `forge-guide.html`(작동 원리) + 구 `forge-scorecard.html`(검증 성적). 두 옛 파일은 **해시를 보존하는 리다이렉트 스텁**으로 남겨 기존 링크·북마크를 살린다 — 셋을 같이 올린다.

@@ -48,6 +48,20 @@
       if (!r.ok) { fail("데이터를 불러오지 못했어요"); return; }
       s.candles = r.candles;
       paint();
+      // 포지 프레임(PC 차트 코드) — 같은 종목·주기·티어·최종 가중으로 로드한 뒤 손그림 시연(playAnalysis).
+      // 시트 서사는 프레임 step 이벤트를 우선 사용, 완료는 앱 계산 + 프레임 시연 둘 다 끝나야(pump 가드).
+      s.frameDone = false;
+      if (MS.forgeFrame) {
+        const W = MS.engine.finalWeights(req.tier, req);
+        MS.forgeFrame.load({ symbol: req.symbol, tf: req.tfKo, tier: req.tier, weights: W, confirmed: true })
+          .then(function (lr) {
+            if (s !== session) return null;
+            if (!lr || !lr.ok) { s.frameDone = true; pump(); return null; }
+            return MS.forgeFrame.play(function (step) { if (s === session) { s.frameStep = step; paintCur(); } });
+          })
+          .then(function () { if (s === session) { s.frameDone = true; pump(); } })
+          .catch(function () { if (s === session) { s.frameDone = true; pump(); } });
+      } else s.frameDone = true;
       MS.engine.analyze({ symbol: req.symbol, tfKo: req.tfKo, tier: req.tier,
         preset: req.preset, weights: req.weights, personaApply: req.personaApply, candles: r.candles },
         function (step) { if (s === session) { s.steps.push(step); pump(); } })
@@ -59,6 +73,7 @@
   function fail(msg) {
     const s = session;
     clearTimers();
+    if (MS.forgeFrame) MS.forgeFrame.stop();
     s.err = msg;
     // 실패 = 전액 반환(03 §1-9) — 지갑 서버 환불(멱등)
     if (s.req.paid) {
@@ -94,6 +109,7 @@
       return;
     }
     if (s.phase === "ind" && s.presented >= s.total && s.report) {
+      if (!s.frameDone) return;   // 프레임 손그림 시연이 끝나면 pump 가 다시 불린다
       if (s.req.tier === "basic") {
         s.timer = setTimeout(function () { if (s === session) { s.timer = null; finish(); } }, 900);
         paint();
@@ -218,6 +234,7 @@
     const s = session;
     if (!s || s.req.tier === "basic" || s.err) return;   // basic 은 중단 UI 없음
     clearTimers();
+    if (MS.forgeFrame) MS.forgeFrame.stop();
     const paid = s.req.paid || 0;
     if (paid) MS.wallet.refund(s.req.spendInfo || { cost: paid, server: false });
     MS.store.set({ runLive: 0, prog: 0, tier: null, runDoneN: null });
@@ -271,8 +288,6 @@
         esc(s.req.symbol) + " 실봉을 불러오는 중…</div>";
       return;
     }
-    if (!s.model) s.model = MS.chart.build(s.candles, null, { frac: 0.82 });
-
     const tier = s.req.tier;
     const done = s.phase === "out";
     const special = s.phase === "apply" || s.phase === "persona" || s.phase === "video";
@@ -288,38 +303,10 @@
     else if (s.phase === "video") pct = s.req.tier === "custom" && s.req.personaApply ? 98 : 96;
     else pct = 100;
 
-    // 차트 — 캔들·작도는 절대 프레임 밖으로 안 나간다(카메라 = viewBox 크롭, 지침서 §4).
-    // 진행 중: 지금 계산된 '그 지표의 실제 작도'가 나타나고→유지→사라진다(오버레이형=가격 위,
-    // 오실레이터형=하단 서브패널 실시리즈). 완료: 전체 합성.
-    let chartSvg, camLabel = "";
-    if (done && s.report) {
-      if (!s.doneModel) s.doneModel = MS.chart.build(s.candles, s.report.prediction, {});
-      chartSvg = MS.chart.svg(s.doneModel, { report: s.report, off: {}, deep: tier !== "basic",
-        cone: true, coneBasic: tier === "basic", pred: true, p2: tier !== "basic", p3: tier === "custom", ma: true, boll: true });
-    } else {
-      // 원뿔 등장 후엔 예측 포함 모델로 전환(콘·스케일 정합)
-      let m = s.model;
-      if (coneOn && s.report) {
-        if (!s.predModel) s.predModel = MS.chart.build(s.candles, s.report.prediction, { frac: 0.82 });
-        m = s.predModel;
-      }
-      const curId = cur ? cur.id : null;
-      const focus = (curId && s.report) ? MS.chart.focusLayer(m, s.report, curId, GC[cur.group]) : null;
-      const isSub = focus && focus.indexOf("ch-sub") >= 0;
-      // 카메라: 서브패널 지표는 전체 시야, 오버레이는 결정적 3단(전체/최근 60%/최근 30%)
-      let camMode = 0;
-      if (!isSub && !special) {
-        const r0 = rnd(s.presented, 0);
-        camMode = r0 < 0.24 ? 0 : r0 < 0.58 ? 1 : 2;
-      }
-      camLabel = isSub ? "지표 곡선 판독" : ["⤢ 장기 전체 조망", "중기 구간 관찰", "단기 구간 확대"][camMode];
-      chartSvg = MS.chart.svg(m, {
-        viewBox: camMode ? MS.chart.cameraView(m, camMode) : null,
-        cone: coneOn && !!s.report, coneBasic: tier === "basic",
-        focus: focus || null, sub: null
-      });
-      if (!focus && curId) camLabel = (cur ? cur.name : "") + " 판독 중";
-    }
+    // 차트 = 포지 프레임(PC 의 playAnalysis 손그림 시연이 그대로 돈다) — 앱은 자리만 내준다.
+    // 카메라 라벨은 프레임 step(지표 라벨) 우선.
+    const fs = s.frameStep;
+    const camLabel = done ? "" : (fs ? (fs.label + " 작도 중 · " + (fs.idx + 1) + "/" + fs.total) : (cur ? cur.name + " 판독 중" : "실봉 정렬 중"));
 
     // 틱바: 32(+가중 33 보라·페르소나 34 골드 — 지표 아님)
     let ticks = "";
@@ -370,7 +357,7 @@
     host.innerHTML =
       '<div style="position:absolute;inset:0;display:flex;flex-direction:column">' +
       '<div style="flex:1;min-height:0;position:relative;overflow:hidden">' +
-      '<div style="position:absolute;inset:0">' + chartSvg + "</div>" +
+      '<div data-forge style="position:absolute;inset:0"></div>' +
       '<span style="position:absolute;left:12px;top:12px;font-size:11px;color:var(--m1);border:1px solid var(--ln1);border-radius:99px;padding:4px 10px;background:rgba(var(--ovr),0.8)">' +
       esc(s.req.symbol) + " · " + esc(s.req.tfKo) + "봉 · " + TIER_N[tier] + " 분석</span>" +
       (camLabel ? '<span style="position:absolute;right:12px;top:12px;font-size:10.5px;color:var(--m2);border:1px solid var(--ln0);border-radius:99px;padding:3px 9px;background:rgba(var(--ovr),0.7)">' + camLabel + "</span>" : "") +
@@ -381,7 +368,7 @@
       '<span style="font-size:13.5px;font-weight:700">' + esc(curName) + "</span>" +
       '<span style="font-size:11px;color:var(--m2)">' + phaseLabel + "</span>" +
       '<span class="mono" style="margin-left:auto;font-size:13px;color:' + (done ? "var(--up)" : "var(--ac)") + '">' + pct + "%</span></div>" +
-      (cur && s.phase === "ind" ? '<div style="margin-top:4px;font-size:11.5px;color:var(--m1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(cur.text) + "</div>" : "") +
+      (s.phase === "ind" && (fs || cur) ? '<div data-cur style="margin-top:4px;font-size:11.5px;color:var(--m1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(fs ? (fs.label + " — " + fs.text) : cur.text) + "</div>" : "") +
       (done ? '<div style="margin-top:4px;font-size:11.5px;color:var(--up);animation:msVidIn 0.4s both">분석 완료 100% · 결과로 이동합니다</div>' : "") +
       '<div style="margin-top:10px;display:flex;gap:3px;align-items:flex-end">' + ticks + "</div>" +
       (tier !== "basic" ? '<div style="margin-top:5px;display:flex;gap:10px;font-size:9.5px;color:var(--m2)">' +
@@ -400,6 +387,8 @@
       (tier !== "basic" && !done ? '<button data-act="cancel" style="margin-left:auto;flex:none;font-size:11.5px;color:var(--dn);border:1px solid rgba(255,92,122,0.4);border-radius:99px;padding:6px 14px;background:none;cursor:pointer;font-family:inherit">중단 · 전액 반환</button>' : "") +
       "</div></div></div>";
 
+    const phF = host.querySelector("[data-forge]");
+    if (phF && MS.forgeFrame) MS.forgeFrame.attach(phF);
     const cb = host.querySelector('[data-act="cancel"]');
     if (cb) cb.addEventListener("click", cancelRun);
     const vid = host.querySelector("[data-vid]");
@@ -407,6 +396,14 @@
       vid.addEventListener("ended", endApply);
       vid.addEventListener("error", function () { if (session === s && s.phase === "video") endApply(); });
     }
+  }
+
+  // 프레임 step 도착 시 서사 줄만 갱신(전체 재렌더 없이 — 프레임 재부착·깜빡임 방지)
+  function paintCur() {
+    const s = session;
+    if (!s || !s.host || !s.frameStep) return;
+    const el = s.host.querySelector("[data-cur]");
+    if (el) el.textContent = s.frameStep.label + " — " + s.frameStep.text;
   }
 
   // ── PiP 카드 2종(프로토 L1671~1686) ──
@@ -478,6 +475,7 @@
     },
     unmount: function () {
       if (session) { session.host = null; renderPip(); }
+      if (MS.forgeFrame) MS.forgeFrame.detach();
     }
   });
 })();

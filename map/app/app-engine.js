@@ -438,6 +438,24 @@
       });
   }
 
+  // 최종 지표 가중(엔진 driftWeights 로 그대로 들어가는 값) — 앱 분석·포지 프레임(차트)이 같은 W 를 쓴다
+  function finalWeights(tier, req) {
+    let W = {};
+    if (tier === "deep") W = presetWeights(req.preset || "전체 종합");
+    else if (tier === "custom") {
+      W = composeWeights(req.preset || "전체 종합", req.weights || {});
+      // 페르소나 보정(Q14 기준선) — 그룹 배율(±15% 캡)을 지표 가중에 곱한다. pfit 이 내역을 표기.
+      if (req.personaApply && req.personaGW) {
+        fullSet().forEach(function (id) {
+          const g = indMeta(id).group;
+          const f = req.personaGW[g];
+          if (typeof f === "number" && isFinite(f)) W[id] = clampW(W[id] * f);
+        });
+      }
+    }
+    return W;
+  }
+
   async function analyze(req, onStep) {
     const candles = req.candles;
     if (!Array.isArray(candles) || candles.length < 24) throw new Error("not-enough-candles");
@@ -470,20 +488,8 @@
     const opts = { futW: futW, timeframe: tfLabel(req.tfKo) };
     const graph = buildGraph(tier, volumes);
 
-    // 가중치: basic 없음 / deep 프리셋 / custom 프리셋×사용자(0~3)
-    let W = {};
-    if (tier === "deep") W = presetWeights(req.preset || "전체 종합");
-    else if (tier === "custom") {
-      W = composeWeights(req.preset || "전체 종합", req.weights || {});
-      // 페르소나 보정(Q14 기준선) — 그룹 배율(±15% 캡)을 지표 가중에 곱한다. pfit 이 내역을 표기.
-      if (req.personaApply && req.personaGW) {
-        fullSet().forEach(function (id) {
-          const g = indMeta(id).group;
-          const f = req.personaGW[g];
-          if (typeof f === "number" && isFinite(f)) W[id] = clampW(W[id] * f);
-        });
-      }
-    }
+    // 가중치: basic 없음 / deep 프리셋 / custom 프리셋×사용자(0~3)×페르소나 — finalWeights 가 단일 출처
+    const W = finalWeights(tier, req);
 
     let mainRes, stdRes = null;
     if (tier === "custom") {
@@ -501,6 +507,7 @@
       tier: tier, symbol: req.symbol, tfKo: req.tfKo, at: null,
       preset: tier === "basic" ? null : (req.preset || "전체 종합"),
       weights: tier === "custom" ? (req.weights || {}) : null,
+      weightsApplied: W,   // 엔진에 실제 들어간 최종 가중(프레임 차트 동기용)
       personaApply: tier === "custom" ? !!req.personaApply : false,
       verdict: normalizeVerdict(mainRes, mp),
       indicators: indicators,
@@ -521,6 +528,6 @@
     core: function () { return core; },   // 읽기 접근(version·validatedAxes 라이브 파생 — P7 통계)
     indMeta: indMeta, basicSet: basicSet, fullSet: fullSet, indicatorCount: indicatorCount,
     registry: registry, PRESETS: PRESETS,
-    presetWeights: presetWeights, composeWeights: composeWeights,
+    presetWeights: presetWeights, composeWeights: composeWeights, finalWeights: finalWeights,
     horizonForTF: horizonForTF, tfLabel: tfLabel };
 });

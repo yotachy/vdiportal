@@ -2703,6 +2703,7 @@
     if (_playRaf) cancelAnimationFrame(_playRaf);
     _playTimers.forEach(clearTimeout); _playTimers = [];
     _playT = null; _playRaf = null; _playing = false; updatePlayBtn();
+    if (window._embedEmit) window._embedEmit("stopped", {});
     _evReveal = {}; _playReveal = { ids: null, u: 1 };   // 중단 → 차트 외 시각화 전체 확정 표시
     _scanning = false; _scanU = 1;   // 작도 중단 → 전체 표시
     _dashFill(null);
@@ -2848,6 +2849,9 @@
         }
         _hudNodeSteps(tk.n, tk.idx, tk.steps, tk.sIdx);
         _logAppend(tk.n, tk.st.text, tk.sIdx === tk.steps.length - 1);   // 각 지표의 마지막 단계 = 의견/결론 → 강조
+        if (window._embedEmit) window._embedEmit("step", { idx: tk.idx, total: indNodes.length, type: tk.n.blockType,
+          label: (typeof BTLABEL !== "undefined" && BTLABEL[tk.n.blockType]) || tk.n.blockType,
+          sIdx: tk.sIdx, sTotal: tk.steps.length, text: tk.st.text, last: tk.sIdx === tk.steps.length - 1 });   // 앱 임베드 서사 동기
         // 근거는 이미 전체 작도됨 — 스캔(clip)이 점진 공개하므로 매 틱 재작도 안 함(내레이션만)
         if (progEl) progEl.textContent = "분석 중 " + (tk.idx + 1) + "/" + indNodes.length + " · " + (BTLABEL[tk.n.blockType] || "노드") + " (" + (tk.sIdx + 1) + "/" + tk.steps.length + ")";
       }, tIdx * STEP_SUB));
@@ -2894,6 +2898,7 @@
       renderNodeAnalysis(lastResult); renderSignalBoard(); renderHorizons(lastResult);
       if (window.renderOverlay) renderOverlay(lastResult, boardToGraph());
       const eg2 = document.getElementById("bEdges"); if (eg2) eg2.classList.remove("flow");
+      if (window._embedEmit) window._embedEmit("done", {});
       const hud2 = document.getElementById("playHud");
       const hud2b = document.getElementById("playHudBody");
       if (hud2 && hud2b) {   // 종합 결론 HUD(천천히 사라짐 — 읽을 시간)
@@ -3033,6 +3038,7 @@
       updateTuneBtn();                        // 가중치 튜닝 버튼 활성 표시(기본값이 아니면 골드)
       if (typeof renderSignalBoard === "function") renderSignalBoard();   // 지표 신호 요약 갱신
       if (typeof fitHeroHeight === "function") fitHeroHeight(true);   // 최종 레이아웃(지표신호 포함)에 맞춰 차트 세로 채움
+      if (window._embedEmit && typeof _embedResultPayload === "function") window._embedEmit("result", _embedResultPayload(lastResult));
     } catch (e) {
       console.warn("run", e);
       if (typeof bToast === "function") bToast(/cycle/.test(String(e && e.message)) ? "그래프 오류: 순환 연결" : "그래프 오류: 계산 실패");
@@ -3580,9 +3586,11 @@
   document.addEventListener("DOMContentLoaded", () => {
     boardInit();
     try { const _ev = document.getElementById("engVer"); if (_ev && typeof ForgeCore !== "undefined" && ForgeCore.version) _ev.textContent = "엔진 v" + ForgeCore.version; } catch (e) {}   // 엔진 버전 배지(단일 출처: ForgeCore.version)
-    setTimeout(() => { try { fetchPredLedger(); } catch (e) {} }, 2500);   // 라이브 트랙레코드 배지(서버 확정 후 조회)
-    setTimeout(() => { try { renderAlertUI(); scanAlerts(false); } catch (e) {} }, 45000);   // 신호 알림: 부팅 45s 후 첫 스캔(부팅 부하 회피)
-    setInterval(() => { try { scanAlerts(false); } catch (e) {} }, 60 * 60 * 1000);          // + 60분 주기(탭 열려 있는 동안)
+    if (!EMBED) {   // 임베드는 차트 전용 — 원장·알림 스캔 부하를 싣지 않는다
+      setTimeout(() => { try { fetchPredLedger(); } catch (e) {} }, 2500);   // 라이브 트랙레코드 배지(서버 확정 후 조회)
+      setTimeout(() => { try { renderAlertUI(); scanAlerts(false); } catch (e) {} }, 45000);   // 신호 알림: 부팅 45s 후 첫 스캔(부팅 부하 회피)
+      setInterval(() => { try { scanAlerts(false); } catch (e) {} }, 60 * 60 * 1000);          // + 60분 주기(탭 열려 있는 동안)
+    }
     { const _pp = document.getElementById("paramPanel"); if (_pp && _pp.parentElement !== document.body) document.body.appendChild(_pp); }   // 편집기 서랍을 body 직속으로(전체화면서 숨는 boardPane 밖 → 어디서나 오버레이)
     // 서랍 외부 클릭 시 닫기(서랍·지표레일 내부는 유지 → 다른 지표 ✎로 전환 가능)
     document.addEventListener("pointerdown", e => {
