@@ -147,6 +147,9 @@ a:hover{color:var(--ach)}
 /* ── 탭바 (프로토 L1643~1668) ── */
 .ms-tabbar{flex:none;display:flex;border-top:1px solid var(--sf3);
   background:rgba(var(--ovr),0.98);padding:6px 4px 14px}
+/* 화면을 넘기거나 펼치는 카드에 눌림 피드백 — 탭 햅틱과 짝. 인라인 스타일이 transform 을 안 쓰므로 안전 */
+[data-go],[data-cell],[data-sig],[data-row]{transition:transform 0.11s cubic-bezier(0.2,0.9,0.3,1)}
+[data-go]:active,[data-cell]:active,[data-sig]:active,[data-row]:active{transform:scale(0.98)}
 .ms-tab{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;
   cursor:pointer;background:none;border:0;font-family:inherit;letter-spacing:inherit;color:inherit;
   transition:transform 0.12s}

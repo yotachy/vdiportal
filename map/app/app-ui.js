@@ -406,7 +406,8 @@
     // 시각 press(:active scale)는 이미 있고, 여기서 손끝 진동을 얹어 앱 전체가 tactile 하게.
     // capture 단계라 자식 핸들러의 stopPropagation 과 무관하게 항상 먼저 울린다.
     appEl.addEventListener("click", function (e) {
-      if (e.target.closest("[data-tab],[data-act],.ms-cta-primary,.ms-press,button")) hap("tick");
+      // 버튼·CTA 뿐 아니라 화면을 넘기거나 펼치는 카드(종목·매트릭스·시그널·채점 항목)도 손끝에 울린다
+      if (e.target.closest("[data-tab],[data-act],[data-go],[data-goadd],[data-sig],[data-cell],[data-row],[data-del],.ms-cta-primary,.ms-press,button")) hap("tick");
     }, true);
     renderHeader(els.header);
     renderTabbar(els.tabbar);
