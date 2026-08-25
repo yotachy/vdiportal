@@ -327,10 +327,81 @@
   }
 
   // ── 초기화 ──
+  // ── 당겨서 새로고침(PTR) — 데이터 화면 최상단에서 아래로 당기면 인디케이터가 자라고, 임계 넘겨 놓으면
+  //    진동+새로고침. 차트(forge iframe)·플로우(pfit/mix/run)는 제외(transform 이 iframe 정렬을 깬다). ──
+  const PTR_SCREENS = { home: 1, signal: 1, score: 1, stats: 1, wallet: 1 };
+  const PTR_MAX = 84, PTR_TRIG = 60;
+  let ptrEl = null, ptrStartY = 0, ptrDy = 0, ptrArmed = false, ptrScreen = null, ptrBusy = false;
+  function ptrIndicator() {
+    if (ptrEl) return ptrEl;
+    ptrEl = document.createElement("div");
+    ptrEl.className = "ms-ptr";
+    ptrEl.innerHTML = '<svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.2-8.5"></path><path d="M21 3v6h-6"></path></svg>';
+    appEl.appendChild(ptrEl);
+    return ptrEl;
+  }
+  function ptrReset() {
+    ptrDy = 0;
+    if (ptrScreen) {
+      ptrScreen.style.transition = "transform 0.26s cubic-bezier(0.2,0.9,0.3,1)";
+      ptrScreen.style.transform = "";
+      (function (sc) { setTimeout(function () { if (sc) sc.style.transition = ""; }, 280); })(ptrScreen);
+    }
+    if (ptrEl) { ptrEl.style.opacity = "0"; ptrEl.style.transform = "translateX(-50%) translateY(-32px)"; ptrEl.classList.remove("ready"); }
+  }
+  function ptrFire() {
+    ptrBusy = true;
+    hap("done");
+    const ind = ptrIndicator();
+    ind.classList.add("spin"); ind.classList.remove("ready");
+    ind.style.opacity = "1"; ind.style.transform = "translateX(-50%) translateY(8px)";
+    if (ptrScreen) { ptrScreen.style.transition = "transform 0.2s ease"; ptrScreen.style.transform = "translateY(38px)"; }
+    setTimeout(function () {
+      try { if (MS.router && MS.router.refreshCurrent) MS.router.refreshCurrent(); } catch (e) {}
+      // refreshCurrent 는 새 .ms-screen 을 만든다(transform 없음) — 옛 화면은 폐기되므로 되돌릴 필요 없음
+      ind.classList.remove("spin");
+      ind.style.opacity = "0"; ind.style.transform = "translateX(-50%) translateY(-32px)";
+      flash(MS.str("toast.refreshed"), "");
+      ptrBusy = false; ptrDy = 0; ptrScreen = null;
+    }, 520);
+  }
+  function setupPTR() {
+    mainEl.addEventListener("touchstart", function (e) {
+      if (ptrBusy || !e.touches || e.touches.length !== 1) return;
+      if (!PTR_SCREENS[store.get().screen]) return;
+      const scr = mainEl.querySelector(".ms-screen");
+      if (!scr || scr.scrollTop > 2) return;
+      ptrArmed = true; ptrStartY = e.touches[0].clientY; ptrDy = 0; ptrScreen = scr;
+    }, { passive: true });
+    mainEl.addEventListener("touchmove", function (e) {
+      if (!ptrArmed || ptrBusy) return;
+      const dy = e.touches[0].clientY - ptrStartY;
+      if (dy <= 0) { if (ptrDy > 0) ptrReset(); ptrArmed = !!(ptrScreen && ptrScreen.scrollTop <= 2); return; }
+      ptrDy = Math.min(PTR_MAX, dy * 0.5);   // 감쇠 — 고무줄 느낌
+      e.preventDefault();                     // 최상단 아래 당김 = 네이티브 오버스크롤 대신 PTR
+      ptrScreen.style.transition = "";
+      ptrScreen.style.transform = "translateY(" + ptrDy + "px)";
+      const ind = ptrIndicator();
+      const rdy = ptrDy >= PTR_TRIG;
+      ind.style.transition = "";
+      ind.style.opacity = String(Math.min(1, ptrDy / PTR_TRIG));
+      ind.style.transform = "translateX(-50%) translateY(" + (ptrDy - 30) + "px) rotate(" + Math.round(ptrDy * 4) + "deg)";
+      ind.classList.toggle("ready", rdy);
+    }, { passive: false });
+    const end = function () {
+      if (!ptrArmed || ptrBusy) return;
+      ptrArmed = false;
+      if (ptrDy >= PTR_TRIG) ptrFire(); else ptrReset();
+    };
+    mainEl.addEventListener("touchend", end, { passive: true });
+    mainEl.addEventListener("touchcancel", end, { passive: true });
+  }
+
   function init(theStore, els) {
     store = theStore;
     appEl = els.app;
     mainEl = els.main;
+    setupPTR();
     // 전역 탭 촉각 피드백 — 탭바·액션 버튼·CTA·press 요소를 누르면 가벼운 진동(tick).
     // 시각 press(:active scale)는 이미 있고, 여기서 손끝 진동을 얹어 앱 전체가 tactile 하게.
     // capture 단계라 자식 핸들러의 stopPropagation 과 무관하게 항상 먼저 울린다.

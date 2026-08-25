@@ -97,7 +97,20 @@
     });
   }
 
-  MS.router = { register: register, go: go, onChrome: onChrome, boot: boot };
+  // 현재 화면 새로고침 — refresh 가 있으면 가벼운 재렌더, 없으면 재마운트(재fetch). 당겨서 새로고침·PTR 용.
+  function refreshCurrent() {
+    if (!currentName || !screens[currentName]) return;
+    if (current && current.refresh) { current.refresh(); return; }
+    if (current && current.unmount) current.unmount();
+    const host = document.createElement("div");
+    host.className = "ms-screen";
+    mainEl.innerHTML = "";
+    mainEl.appendChild(host);
+    current = screens[currentName];
+    current.mount(host, { store: store, go: go });
+  }
+
+  MS.router = { register: register, go: go, onChrome: onChrome, boot: boot, refreshCurrent: refreshCurrent };
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot);
   else boot();

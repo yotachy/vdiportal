@@ -102,6 +102,15 @@ a:hover{color:var(--ach)}
 /* 화면 전환 페이드 — 탭·화면 이동이 즉각 교체라 딱딱했다. opacity 만(transform 은 차트 forge iframe
    위치를 어긋나게 함 — iframe 은 rect 로 동기되지 별도 요소). 부드럽게 나타나며 유려해진다. */
 @keyframes msScreenIn{from{opacity:0}to{opacity:1}}
+/* 당겨서 새로고침 인디케이터 — 최상단에서 당기면 위에서 내려오는 원형 스피너 */
+.ms-ptr{position:absolute;left:50%;top:10px;z-index:8;width:36px;height:36px;border-radius:50%;
+  display:flex;align-items:center;justify-content:center;color:var(--m1);
+  background:var(--sf2);box-shadow:0 4px 16px rgba(0,0,0,0.32);
+  transform:translateX(-50%) translateY(-32px);opacity:0;pointer-events:none;
+  transition:opacity 0.15s ease,transform 0.2s ease}
+.ms-ptr.ready{color:var(--ac)}
+.ms-ptr.spin svg{animation:msSpin 0.7s linear infinite}
+@keyframes msSpin{to{transform:rotate(360deg)}}
 
 /* ── 헤더 (프로토 L75~104) ── */
 .ms-header{height:58px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;
