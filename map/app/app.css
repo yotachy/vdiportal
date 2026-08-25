@@ -59,6 +59,7 @@
 @media (prefers-reduced-motion: reduce){
   .ms-rwfx .rw-num{animation:none}
   .ms-rwfx .rw-ring,.ms-rwfx .rw-spark{display:none}
+  .ms-screen{animation:none}
 }
 @keyframes msSpinY{0%{transform:rotateY(0deg)}100%{transform:rotateY(360deg)}}
 @keyframes msRing{0%{box-shadow:0 0 0 0 rgba(123,108,255,0.45)}62%,100%{box-shadow:0 0 0 10px rgba(123,108,255,0)}}
@@ -97,7 +98,10 @@ a:hover{color:var(--ach)}
 #msApp{position:relative;width:100%;max-width:480px;margin:0 auto;min-height:100vh;min-height:100dvh;
   background:var(--sf0);overflow:hidden;display:flex;flex-direction:column}
 #msMain{flex:1;min-height:0;overflow:hidden;position:relative}
-.ms-screen{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.ms-screen{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;animation:msScreenIn 0.22s cubic-bezier(0.22,0.7,0.3,1) both}
+/* 화면 전환 페이드 — 탭·화면 이동이 즉각 교체라 딱딱했다. opacity 만(transform 은 차트 forge iframe
+   위치를 어긋나게 함 — iframe 은 rect 로 동기되지 별도 요소). 부드럽게 나타나며 유려해진다. */
+@keyframes msScreenIn{from{opacity:0}to{opacity:1}}
 
 /* ── 헤더 (프로토 L75~104) ── */
 .ms-header{height:58px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;
