@@ -134,6 +134,29 @@
 - **버전은 정확히 고정한다**(`--save-exact`, 캐럿 없음) — admob·app 둘 다 `package.json` 에 정확한 버전 문자열(`"8.1.0"`·`"8.1.1"`)로 박혀 있다. `@capacitor/core`(`^8.5.0`)와 메이저가 어긋나면 네이티브 빌드가 깨지므로 peer 요구사항(`>=8.0.0` 류)을 확인하고 고른다.
 - 새 플러그인을 더할 때: `npm install`(package.json 갱신) → `npx cap sync android`(네이티브 Gradle 배선 — `android/app/capacitor.build.gradle`·`android/capacitor.settings.gradle` 재생성, 둘 다 "DO NOT EDIT" 생성물이지만 커밋 대상) → `./gradlew assembleDebug` 로 실제 빌드 확인까지가 한 세트. 절차 상세는 `mobile/docs/ANDROID-BUILD.md`.
 
+## ⑦ 동시 개발 프로토콜 — 2레인 병렬(현행) · 3트랙은 이후 개선 (2026-08-25 사용자 확인)
+
+여러 세션에서 동시에 개발할 때의 규율. **세 트랙(엔진·웹PC포지·모바일)은 결합 강도가 다르다** — 이 비대칭이 규율의 근거다.
+
+**결합 지도**
+- **웹(PC 포지) ↔ 엔진 = 매우 높음.** `forge.html` + `forge-state/ui/draw/app.js` 는 `forge-core.js` 와 **같은 브라우저 전역 스코프**에서 로드 순서(core→state→ui→draw→tools→app)로 돌고, UI 가 `ForgeCore.analyze*` 를 직접 호출하며 `forge-draw.js` 가 엔진 결과를 그린다. **둘은 하나의 forge 배포 세트(정적 8종+`forge-api.php`)로 같이 나간다** — 반쪽 배포 불가.
+- **모바일 ↔ 엔진 = 낮음.** 앱은 `../forge-core.js` 를 **런타임 상대참조**(사본 없음).
+- **모바일 ↔ 웹 = 숨은 의존.** ★ 앱 차트는 `forge.html?embed=app` 을 **iframe 으로 실행**(즉 앱이 웹 포지 번들을 그대로 돌린다). 웹 변경이 앱 차트에 자동 반영되고, 웹 배포가 깨지면 앱 차트도 깨진다.
+
+**현행 권장 = 3개가 아니라 2레인**
+- **레인 A = 엔진 + 웹(PC 포지)** — 같은 번들·같은 스코프·같은 배포·같은 §② 관문이라 붙여서 다룬다. 굳이 두 세션으로 쪼갤 땐 **파일 분할로만**: 엔진 세션 = `forge-core.js`·`forge-tools.js`·`backtest/`, 웹 세션 = `forge-state/ui/draw/app.js`·`forge.css`. 공유 이음새는 **딱 둘 — `forge-embed.js`(엔진 analyze API·지표를 쓰는 브리지)와 지표 레지스트리(`indicatorRegistry↔indicatorCount↔ind-tiers`+`app/registry-sync.test.js`, §②-3)**. 엔진이 analyze 반환형·지표 세트를 바꿀 때만 이 둘이 함께 움직인다.
+- **레인 B = 모바일**(`map/app/*`·`app-api.php`·`app-*-lib.php`) — 깨끗하게 병렬.
+- **완전 독립 웹 산출물**(원하면 3번째 레인으로 무리 없음): 랜딩 `map/index.html` · 스쿱보드 `map.html`(자기 파일·자기 목적) · potflow(별개 트랙 — 위 경고 참조).
+
+**어느 조합이든 지키는 가드레일**
+1. **각 세션 별도 브랜치 + git worktree 분리**(같은 워킹카피 동시 편집 = 파일 쓰기 레이스). 게이트 통과 후 `merge:` 커밋(§③).
+2. **파일 소유 경계를 넘지 않는다.** 위 이음새 2곳만 조심.
+3. **배포를 직렬화한다 — `www/map/` 는 하나뿐인 공유 자원.** 엔진+웹은 **forge 세트로 한 번에**, 엔진은 **§② 검증 체크포인트(백테스트·스코어카드)에서만**. 두 세션이 겹쳐 올리지 말 것. 캐시버스터(`scripts/stamp-cachebust.py`) 는 배포마다 필수.
+4. **엔진/웹 배포 후 모바일 세션은 차트 재확인**(앱이 그 번들을 iframe 으로 실행하므로). 엔진 미배포 시 앱 사망 전례(aggUpProb, 2026-08-24).
+5. 각 세션 **`./tests/run.sh` 전량 통과 후 머지**(엔진 변경은 app 스위트·registry-sync 포함 전량).
+
+**이후 3트랙 개선 여지**: 웹↔엔진의 전역 스코프 결합을 모듈 경계로 낮추거나, 엔진을 버전 태깅해 웹·모바일이 특정 스냅샷을 고정 참조하게 하면 세 트랙을 더 독립적으로 굴릴 수 있다. 지금은 2레인이 안전선.
+
 ---
 
 # 📱 머니스쿱 앱 트랙 (`map/app/`, 2026-08-24~)
