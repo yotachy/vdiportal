@@ -1,0 +1,7 @@
+# index.html 등 HTML 은 항상 재검증(no-cache) — 캐시버스터(?v=)가 붙은 js/css 는 브라우저가 오래 캐시해도
+# 되지만, 그 참조를 담은 HTML 이 stale 하면 옛 ?v= 를 물어 새 파일을 못 받는다(모바일 크롬 반복 이슈).
+<IfModule mod_headers.c>
+  <FilesMatch "\.html$">
+    Header set Cache-Control "no-cache, no-store, must-revalidate, max-age=0"
+  </FilesMatch>
+</IfModule>
