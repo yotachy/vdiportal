@@ -819,12 +819,26 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
         </div>
         <div class="ea-fl"></div>
         <div class="ea-st">
-          <div class="ea-h"><span class="ea-n">A2</span><span class="ea-t">드리프트 합성</span></div>
-          <div class="ea-d">각 성향 × <b>타임프레임 프로파일</b>(일 · 주 · 월 차등) → 누적 합산(<b>±0.28 캡</b>) + 지표 <b>일치도</b>(몇 %가 같은 방향인가).<br>가중(<span class="ea-run">driftWeights</span>)은 <b>세 층이 곱해져</b> 들어온다 — 프리셋 9종 × 사용자 슬라이더(0~3) × <b>페르소나 보정</b>(그룹 배율 ±15% 캡 · 보정 내역을 화면에 적는다). PC 는 지표 레일의 바가 같은 자리에 들어간다.</div>
+          <div class="ea-h"><span class="ea-n">A2</span><span class="ea-t">가중 조립 — 사용자와 페르소나가 들어오는 자리</span></div>
+          <div class="ea-d">지표마다 <b>얼마나 크게 들을지</b>를 정해 <span class="ea-run">driftWeights</span> 한 덩어리로 만든다. <b>단계마다 층이 다르다.</b></div>
+          <div class="ea-clus" style="grid-template-columns:repeat(3,1fr)">
+            <div class="ea-cl"><div class="ea-cl-h">기본 <em>0층</em></div><div class="ea-cl-m">가중 없음 — 5지표를 동등하게</div></div>
+            <div class="ea-cl"><div class="ea-cl-h">심화 <em>1층</em></div><div class="ea-cl-m">프리셋 9종(추세 중심 · 스마트머니 · 역추세 …)</div></div>
+            <div class="ea-cl"><div class="ea-cl-h">커스텀 <em>3층</em></div><div class="ea-cl-m">프리셋 × 사용자 슬라이더(0~3) × 페르소나 배율</div></div>
+          </div>
+          <div class="ea-d" style="margin-top:9px"><b>페르소나 보정은 이렇게 계산된다</b> — 성향 질문의 답 가운데 <b>방향성이 있는 3차원</b>(위험 성향 · 매매 호흡 · 보는 근거)만 5개 지표군(추세 · 모멘텀 · 변동성 · 거래량 · 구조) 친화도로 환산하고, <b>평균 대비 편차를 배율로</b> 바꾼다(<b>0.85~1.15 캡</b>). 깊이 · 복기 차원은 방향성이 없어 <b>가중에 손대지 않는다</b>. 같은 친화도 벡터가 <b>프리셋 추천</b>(코사인 유사도)에도 쓰인다.</div>
+          <div class="ea-io"><span>추세 t</span><span>모멘텀 m</span><span>변동성 v</span><span>거래량 q</span><span>구조 s</span><span>배율 0.85~1.15</span></div>
+          <div class="ea-note" style="margin-top:10px"><b style="color:var(--eth)">엔진은 누가 왜 그 숫자를 만들었는지 모른다.</b> 페르소나 · 프리셋 · 슬라이더는 전부 앱에서 해석돼 <b>가중치 하나</b>로 합쳐진 뒤 들어간다 — 해석은 제품이 하고 <b>계산은 엔진이 한다</b>. PC 는 지표 레일의 바가 정확히 같은 자리에 들어간다.</div>
+          <span class="ea-bdg ea-ok">✓ 커스텀은 <b>두 번 돈다</b> — 가중 없는 기준 실행과 나란히 놓아 "가중이 판정을 얼마나 움직였는지"를 보여준다</span>
         </div>
         <div class="ea-fl"></div>
         <div class="ea-st">
-          <div class="ea-h"><span class="ea-n">A3</span><span class="ea-t">방향 · 예측 콘</span></div>
+          <div class="ea-h"><span class="ea-n">A3</span><span class="ea-t">드리프트 합성</span></div>
+          <div class="ea-d">각 성향 × <b>가중</b> × <b>타임프레임 프로파일</b>(일 · 주 · 월 차등) → 누적 합산(<b>±0.28 캡</b>) + 지표 <b>일치도</b>(몇 %가 같은 방향인가).</div>
+        </div>
+        <div class="ea-fl"></div>
+        <div class="ea-st">
+          <div class="ea-h"><span class="ea-n">A4</span><span class="ea-t">방향 · 예측 콘</span></div>
           <div class="ea-d"><b>방향:</b> 지표평균 ×0.66 + 추세 ×0.34 → <b>200MA 게이트</b>(상승장서 약세신호 억제).<br><b>예측 콘:</b> 평균회귀 + 모멘텀 + 추세 + 신호 + 계절성 + 데이터질감 → 중심선 + 밴드(<b>×0.75 캘리브</b> · <b>국면별 변동성 정밀화</b> v1.9.2) + 반대 시나리오(구조 레벨).</div>
           <span class="ea-bdg ea-lim">방향: 시장 기준선(항상상승) 미달 · 참고용</span>
           <span class="ea-bdg ea-mut">콘 = 실현변동성 상관 0.79</span>
@@ -906,6 +920,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
           <div class="ea-st">
             <div class="ea-h"><span class="ea-n">앱·3</span><span class="ea-t">단계로 갈리는 것은 노출량</span></div>
             <div class="ea-d"><b>기본</b> 5지표 · 무제한 · 0 &nbsp;/&nbsp; <b>심화</b> <span id="eaDeepN">32</span>지표 · ◈2 &nbsp;/&nbsp; <b>커스텀</b> + 가중치 · ◈3 (24시간 내 재분석은 무차감).<br>계산 · 확률 · <b>기준선 병기</b> · 정직 표기는 <b>단계와 무관하게 동일</b>하다. 잠긴 단계에서는 <b>무엇이 빠졌는지를 이름으로</b> 적는다.</div>
+            <div class="ea-d" style="margin-top:8px">커스텀에서는 <b>성향 질문의 답</b>이 지표군 배율로 환산돼 가중에 곱해진다(A2) — 켤지 말지는 사용자가 정하고, <b>어떤 군이 얼마나 올라갔는지 내역을 화면에 적는다</b>.</div>
             <span class="ea-bdg ea-mut">양은 갈리고 질은 안 갈린다</span>
           </div>
           <div class="ea-fl"></div>
@@ -1586,13 +1601,15 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const pcv  ={x:1074,y:330,r:15,c:gold,lab:"스쿱포지 (PC)",sub:"작업대 · 32종 상시 · 무과금",pl:"right"};
   const emb  ={x:1074,y:471,r:11,c:eth, lab:"forge 임베드 · iframe",sub:"앱 차트 = PC 코드 그대로",pl:"right"};
   const mob  ={x:1074,y:612,r:15,c:bull,lab:"머니스쿱 (앱)",sub:"브리지 app-engine.js 하나로",pl:"right"};
-  // 가중 입력 — 엔진 밖에서 들어와 드리프트 합성에 곱해진다(PC 레일 / 앱 프리셋·사용자·페르소나).
-  const wt   ={x:250,y:716,r:10,c:gold,lab:"가중치 입력 · driftWeights",sub:"프리셋 × 사용자 × 페르소나(±15%)",pl:"below"};
+  // 가중 경로 — 엔진 밖에서 조립돼 드리프트 합성에 곱해진다. 해석은 제품, 계산은 엔진.
+  const PV="#b58cf0";
+  const pers ={x:104,y:752,r:11,c:PV,  lab:"페르소나",sub:"답 → 5그룹 배율 0.85~1.15",pl:"above"};
+  const wt   ={x:330,y:752,r:13,c:gold,lab:"가중 조립 · driftWeights",sub:"프리셋 × 사용자 × 페르소나",pl:"above"};
   // 리스크 노드 = 엔진 검증 축(validatedAxes)에서 생성 → 축 추가/추세지속 자동 반영. 개수에 맞춰 세로 분배.
   const RTOP=398, RBOT=640, _rn=AXES.length, RSTEP=_rn>1?(RBOT-RTOP)/(_rn-1):0;
   const risk = AXES.map((a,i)=>({ x:706, y:Math.round(RTOP+i*RSTEP), r:11,
     c: a.stock ? "#c98a5a" : bull, lab: a.lab, sub: a.acc+"%"+(a.hz?" · "+a.hz:"")+(a.stock?"·주식":""), pl:"right", ax:a }));
-  const named=[price,vol,wt,drift,dir,cone,cal,out,pcv,emb,mob,...risk];
+  const named=[price,vol,pers,wt,drift,dir,cone,cal,out,pcv,emb,mob,...risk];
   // ── 30 지표 뉴런(6군) ──
   const CL=[{n:"추세",k:7,c:gold},{n:"모멘텀",k:8,c:"#e8955c"},{n:"변동성",k:4,c:"#7aa6cc"},{n:"거래량",k:4,c:eth,vol:1},{n:"구조",k:5,c:"#b58cf0"},{n:"주기",k:2,c:"#5ec8b6"}];
   const IND=[]; let yy=54; const IX=250;
@@ -1620,8 +1637,9 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   IND.forEach((n,i)=>{ wire(uid(price,n), n.c, .12, 1); if(n.cl.vol) wire(uid(vol,n), eth, .34, 1); });
   // 팬인: 30 지표 → 드리프트
   IND.forEach(n=>wire(uid(n,drift), n.c, .10, 1));
-  // 가중 입력 → 드리프트 합성(엔진 밖에서 들어오는 조절 신호)
-  wire(qd(wt,drift,-.06), gold,.30,1.6); flow(qd(wt,drift,-.06), gold, 4);
+  // 가중 경로 → 드리프트 합성(엔진 밖에서 들어오는 조절 신호 — 단계에 따라 층이 늘어난다)
+  wire(uid(pers,wt), PV,.40,1.6); flow(uid(pers,wt), PV, 3);
+  wire(qd(wt,drift,-.06), gold,.34,1.8); flow(qd(wt,drift,-.06), gold, 6);
   // 팬아웃: 가격 → 변동성 피처 10
   FEAT.forEach(f=>wire(uid(price,f), bull, .16, 1));
   // 팬: 피처 10 → 리스크 3
@@ -1646,6 +1664,8 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   wire("M1092 344 C 1196 400, 1200 596, 1092 634", gold, .20, 1.3);
   // 지표군 → 드리프트: 군 대표 1줄기, 도트=군 크기 비례(모멘텀8 多·주기2 少)
   CL.forEach(cl=>{ flow(uid({x:IX,y:cl.yc},drift), cl.c, cl.k); });
+  // 가중은 개별 지표에 곱해진다 — 대표 지표 몇 개로만 표시(전부 그으면 판독 불가)
+  [2,10,17,24,29].forEach(i=>{ if(IND[i]) wire(uid(wt,IND[i]), PV, .10, 1); });
   // 대표 팬아웃(가격→지표·피처): 얇은 단일 스트림
   [0,7,15,22,28].forEach(i=>{ flow(uid(price,IND[i]), IND[i].c, 1); });
   [0,4,9].forEach(i=>{ flow(uid(price,FEAT[i]), bull, 1); });
@@ -1665,6 +1685,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   s+=`<text x="30" y="266" text-anchor="middle" class="ea-lv-cap" fill="${eth}">+ 검증 통과 기법만</text>`;
   s+=`<text x="1099" y="638" class="ea-lv-cap" fill="${bull}">라이브 — 전 페이즈 구현 완료</text>`;
   s+=`<text x="1099" y="651" class="ea-lv-cap" fill="${eth}">웹 + Capacitor 셸 · 엔진 미번들</text>`;
+  s+=`<text x="330" y="800" text-anchor="middle" class="ea-lv-cap" fill="${eth}">커스텀은 기준(가중 없음) 실행과 나란히 — 가중이 판정을 얼마나 움직였는지</text>`;
   s+=`<text x="560" y="782" text-anchor="middle" class="ea-lv-clab" fill="${gold}">⟲ 되먹임 — 실사용 예측 → 원장(PC forge_predlog · 앱 app_ledger.db) → 만기 자동 채점 → 라이브 트랙레코드 · 앱 통계 → 다음 엔진 버전</text>`;
   s+=`<text x="1099" y="358" class="ea-lv-cap" fill="${eth}">같은 엔진 · 같은 판정 · 사본 없음</text>`;
   s+=`<text x="${IX}" y="${INDBOT+18}" text-anchor="middle" class="ea-lv-cap" fill="${gold}">레지스트리(indicatorRegistry) = 단일 출처</text>`;
@@ -1682,10 +1703,11 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
     if(n.sub) s+=`<text x="${lx}" y="${ly2}" text-anchor="${anc}" class="ea-lv-sub">${n.sub}</text>`;
   });
   // 범례
-  s+=`<g transform="translate(${W/2-190},${H-12})"><circle cx="0" cy="-4" r="4" fill="${bull}"/><text x="9" y="0" class="ea-lv-cap">검증된 예측력</text>`
+  s+=`<g transform="translate(${W/2-380},${H-12})"><circle cx="0" cy="-4" r="4" fill="${bull}"/><text x="9" y="0" class="ea-lv-cap">검증된 예측력</text>`
    +`<circle cx="108" cy="-4" r="4" fill="${bear}"/><text x="117" y="0" class="ea-lv-cap">미검증(한계)</text>`
    +`<circle cx="232" cy="-4" r="4" fill="${eth}"/><text x="241" y="0" class="ea-lv-cap">임베드(PC 코드 공유)</text>`
-   +`<text x="384" y="0" class="ea-lv-cap">뉴런 색 = 지표군 · 크기·도트 = 데이터 비중</text></g>`;
+   +`<circle cx="384" cy="-4" r="4" fill="#b58cf0"/><text x="393" y="0" class="ea-lv-cap">가중 경로(사용자 · 페르소나)</text>`
+   +`<text x="556" y="0" class="ea-lv-cap">뉴런 색 = 지표군 · 크기·도트 = 데이터 비중</text></g>`;
   host.innerHTML=s+`</svg>`;
 })();
 // 시각화 토글(라이브 ↔ 도식)
