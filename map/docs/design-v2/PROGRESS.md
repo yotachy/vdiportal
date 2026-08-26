@@ -99,6 +99,8 @@
 - **★배포 공백 수습 — `wallet-ssv.php` 라이브 404**: 2026-08-15 커밋됐으나 cafe24 에 배포된 적 없었다(CLAUDE.md §④ 가 경고한 지뢰 — AdMob 활성 시 구글 SSV 콜백 404 → 아무도 보상 못 받음). ads-disabled 상태라 무해했으나 **AdMob 활성화의 0번 선행조건**. 해소: `./tests/run.sh concurrency` 6종 통과 → 지갑 세트(wallet-ssv·wallet-lib·wallet-api) 동반 배포 → `wallet-ssv.php` HTTP 200 확인.
 - **배선 상태 확정**: ① OAuth = 서버·클라 완결, 웹 turnkey(셸 불필요) ② AdMob = 서버·클라·셸 완결(SSV 수습 후 콘솔+ad_units.json 만) ③ FCM = **전무**(app-shell 플러그인에도 없음 — Firebase 프로젝트부터 짓는 과제, 시그널 서버 스캔 승격과 한 세트) ④ 서명 = release 빌드타입만·서명/R8 없음(스토어 제출 직전). 엔진↔서버 동조 불변(셸은 엔진을 서버 절대 URL 참조 — APK 빌드 전 www/map 현행 확인).
 - **다음(외부 자원 열리는 순서)**: ① `forge_google_oauth.json` 업로드 → 실 로그인 라이브 검증(오늘 가능) ② AdMob 콘솔 유닛+SSV URL → `ad_units.json` ③ 서명 키 → assembleRelease ④ Firebase → FCM. 코드 이월은 §5 상단 목록 유지.
+- **FCM 푸시 설계 완료(2026-08-26, 승인·미착수)**: 사용자가 4기능 중 FCM을 "구축 트랙"으로 선택 → brainstorming 완료. **설계서 `docs/superpowers/specs/2026-08-26-app-push-signals-design.md`(커밋 238442e)**. 확정: 일일 다이제스트·엔진 확신도 게이트(`rankSignal` 공유 순수함수: 시그널 dir × `aggUpProb` strength≥0.30·하루 3건 캡)·07시 KST 발송·디바이스 등록부. 외부 node 스캐너(실 app-signals·forge-core)·서버는 등록부·발송로그만(감지 결정적→앱 재현). **Phase 1**(Firebase 무관·지금 구축 가능): rankSignal+인앱 '밤사이 중요' 하이라이트+`scan/scan-core.mjs`+`app-push-lib.php`(push_register/scan_registry/push_send)+테스트. **Phase 2**(Firebase 게이트): `@capacitor` 푸시 플러그인+FCM HTTP v1 발송+`app_fcm.json` 킬스위치+APK 재빌드. **재개 지점 = 설계서 사용자 리뷰 → writing-plans(Phase 1)**. 미결: 스캐너 cron 호스트(코드 무관).
+- **도메인 전환 계획 확정(2026-08-26)**: 출시 얼굴 = `moneyscoop.co.kr/app`(개발은 parksvc.mycafe24.com/map 유지). cafe24 멀티도메인 연결폴더=`map`로 루트 매핑 → 파일 이동·데이터 이사 없음, 웹 무변경(상대경로), APK 상수 2곳(`build-www.mjs` SERVER_BASE·`app-forge-frame.js` PROD_BASE) `/map` 제거+재빌드, OAuth/SSV URI만 moneyscoop 호스트. 상세 `LAUNCH.md §4-B`.
 
 ---
 
