@@ -759,7 +759,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
   </div>
 
   <h2 id="s1">분석 엔진 구조 — 엔진 내부와 두 제품</h2>
-  <p class="sec-desc">실제 <span class="ea-run" style="background:none;padding:0">run()</span> 파이프라인의 구조이고, 그 <b>바깥까지</b> 함께 그렸다 — 무엇이 엔진에 들어가고(상류), 나온 판정이 어느 화면으로 가며(하류), 그 사용이 어떻게 다시 엔진으로 돌아오는가(되먹임). <b>지표 파이프라인</b>과 <b>변동성 리스크 모델</b>은 독립된 경로다 — 방향(왼쪽)은 시장 기준선을 초과하지 못하고, 변동성·리스크(오른쪽)는 검증된 예측력을 갖는다.</p>
+  <p class="sec-desc">실제 <span class="ea-run" style="background:none;padding:0">run()</span> 파이프라인의 구조이고, 그 <b>바깥까지</b> 함께 그렸다 — 무엇이 엔진에 들어가고(상류), 나온 판정이 어느 화면으로 가며(하류), 그 사용이 어떻게 다시 엔진으로 돌아오는가(되먹임). <b>지표 파이프라인</b>과 <b>변동성 리스크 모델</b>은 독립된 경로다 — 방향(왼쪽)은 시장 기준선을 초과하지 못하고, 변동성·리스크(오른쪽)는 검증된 예측력을 갖는다. 2026-08 앱 개발을 거치며 <b>두 제품이 한 엔진을 쓰는 방식</b>이 구조로 굳었다 — 지표 <b>레지스트리</b>(단일 출처) · 엔진 <b>브리지</b>(단일 통로) · 차트 <b>임베드</b>(PC 코드를 그대로 실행).</p>
   <div class="ea-seg" role="tablist" aria-label="시각화 방식">
     <button class="ea-segb on" data-eaview="live" role="tab" aria-selected="true">신경망 도식</button>
     <button class="ea-segb" data-eaview="map" role="tab" aria-selected="false">상세 도식</button>
@@ -774,8 +774,8 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
       <div class="ea-2col">
         <div class="ea-st">
           <div class="ea-h"><span class="ea-n">IN·1</span><span class="ea-t">시세 데이터</span></div>
-          <div class="ea-d">서버 프록시 한 곳(<span class="ea-run">forge-api.php</span>)으로 통일 — <b>TwelveData → Yahoo 폴백</b>, 국내는 Naver. 일봉 1시간 · 주월 6시간 캐시.</div>
-          <div class="ea-io"><span>PC · 모바일 같은 프록시</span><span>같은 봉</span><span>같은 캐시</span></div>
+          <div class="ea-d">서버 프록시 한 곳(<span class="ea-run">forge-api.php</span>)으로 통일 — <b>TwelveData → Yahoo 폴백</b>, 국내는 Naver. 일봉 1시간 · 주월 6시간 캐시.<br><b>분석에 들어가는 봉은 PC · 앱 모두 전량 이력</b>이다 — 이력 길이가 판정을 바꾸기 때문(실측 NVDA 일봉: 400봉 64% · 1000봉 68%). 홈 시세 · 시그널 감지처럼 <b>표시용만</b> 경량 60봉.</div>
+          <div class="ea-io"><span>PC · 앱 같은 프록시</span><span>같은 봉</span><span>같은 캐시</span><span>gzip 419→102KB</span><span>since= 델타 재갱신</span></div>
         </div>
         <div class="ea-st">
           <div class="ea-h"><span class="ea-n">IN·2</span><span class="ea-t">검증을 통과한 분석 기법</span></div>
@@ -814,11 +814,13 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
             <div class="ea-cl"><div class="ea-cl-h">구조·레벨 <em>5</em></div><div class="ea-cl-m">피보나치 · 시장구조 · 피벗 · SMC · 엘리어트</div></div>
             <div class="ea-cl"><div class="ea-cl-h">주기 <em>2</em></div><div class="ea-cl-m">사이클 · 페이즈폴드</div></div>
           </div>
+          <div class="ea-d" style="margin-top:9px">지표 세트 · 개수 · 이름 · 그룹의 <b>단일 출처는 엔진 레지스트리</b>(<span class="ea-run">indicatorRegistry</span>) — 화면 어디에도 지표 목록을 하드코딩하지 않는다. <b>엔진에 33번째가 들어오면 PC 도 앱도 별도 구현 없이 33종으로 분석한다.</b></div>
+          <span class="ea-bdg ea-ok">✓ 드리프트 가드 — 가짜 33번째 지표로 자동 확장을 증명하는 테스트</span>
         </div>
         <div class="ea-fl"></div>
         <div class="ea-st">
           <div class="ea-h"><span class="ea-n">A2</span><span class="ea-t">드리프트 합성</span></div>
-          <div class="ea-d">각 성향 × <b>타임프레임 프로파일</b>(일 · 주 · 월 차등) → 누적 합산(<b>±0.28 캡</b>) + 지표 <b>일치도</b>(몇 %가 같은 방향인가).</div>
+          <div class="ea-d">각 성향 × <b>타임프레임 프로파일</b>(일 · 주 · 월 차등) → 누적 합산(<b>±0.28 캡</b>) + 지표 <b>일치도</b>(몇 %가 같은 방향인가).<br>가중(<span class="ea-run">driftWeights</span>)은 <b>세 층이 곱해져</b> 들어온다 — 프리셋 9종 × 사용자 슬라이더(0~3) × <b>페르소나 보정</b>(그룹 배율 ±15% 캡 · 보정 내역을 화면에 적는다). PC 는 지표 레일의 바가 같은 자리에 들어간다.</div>
         </div>
         <div class="ea-fl"></div>
         <div class="ea-st">
@@ -878,29 +880,47 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
             <div class="ea-d">파라미터 최적화(워크포워드 그리드) · 수동 드로잉 · 전략 저장 · 테마 7종 · 가격 직접 입력.</div>
             <span class="ea-bdg ea-mut">여기까지는 제품으로 가지 않는다</span>
           </div>
+          <div class="ea-fl"></div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">PC·3</span><span class="ea-t">임베드 모드 — 앱의 차트 엔진</span></div>
+            <div class="ea-d">같은 번들을 <span class="ea-run">forge.html?embed=app</span> 으로 열면 저장·서버 쓰기가 차단되고 차트만 남는다. 앱은 이 화면을 그대로 띄운다 — <b>PC 번들은 작업대이면서 동시에 앱의 차트 엔진</b>이다.</div>
+            <span class="ea-bdg ea-mut">웹 배포가 깨지면 앱 차트도 깨진다</span>
+          </div>
           <div class="ea-note"><b style="color:var(--eth)">PC 화면은 사용자 서비스 기준이 아니다.</b> 32종을 항상 열어 두고 과금이 없는 것은 <b style="color:var(--eth)">작업대라서</b>이지 그것이 제품의 모습이어서가 아니다.</div>
         </div>
 
         <div class="ea-spine ea-mo">
-          <div class="ea-slbl">머니스쿱 (모바일) · 제품</div>
+          <div class="ea-slbl">머니스쿱 (앱) · 제품 · 라이브</div>
           <div class="ea-st">
-            <div class="ea-h"><span class="ea-n">앱·1</span><span class="ea-t">같은 파일을 세로로</span></div>
-            <div class="ea-d"><b>별도 구현이 없다.</b> <span class="ea-run">forge.html</span> 과 스크립트 6종을 그대로 실행하고 세로 배치만 같은 파일 안에서 만든다 — 스티키 차트 + 세그먼트 4칸.</div>
-            <span class="ea-bdg ea-ok">✓ 같은 입력이면 판정도 같다</span>
+            <div class="ea-h"><span class="ea-n">앱·1</span><span class="ea-t">자기 셸 · 엔진에는 통로 하나</span></div>
+            <div class="ea-d">앱은 자기 셸을 갖는다(<span class="ea-run">map/app/</span> — 정책 · 문자열 · 상태 · 데이터 · UI · 라우터 · 화면 모듈). 다만 <b>분석은 전부 엔진 브리지 <span class="ea-run">app-engine.js</span> 한 파일을 통해서만</b> 엔진에 닿는다.<br><b>앱 안에 분석 로직이 없고 엔진 사본도 없다</b> — 서버의 <span class="ea-run">forge-core.js</span> 를 상대참조하고, 안드로이드 셸은 같은 파일을 절대 URL 로 부른다.</div>
+            <span class="ea-bdg ea-ok">✓ 같은 입력이면 판정도 같다 — 호출 레시피까지 PC 와 동일</span>
           </div>
           <div class="ea-fl"></div>
           <div class="ea-st">
-            <div class="ea-h"><span class="ea-n">앱·2</span><span class="ea-t">단계로 갈리는 것은 노출량</span></div>
-            <div class="ea-d"><b>기본</b> 5지표 · 무제한 · 0 &nbsp;/&nbsp; <b>심화</b> 32지표 · 2스쿱 &nbsp;/&nbsp; <b>커스텀</b> + 가중치 · 3스쿱.<br>계산 · 확률 · <b>기준선 병기</b> · 정직 표기는 <b>단계와 무관하게 동일</b>하다. 잠긴 단계에서는 <b>무엇이 빠졌는지를 이름으로</b> 적는다.</div>
+            <div class="ea-h"><span class="ea-n">앱·2</span><span class="ea-t">차트 · 작도는 PC 코드를 그대로</span></div>
+            <div class="ea-d">앱 전용 차트는 <b>폐기했다</b>. 분석 · 실행 화면은 <span class="ea-run">forge.html?embed=app</span> 을 iframe 으로 띄우고 <span class="ea-run">forge-embed.js</span> 의 postMessage 계약(load · play · stop · tf · evidence · fit · theme)으로 조종한다.<br>캔들 · 예측 콘 · 32종 근거 작도 · 시연 카메라 · 핀치줌 · 축 드래그가 전부 PC 코드다 — <b>재구현이 없으니 품질이 갈릴 수 없다.</b></div>
+            <span class="ea-bdg ea-mut">웹 ↔ 앱의 유일한 숨은 의존</span>
+          </div>
+          <div class="ea-fl"></div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">앱·3</span><span class="ea-t">단계로 갈리는 것은 노출량</span></div>
+            <div class="ea-d"><b>기본</b> 5지표 · 무제한 · 0 &nbsp;/&nbsp; <b>심화</b> <span id="eaDeepN">32</span>지표 · ◈2 &nbsp;/&nbsp; <b>커스텀</b> + 가중치 · ◈3 (24시간 내 재분석은 무차감).<br>계산 · 확률 · <b>기준선 병기</b> · 정직 표기는 <b>단계와 무관하게 동일</b>하다. 잠긴 단계에서는 <b>무엇이 빠졌는지를 이름으로</b> 적는다.</div>
             <span class="ea-bdg ea-mut">양은 갈리고 질은 안 갈린다</span>
           </div>
           <div class="ea-fl"></div>
           <div class="ea-st">
-            <div class="ea-h"><span class="ea-n">앱·3</span><span class="ea-t">다음 날 채점</span></div>
-            <div class="ea-d">어제 그린 <b>예측 콘 위에 오늘 실제 봉</b>을 얹어 방향·범위 적중을 판정하고, 그때 <b>반대했던 지표들의 이름</b>을 되짚는다. 건수가 쌓이면 <b>개인 적중률</b>이 된다(기준선 병기).</div>
+            <div class="ea-h"><span class="ea-n">앱·4</span><span class="ea-t">다음 날 채점 · 서버 원장</span></div>
+            <div class="ea-d">어제 그린 <b>예측 콘 위에 오늘 실제 봉</b>을 얹어 방향 · 범위 적중을 판정하고, 그때 <b>반대했던 지표들의 이름</b>을 되짚는다. 예측과 채점은 서버 원장(<span class="ea-run">app_ledger.db</span>)에 남아 <b>개인 적중률</b>과 익명 집계가 된다(기준선 병기 · 표본 미달은 비공개).</div>
             <span class="ea-bdg ea-ok">✓ 재방문 동력 — 예측이 아니라 채점이 상품</span>
           </div>
-          <div class="ea-note"><span class="ea-bdg ea-soon" style="margin:0 0 6px">설계 확정 · 구현 전 — 2차 시안 대기</span><br>요건은 <b style="color:var(--eth)">app-spec.html</b>(18화면) · 시안 재료는 <b style="color:var(--eth)">design-kit.html</b>. 옛 앱 구현과 1차 시안은 봉쇄됐다.</div>
+          <div class="ea-fl"></div>
+          <div class="ea-st">
+            <div class="ea-h"><span class="ea-n">앱·5</span><span class="ea-t">앱 셸 — 엔진을 담지 않는다</span></div>
+            <div class="ea-d"><span class="ea-run">app-shell/</span> Capacitor 안드로이드 셸(minSdk 24 · APK 빌드 확인). <b>번들에 엔진이 들어가지 않는다</b> — 셸도 서버의 같은 <span class="ea-run">forge-core.js</span> 를 본다. 보상 광고는 클라이언트가 아니라 <b>서버 SSV 콜백</b>으로 지급한다.</div>
+            <span class="ea-bdg ea-mut">스토어 릴리스는 별도 트랙 — 웹 배포 규칙 밖</span>
+          </div>
+          <div class="ea-note"><span class="ea-bdg ea-ok" style="margin:0 0 6px">라이브 — 전 페이즈 구현 완료 · <span class="ea-run" style="background:none;padding:0">/map/app/</span></span><br>정본 순서는 <b style="color:var(--eth)">프로토타입(동작) &gt; 지침서 &gt; 구 시안(동결)</b>. 옛 앱 구현과 1차 시안은 봉쇄됐고, 지금 트랙의 구현 정본은 <b style="color:var(--eth)">docs/design-v2/BUILD-PLAN.md</b> 다.</div>
         </div>
 
       </div>
@@ -910,14 +930,42 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
     <div class="ea-loop">
       <div class="ea-loop-h">⟲ 되먹임 — 쓰면 쓸수록 검증 표본이 쌓인다</div>
       <div class="ea-loop-d">
-        실사용 예측이 <b>서버 원장</b>에 적재되고(<span class="ea-run">logPrediction</span>), 만기가 오면 <b>자동 채점</b>된다.
-        그 실측이 이 페이지의 <b>라이브 트랙레코드</b>로 올라오고, 다음 엔진 버전의 근거가 된다.
-        <b>PC 와 모바일의 사용이 같은 원장에 쌓인다</b> — 두 제품이 서로 다른 성적을 말할 수 없는 이유다.
+        실사용 예측이 <b>서버 원장</b>에 적재되고, 만기가 오면 <b>자동 채점</b>된다.
+        <b>원장은 제품마다 하나씩</b>이다 — PC 는 <span class="ea-run">forge_predlog.json</span>(축별 채점 → 이 페이지의 <b>라이브 트랙레코드</b>),
+        앱은 <span class="ea-run">app_ledger.db</span>(예측 · 채점 → 개인 적중률 → 익명 집계 → 앱 통계 · 활동 레벨).
+        <b>기록은 갈라져도 계산은 한 엔진에서 나온다</b> — 두 제품이 서로 다른 성적을 말할 수 없는 이유이고, 어긋나면 그것은 이식 버그다.
+        모인 실측이 다음 엔진 버전의 근거가 되어 상류로 되돌아간다.
       </div>
       <div class="ea-chain">
-        <span>PC 웹분석 · 앱 분석</span><i>→</i><span>원장 적재</span><i>→</i><span>만기 자동 채점</span><i>→</i>
-        <span>라이브 트랙레코드</span><i>→</i><span>스코어카드 갱신</span><i>→</i><span>다음 엔진 버전</span><i>→</i>
+        <span>PC 웹분석</span><i>→</i><span>forge_predlog</span><i>→</i><span>만기 자동 채점</span><i>→</i><span>라이브 트랙레코드</span><i>↘</i>
+        <span>앱 분석</span><i>→</i><span>app_ledger.db</span><i>→</i><span>지연 채점</span><i>→</i><span>개인 적중률 · 익명 집계</span><i>↗</i>
+        <span>스코어카드 갱신</span><i>→</i><span>다음 엔진 버전</span><i>→</i>
         <span style="border-color:var(--gold);color:var(--gold)">상류 IN·2 로 되돌아감</span>
+      </div>
+    </div>
+
+    <!-- ── 불변식 ── -->
+    <div class="ea-zone" style="margin-top:14px">
+      <div class="ea-zlbl">불변식 — <b style="color:var(--gold)">"엔진은 한 벌"</b>을 코드가 강제하는 장치</div>
+      <div class="ea-2col">
+        <div class="ea-st">
+          <div class="ea-h"><span class="ea-n">INV·1</span><span class="ea-t">사본이 존재할 수 없다</span></div>
+          <div class="ea-d">앱도 앱 셸도 서버의 <span class="ea-run">forge-core.js</span> 를 참조한다. 그래서 <b>엔진을 고치고 배포하지 않으면 앱이 죽는다</b> — 실제로 한 번 죽었다(엔진 함수 이동분 미배포로 앱 부팅 실패, 2026-08-24). 불편이 아니라 <b>안전장치</b>다: 사본이 조용히 낡을 자리가 없다.</div>
+        </div>
+        <div class="ea-st">
+          <div class="ea-h"><span class="ea-n">INV·2</span><span class="ea-t">레지스트리 3자 동기</span></div>
+          <div class="ea-d"><span class="ea-run">indicatorRegistry</span> ↔ <span class="ea-run">indicatorCount</span> ↔ 등급표가 어긋나면 테스트가 깨진다. <b>가짜 33번째 지표를 넣어 앱이 스스로 33종으로 확장되는지</b>까지 증명한다.</div>
+        </div>
+        <div class="ea-st">
+          <div class="ea-h"><span class="ea-n">INV·3</span><span class="ea-t">이음새는 둘뿐</span></div>
+          <div class="ea-d">웹과 앱이 서로를 아는 지점은 <b>차트 임베드 계약</b>(<span class="ea-run">forge-embed.js</span>)과 <b>지표 레지스트리</b>, 이 둘뿐이다. 그래서 <b>2레인 병렬 개발</b>이 성립한다 — 레인 A = 엔진 + 웹(같은 번들 · 같은 배포), 레인 B = 앱.</div>
+          <div class="ea-io"><span>레인 A · 엔진 + PC 웹</span><span>레인 B · 앱</span><span>이음새 2곳만 함께 움직인다</span></div>
+        </div>
+        <div class="ea-st">
+          <div class="ea-h"><span class="ea-n">INV·4</span><span class="ea-t">관문과 배포 직렬화</span></div>
+          <div class="ea-d">엔진을 건드리면 <span class="ea-run">./tests/run.sh</span> <b>전량</b>이 관문이고, 화면은 헤드리스로 눈으로 대조한다. 배포 대상 <span class="ea-run">www/map/</span> 은 <b>하나뿐인 공유 자원</b>이라 엔진 · 웹은 한 세트로 함께 올리고 캐시버스터를 찍는다.</div>
+          <span class="ea-bdg ea-ok">✓ 부분 배포는 조용히 죽지 않고 시끄럽게 죽는다</span>
+        </div>
       </div>
     </div>
 
@@ -1087,7 +1135,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
 
 </main>
 </div>
-<script src="forge-core.js?v=20260806f"></script>
+<script src="forge-core.js?v=20260827a"></script>
 <script>
 /* ---------- block catalog ---------- */
 const BLOCKS = [
@@ -1523,7 +1571,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
 // 엔진 해부도 · 라이브 신경망 — 30 지표 뉴런 + 변동성 피처 10 뉴런, 밀집 팬아웃/팬인 + 흐르는 신호.
 (function renderEngineLive(){
   const host=document.getElementById("eaLive"); if(!host) return;
-  const W=1400,H=830, gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",bear="var(--bear)";
+  const W=1500,H=830, gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",bear="var(--bear)";
   const uid=(a,b)=>`M${a.x} ${a.y} L${b.x} ${b.y}`;
   const qd=(a,b,f)=>{ const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dx=b.x-a.x,dy=b.y-a.y; return `M${a.x} ${a.y} Q${(mx-dy*(f||0.13)).toFixed(1)} ${(my+dx*(f||0.13)).toFixed(1)} ${b.x} ${b.y}`; };
   // ── 노드 정의 ──
@@ -1535,27 +1583,31 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const cal  ={x:880,y:230,r:13,c:bull,lab:"캘리브레이션",sub:"ECE 1.9%",pl:"right"};
   const out  ={x:928,y:474,r:19,c:gold,lab:"판정 출력",sub:"국면 · R:R · 목표",pl:"below"};
   // 하류 — 같은 판정이 가는 두 화면. 엔진 밖이므로 테두리 바깥에 둔다.
-  const pcv  ={x:1092,y:356,r:15,c:gold,lab:"스쿱포지 (PC)",sub:"작업대 · 32종 상시 · 무과금",pl:"right"};
-  const mob  ={x:1092,y:600,r:15,c:bull,lab:"머니스쿱 (앱)",sub:"제품 · 단계로 노출량 차등",pl:"right"};
+  const pcv  ={x:1074,y:330,r:15,c:gold,lab:"스쿱포지 (PC)",sub:"작업대 · 32종 상시 · 무과금",pl:"right"};
+  const emb  ={x:1074,y:471,r:11,c:eth, lab:"forge 임베드 · iframe",sub:"앱 차트 = PC 코드 그대로",pl:"right"};
+  const mob  ={x:1074,y:612,r:15,c:bull,lab:"머니스쿱 (앱)",sub:"브리지 app-engine.js 하나로",pl:"right"};
+  // 가중 입력 — 엔진 밖에서 들어와 드리프트 합성에 곱해진다(PC 레일 / 앱 프리셋·사용자·페르소나).
+  const wt   ={x:250,y:716,r:10,c:gold,lab:"가중치 입력 · driftWeights",sub:"프리셋 × 사용자 × 페르소나(±15%)",pl:"below"};
   // 리스크 노드 = 엔진 검증 축(validatedAxes)에서 생성 → 축 추가/추세지속 자동 반영. 개수에 맞춰 세로 분배.
   const RTOP=398, RBOT=640, _rn=AXES.length, RSTEP=_rn>1?(RBOT-RTOP)/(_rn-1):0;
   const risk = AXES.map((a,i)=>({ x:706, y:Math.round(RTOP+i*RSTEP), r:11,
     c: a.stock ? "#c98a5a" : bull, lab: a.lab, sub: a.acc+"%"+(a.hz?" · "+a.hz:"")+(a.stock?"·주식":""), pl:"right", ax:a }));
-  const named=[price,vol,drift,dir,cone,cal,out,pcv,mob,...risk];
+  const named=[price,vol,wt,drift,dir,cone,cal,out,pcv,emb,mob,...risk];
   // ── 30 지표 뉴런(6군) ──
   const CL=[{n:"추세",k:7,c:gold},{n:"모멘텀",k:8,c:"#e8955c"},{n:"변동성",k:4,c:"#7aa6cc"},{n:"거래량",k:4,c:eth,vol:1},{n:"구조",k:5,c:"#b58cf0"},{n:"주기",k:2,c:"#5ec8b6"}];
   const IND=[]; let yy=54; const IX=250;
   CL.forEach(cl=>{ cl.y0=yy; for(let j=0;j<cl.k;j++){ IND.push({x:IX,y:yy,c:cl.c,cl}); yy+=17.6; } cl.yc=(cl.y0+yy-17.6)/2; yy+=14; });
+  const INDBOT=yy-14;
   // ── 변동성 피처 10 뉴런 ──
   const FEAT=[]; const FX=452; for(let i=0;i<10;i++) FEAT.push({x:FX,y:432+i*18,c:bull});
   // ── SVG 조립 ──
-  let s=`<svg viewBox="-46 0 ${W} ${H}" role="img" aria-label="분석 엔진 신경망 — ${IND_N}개 지표 뉴런과 변동성 피처가 밀집 연결로 방향·리스크·판정을 산출하고, 그 판정이 스쿱포지(PC)와 머니스쿱(앱) 두 화면으로 갈라진 뒤 실사용 기록이 원장·채점을 거쳐 다시 엔진으로 되먹임된다">`;
+  let s=`<svg viewBox="-46 0 ${W} ${H}" role="img" aria-label="분석 엔진 신경망 — ${IND_N}개 지표 뉴런과 변동성 피처가 밀집 연결로 방향·리스크·판정을 산출하고, 그 판정이 스쿱포지(PC)와 머니스쿱(앱) 두 화면으로 갈라진 뒤 실사용 기록이 두 원장·자동 채점을 거쳐 다시 엔진으로 되먹임된다. 앱은 엔진 브리지 하나로만 엔진에 닿고, 앱의 차트는 PC 번들을 그대로 임베드해 쓴다">`;
   s+=`<defs><filter id="eaGlow" x="-140%" y="-140%" width="380%" height="380%"><feGaussianBlur stdDeviation="3.4"/></filter>`
    +`<filter id="eaG2" x="-120%" y="-120%" width="340%" height="340%"><feGaussianBlur stdDeviation="5"/></filter></defs>`;
   // ── 엔진 경계 — 지금까지의 모든 노드는 "엔진 내부"다 ──
   s+=`<rect x="-30" y="18" width="1012" height="674" rx="18" fill="var(--gold)" fill-opacity=".025" stroke="${gold}" stroke-opacity=".34" stroke-width="1.4" stroke-dasharray="7 6"/>`;
   s+=`<text x="-22" y="11" class="ea-lv-spine" fill="${gold}" opacity=".85">엔진 내부 · forge-core.js — 한 벌뿐</text>`;
-  s+=`<text x="1092" y="300" text-anchor="middle" class="ea-lv-spine" fill="${eth}">하류 · 두 화면</text>`;
+  s+=`<text x="1074" y="286" text-anchor="middle" class="ea-lv-spine" fill="${eth}">하류 · 두 화면 · 한 엔진</text>`;
   let wires="",pdefs="",parts="",pi=0;
   const wire=(d,c,op,w)=>{ wires+=`<path d="${d}" fill="none" stroke="${c}" stroke-width="${w||1}" stroke-opacity="${op}"/>`; };
   const DOT_MAX=5, DOT_K=0.6;
@@ -1568,6 +1620,8 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   IND.forEach((n,i)=>{ wire(uid(price,n), n.c, .12, 1); if(n.cl.vol) wire(uid(vol,n), eth, .34, 1); });
   // 팬인: 30 지표 → 드리프트
   IND.forEach(n=>wire(uid(n,drift), n.c, .10, 1));
+  // 가중 입력 → 드리프트 합성(엔진 밖에서 들어오는 조절 신호)
+  wire(qd(wt,drift,-.06), gold,.30,1.6); flow(qd(wt,drift,-.06), gold, 4);
   // 팬아웃: 가격 → 변동성 피처 10
   FEAT.forEach(f=>wire(uid(price,f), bull, .16, 1));
   // 팬: 피처 10 → 리스크 3
@@ -1582,10 +1636,14 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   // 판정 → 두 제품(같은 판정이 갈라져 나간다)
   wire(qd(out,pcv,.10), gold,.30,1.6); flow(qd(out,pcv,.10), gold, 8);
   wire(qd(out,mob,-.10), bull,.30,1.6); flow(qd(out,mob,-.10), bull, 8);
+  // PC 번들 → 임베드 → 앱 차트: 웹·앱의 유일한 숨은 의존(앱은 PC 차트 코드를 그대로 실행)
+  wire(qd(pcv,emb,.05), eth,.34,1.5); flow(qd(pcv,emb,.05), eth, 4);
+  wire(qd(emb,mob,.05), eth,.34,1.5); flow(qd(emb,mob,.05), eth, 4);
   // 되먹임 궤도 — 두 제품의 실사용이 원장으로, 채점되어 다음 엔진 버전으로
-  const LOOP="M1092 622 C 1092 772, 860 792, 520 792 C 250 792, 40 760, 46 318";
+  const LOOP="M1074 634 C 1074 776, 860 796, 520 796 C 250 796, 40 760, 46 318";
   wire(LOOP, gold, .26, 1.5); flow(LOOP, gold, 5);
-  wire("M1092 372 C 1210 400, 1214 560, 1116 592", gold, .18, 1.2);
+  // PC 사용도 같은 되먹임으로 — 다만 원장은 제품마다 하나씩이다(forge_predlog / app_ledger.db)
+  wire("M1092 344 C 1196 400, 1200 596, 1092 634", gold, .20, 1.3);
   // 지표군 → 드리프트: 군 대표 1줄기, 도트=군 크기 비례(모멘텀8 多·주기2 少)
   CL.forEach(cl=>{ flow(uid({x:IX,y:cl.yc},drift), cl.c, cl.k); });
   // 대표 팬아웃(가격→지표·피처): 얇은 단일 스트림
@@ -1605,9 +1663,12 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   s+=`<text x="706" y="400" text-anchor="middle" class="ea-lv-spine" fill="${bull}">경로 B · 리스크(검증)</text>`;
   s+=`<text x="30" y="252" text-anchor="middle" class="ea-lv-cap" fill="${eth}">상류 · 시세 프록시</text>`;
   s+=`<text x="30" y="266" text-anchor="middle" class="ea-lv-cap" fill="${eth}">+ 검증 통과 기법만</text>`;
-  s+=`<text x="1116" y="628" class="ea-lv-cap" fill="${eth}">설계 확정 · 구현 전</text>`;
-  s+=`<text x="520" y="784" text-anchor="middle" class="ea-lv-clab" fill="${gold}">⟲ 되먹임 — 실사용 예측 → 서버 원장 → 만기 자동 채점 → 라이브 트랙레코드 → 다음 엔진 버전</text>`;
-  s+=`<text x="1116" y="486" class="ea-lv-cap" fill="${eth}">같은 엔진 · 같은 판정</text>`;
+  s+=`<text x="1099" y="638" class="ea-lv-cap" fill="${bull}">라이브 — 전 페이즈 구현 완료</text>`;
+  s+=`<text x="1099" y="651" class="ea-lv-cap" fill="${eth}">웹 + Capacitor 셸 · 엔진 미번들</text>`;
+  s+=`<text x="560" y="782" text-anchor="middle" class="ea-lv-clab" fill="${gold}">⟲ 되먹임 — 실사용 예측 → 원장(PC forge_predlog · 앱 app_ledger.db) → 만기 자동 채점 → 라이브 트랙레코드 · 앱 통계 → 다음 엔진 버전</text>`;
+  s+=`<text x="1099" y="358" class="ea-lv-cap" fill="${eth}">같은 엔진 · 같은 판정 · 사본 없음</text>`;
+  s+=`<text x="${IX}" y="${INDBOT+18}" text-anchor="middle" class="ea-lv-cap" fill="${gold}">레지스트리(indicatorRegistry) = 단일 출처</text>`;
+  s+=`<text x="${IX}" y="${INDBOT+31}" text-anchor="middle" class="ea-lv-cap" fill="${eth}">엔진에 33번째가 들어오면 앱도 자동 33종</text>`;
   // 명명 노드
   named.forEach((n,i)=>{
     s+=`<circle cx="${n.x}" cy="${n.y}" r="${n.r+8}" fill="${n.c}" class="ea-halo" filter="url(#eaG2)" style="animation-delay:${(i*0.22).toFixed(2)}s"/>`;
@@ -1623,7 +1684,8 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   // 범례
   s+=`<g transform="translate(${W/2-190},${H-12})"><circle cx="0" cy="-4" r="4" fill="${bull}"/><text x="9" y="0" class="ea-lv-cap">검증된 예측력</text>`
    +`<circle cx="108" cy="-4" r="4" fill="${bear}"/><text x="117" y="0" class="ea-lv-cap">미검증(한계)</text>`
-   +`<text x="232" y="0" class="ea-lv-cap">뉴런 색 = 지표군 · 크기·도트 = 데이터 비중</text></g>`;
+   +`<circle cx="232" cy="-4" r="4" fill="${eth}"/><text x="241" y="0" class="ea-lv-cap">임베드(PC 코드 공유)</text>`
+   +`<text x="384" y="0" class="ea-lv-cap">뉴런 색 = 지표군 · 크기·도트 = 데이터 비중</text></g>`;
   host.innerHTML=s+`</svg>`;
 })();
 // 시각화 토글(라이브 ↔ 도식)
@@ -1643,6 +1705,7 @@ document.getElementById("foot").innerHTML = "스쿱포지 엔진 v"+EV+" · 기�
     if (/지표 배터리/.test(el.textContent)) el.textContent = "지표 배터리 · "+IND_N+"종";
     if (/리스크 .*축 · 로지스틱/.test(el.textContent)) el.textContent = "리스크 "+AXIS_N+"축 · 로지스틱";
   });
+  const dn = document.getElementById("eaDeepN"); if (dn) dn.textContent = IND_N;
   const b2d = Array.from(document.querySelectorAll(".ea-d")).find(el => /변동성 예보/.test(el.innerHTML) && /낙폭 위험곡선/.test(el.innerHTML));
   if (b2d) b2d.innerHTML = AXES.map(a => "<b>"+a.lab+"</b>"+(a.acc? " "+a.acc+"%":"")+(a.stock?"(주식)":"")).join(" · ") + ". 짝지어 <b>확률 R:R</b>.";
 })();
