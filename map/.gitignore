@@ -53,3 +53,4 @@ _archive/mobile-2026-08-19/www/__gate_*.html
 # 시안 원본 압축본·해제본 — 산출물이 아니라 입력이므로 커밋하지 않는다(용량)
 docs/design-v2/raw/
 docs/design-v2/*.zip
+scan/scanner.config.json
