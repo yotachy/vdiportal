@@ -2577,3 +2577,76 @@ test("aggUpProb — anchor 가 없으면 경로 첫 값을 기준으로 삼는�
   const noAnchor = ForgeCore.aggUpProb({ path: [100, 105], hi: [110, 115] });
   assert.strictEqual(noAnchor, withAnchor);
 });
+
+// ── trendScreenFit — 작도 전용 화면 적합도(엔진 bias·예측 불변) ──────────────
+// 왜 필요한가(2026-08-28 실측): analyzeTrend 의 장기창은 전 이력(NVDA 5,030봉=20년)이라
+// 화면(84~180봉)에 그리면 가격 밴드 밖 −2.1배 지점을 지난다. 그런데 R²log 는 0.86 이라
+// 기존 weak 게이트(R²<0.15)에 안 걸린다 — R² 는 '자기 적합 구간'을 설명하는 정도이지
+// '표시 구간에서 의미 있는가'가 아니다. 그 판정을 여기서 한다.
+test("trendScreenFit: 화면 밴드를 지나는 창은 onScreen", () => {
+  // 가격 100 근방 수평 추세(로그공간 기울기 0), 밴드 90~110
+  const w = { startIdx: 0, m: 100, slopeLog: 0, bLog: Math.log(100), r2: 0.9, r2Log: 0.9 };
+  const f = ForgeCore.trendScreenFit(w, { fiMin: 0, nowFi: 99, loV: 90, hiV: 110, last: 100 });
+  assert.equal(f.onScreen, true);
+  assert.equal(f.coverage, 1);
+  assert.equal(Math.round(f.gapNowPct), 0);
+});
+
+test("trendScreenFit: 밴드 아래로 통째로 벗어난 창은 onScreen=false", () => {
+  const w = { startIdx: 0, m: 5000, slopeLog: 0, bLog: Math.log(40), r2: 0.9, r2Log: 0.9 };
+  const f = ForgeCore.trendScreenFit(w, { fiMin: 4900, nowFi: 4999, loV: 90, hiV: 110, last: 100 });
+  assert.equal(f.onScreen, false);
+  assert.equal(f.coverage, 0);
+  assert.equal(Math.round(f.gapNowPct), -60);   // 40 vs 100
+});
+
+test("trendScreenFit: 밴드 위로 벗어난 창도 onScreen=false", () => {
+  const w = { startIdx: 0, m: 5000, slopeLog: 0, bLog: Math.log(190), r2: 0.9, r2Log: 0.9 };
+  const f = ForgeCore.trendScreenFit(w, { fiMin: 4900, nowFi: 4999, loV: 90, hiV: 110, last: 100 });
+  assert.equal(f.onScreen, false);
+  assert.equal(Math.round(f.gapNowPct), 90);
+});
+
+test("trendScreenFit: 일부만 걸치면 0 < coverage < 1", () => {
+  // 밴드 하단(90)에서 시작해 상단(110) 위로 뚫고 나가는 기울기
+  const w = { startIdx: 0, m: 100, slopeLog: Math.log(140 / 90) / 99, bLog: Math.log(90), r2: 0.9, r2Log: 0.9 };
+  const f = ForgeCore.trendScreenFit(w, { fiMin: 0, nowFi: 99, loV: 90, hiV: 110, last: 140 });
+  assert.ok(f.coverage > 0 && f.coverage < 1, "coverage=" + f.coverage);
+  assert.equal(f.onScreen, true);
+});
+
+test("trendScreenFit: 창 없음·밴드 이상이면 안전하게 false", () => {
+  assert.equal(ForgeCore.trendScreenFit(null, { nowFi: 10, loV: 1, hiV: 2, last: 1 }).onScreen, false);
+  const w = { startIdx: 0, m: 10, slopeLog: 0, bLog: Math.log(100), r2: 1, r2Log: 1 };
+  assert.equal(ForgeCore.trendScreenFit(w, { nowFi: 9, loV: 110, hiV: 90, last: 100 }).onScreen, false);  // hi<=lo
+});
+
+test("trendScreenFit: 실 analyzeTrend 산출과 물린다 — 국면이 바뀌면 장기창은 화면을 벗어난다", () => {
+  // 한결같은 지수 성장이면 전 이력 회귀선도 최근 창을 잘 지난다(그런 선은 그려야 맞다).
+  const steady = [];
+  for (let i = 0; i < 1200; i++) steady.push(10 * Math.exp(0.004 * i));
+  const fitSteady = (() => {
+    const ta = ForgeCore.analyzeTrend(steady, {});
+    const P = steady.length, s0 = P - 120, vis = steady.slice(s0);
+    return ForgeCore.trendScreenFit(ta.windows.long, { fiMin: s0, nowFi: P - 1,
+      loV: Math.min.apply(null, vis), hiV: Math.max.apply(null, vis), last: steady[P - 1] });
+  })();
+  assert.equal(fitSteady.onScreen, true);
+  assert.ok(fitSteady.coverage > 0.5, "한결같은 추세는 화면에 남아야 한다 coverage=" + fitSteady.coverage);
+
+  // 실제 사고는 국면 전환(NVDA: 앞 15년 완만 → 최근 5년 급가속)에서 난다.
+  // 전 이력 회귀선은 최근 구간을 한참 아래로 지나가 화면 밴드 밖이 된다.
+  const regime = [];
+  for (let i = 0; i < 1000; i++) regime.push(10 * Math.exp(0.0008 * i));
+  const base = regime[regime.length - 1];
+  for (let i = 1; i <= 200; i++) regime.push(base * Math.exp(0.012 * i));
+  const ta2 = ForgeCore.analyzeTrend(regime, {});
+  const P2 = regime.length, s2 = P2 - 120, vis2 = regime.slice(s2);
+  const fitL = ForgeCore.trendScreenFit(ta2.windows.long, { fiMin: s2, nowFi: P2 - 1,
+    loV: Math.min.apply(null, vis2), hiV: Math.max.apply(null, vis2), last: regime[P2 - 1] });
+  const fitS = ForgeCore.trendScreenFit(ta2.windows.short, { fiMin: s2, nowFi: P2 - 1,
+    loV: Math.min.apply(null, vis2), hiV: Math.max.apply(null, vis2), last: regime[P2 - 1] });
+  assert.equal(fitL.onScreen, false, "국면 전환 후 장기창 coverage=" + fitL.coverage);
+  assert.ok(fitL.gapNowPct < -30, "현재가보다 한참 아래를 지난다 gap=" + fitL.gapNowPct);
+  assert.equal(fitS.onScreen, true);   // 단기창은 최근 국면을 잰다
+});

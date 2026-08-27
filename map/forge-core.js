@@ -1326,6 +1326,35 @@
     return { windows: { long, mid, short }, pivots: { support, resistance, points }, channel, blend: { slopeLog, channelSigmaLog }, dominant };
   }
 
+  // 작도 전용 — 회귀창이 '지금 보이는 구간'에서 의미가 있는가(엔진 bias·예측 불변: run() 은 이 함수를 부르지 않는다).
+  // 왜 필요한가(2026-08-28 실측): analyzeTrend 의 장기창은 전 이력이라 NVDA 5,030봉(20년) 회귀선이
+  // 화면(84~180봉) 가격 밴드 밖 −2.1배 지점을 지난다. 그런데 R²log 0.86 이라 작도의 weak 게이트
+  // (R²<0.15)에 안 걸린다 — R² 는 '자기 적합 구간을 얼마나 설명하나'이지 '표시 구간에서 의미 있나'가
+  // 아니기 때문이다. 표시 구간 적합도는 별도로 재야 한다. 값(기울기·절편)은 손대지 않는다 —
+  // 그리는 선은 언제나 엔진이 쓰는 그 값이고, 여기서 정하는 건 '어떻게 보여줄지'뿐이다.
+  //   w = analyzeTrend().windows[key] · o = {fiMin, nowFi, loV, hiV, last}
+  //   → { onScreen, coverage(표시 구간 중 밴드 안 비율), gapNowPct(현재가 대비 이격%), m(창 봉수) }
+  function trendScreenFit(w, o) {
+    o = o || {};
+    const nowFi = o.nowFi, loV = o.loV, hiV = o.hiV;
+    const out = { onScreen: false, coverage: 0, gapNowPct: 0, m: w ? w.m : 0 };
+    if (!w || !isFinite(nowFi) || !isFinite(loV) || !isFinite(hiV) || !(hiV > loV)) return out;
+    const at = fi => Math.exp(w.bLog + w.slopeLog * (fi - w.startIdx));
+    const a = Math.max(w.startIdx, o.fiMin || 0);
+    const S = 24;
+    let inBand = 0, n = 0;
+    for (let i = 0; i <= S; i++) {
+      const v = at(a + (nowFi - a) * i / S);
+      if (!isFinite(v)) continue;
+      n++; if (v >= loV && v <= hiV) inBand++;
+    }
+    const now = at(nowFi), last = o.last;
+    out.coverage = n ? inBand / n : 0;
+    out.onScreen = inBand > 0;
+    out.gapNowPct = (isFinite(now) && isFinite(last) && last > 0) ? (now / last - 1) * 100 : 0;
+    return out;
+  }
+
   function trendProfileForTF(tf) {
     const s = typeof tf === "string" ? tf : "";
     // shortScale: '단기' 창 길이 배율(월봉은 40봉=3.3년이라 과함→0.5로 축소, 단주기는 확대). "단기"의 실제 기간을 tf 간 정규화.
@@ -2808,5 +2837,5 @@
     { id: "pattern", label: "차트 패턴", tier: 4, group: "s", input: "data", analyze: analyzePattern }
   ];
 
-  return { version, indicatorCount, indicatorRegistry, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
+  return { version, indicatorCount, indicatorRegistry, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, trendScreenFit, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });
