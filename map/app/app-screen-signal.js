@@ -12,6 +12,7 @@
   const GC = { t: "var(--bl)", m: "var(--up)", v: "var(--cy)", q: "var(--am)", s: "var(--pk)" };
   let sigTimer = null;   // 캐러셀 자동 슬라이드(3초) — 재마운트/이탈 시 정리
   let unsubRank = null;  // 확신도 랭킹 구독 해제(unmount 에서 호출)
+  let unsubMq = null;    // 브레이크포인트 구독 해제
   const GN = { t: "추세", m: "모멘텀", v: "변동성", q: "거래량", s: "구조" };
 
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
@@ -67,6 +68,7 @@
   function mount(host) {
     let list = MS.store.get().sigList || null;
     let search = null, shown = 20, carousel = 0;
+    let sel = null;   // expanded 마스터-디테일에서 우측에 고정 표시할 시그널 key(§16)
 
     function markRead(key) {
       const s = MS.store.get();
@@ -147,7 +149,15 @@
       });
       const todayN = (list || []).filter(function (x) { return x.barT === today; }).length;
 
+      const exp = MS.ui.isExpanded();
+      // expanded 에서는 선택이 비면 첫 행을 고정 표시한다(§16 "펼침 대신 우측 고정 표시")
+      // 자동 선택은 읽음·XP 로 치지 않는다(사용자가 고른 게 아니다 — 읽음은 클릭에서만)
+      if (exp && rows.length && !rows.some(function (x) { return x.key === sel; })) sel = rows[0].key;
+      if (!exp) sel = null;
+      const selRow = exp ? rows.filter(function (x) { return x.key === sel; })[0] : null;
+
       host.innerHTML =
+        (exp ? '<div class="ms-md"><div class="ms-md-list">' : "") +
         '<div style="padding:0 0 90px">' +
         '<div style="padding:16px 16px 0">' +
         '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:19px;font-weight:700;letter-spacing:-0.03em">시그널</span>' +
@@ -173,13 +183,15 @@
         '<div style="margin:14px 16px 0;font-size:11px;color:var(--m2);text-align:center">' +
         ((s.sigImpN || 0) > 0 ? "엔진 확신 " + s.sigImpN + "건 — 기본 5지표 판정과 같은 방향인 신호예요 · " : "") +
         '감지는 봉 확정 기준이라 표시가 늦을 수 있어요</div>' +
-        "</div>";
+        "</div>" +
+        (exp ? "</div>" + detailPaneHtml(selRow) + "</div>" : "");
       bind();
     }
 
     function rowHtml(x) {
       const s = MS.store.get();
-      const isOpen = !!(s.sgOpen && s.sgOpen[x.key]);
+      const exp = MS.ui.isExpanded();
+      const isOpen = exp ? sel === x.key : !!(s.sgOpen && s.sgOpen[x.key]);   // expanded 는 '선택'이 활성 상태다
       const unread = x.barT === MS.state.dayKey(Date.now()) && !s.sigRead[x.key];
       const psy = personaTopGroup() === x.group;   // 내 성향 연동 — 골드 강조
       const rk = (s.sigRank || {})[x.key];
@@ -192,18 +204,38 @@
         '<span style="font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.title) + "</span>" +
         (imp ? '<span style="flex:none;font-size:10px;font-weight:700;color:var(--up);background:rgba(46,194,142,0.14);border:1px solid rgba(46,194,142,0.35);border-radius:99px;padding:2px 7px">엔진 확신</span>' : "") +
         '<span style="margin-left:auto;font-size:11px;color:var(--m2);white-space:nowrap;flex:none">' + dayLabel(x.barT) + "</span>" +
-        '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--m2)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:' + (isOpen ? "rotate(180deg)" : "none") + ';transition:transform 0.2s;flex:none"><path d="M5 9l7 7 7-7"></path></svg></div>' +
-        (!isOpen ? '<div style="padding:0 12px 12px;margin-top:-4px;font-size:12px;color:var(--m1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.d) + "</div>" : "") +
-        (isOpen ?
-          '<div style="border-top:1px solid var(--ln0);padding:12px;background:var(--sf2)">' +
-          '<div style="font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">감지</b> — ' + esc(x.why) + "</div>" +
-          '<div style="margin-top:6px;font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">해석</b> — ' + esc(x.mean) + "</div>" +
-          '<div style="margin-top:4px;font-size:11px;color:var(--m2)">' + GN[x.group] + " 계열 · " + esc(x.barT) + " 봉 기준</div>" +
-          (imp ? '<div style="margin-top:6px;font-size:11.5px;color:var(--up)">기본 5지표 분석의 상승 확률 ' + Math.round(rk.prob) + '% — 이 신호와 같은 방향이라 먼저 올렸어요</div>' : "") +
-          (personaTopGroup() === x.group ? '<div style="margin-top:6px;font-size:11.5px;color:var(--cu)">내 페르소나(' + GN[x.group] + ' 관심)와 맞닿은 신호라 먼저 올렸어요</div>' : "") +
-          '<button data-go="' + esc(x.sym) + '" style="margin-top:12px;width:100%;min-height:46px;border-radius:9px;border:0;background:linear-gradient(135deg,#7b6cff,#4a3ce0);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">이 종목 분석하기 →</button></div>'
-          : "") +
+        (exp ? "" : '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--m2)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:' + (isOpen ? "rotate(180deg)" : "none") + ';transition:transform 0.2s;flex:none"><path d="M5 9l7 7 7-7"></path></svg>') + "</div>" +
+        (exp || !isOpen ? '<div style="padding:0 12px 12px;margin-top:-4px;font-size:12px;color:var(--m1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.d) + "</div>" : "") +
+        (isOpen && !exp ? detailHtml(x) : "") +   // expanded 는 우측 패널이 대신 보여준다
         "</div>";
+    }
+
+    // 상세 본문 — compact/medium 은 행 아래 펼침, expanded 는 우측 고정 패널이 같은 내용을 쓴다.
+    function detailHtml(x) {
+      const rk = (MS.store.get().sigRank || {})[x.key];
+      const imp = !!(rk && rk.important);
+      return '<div style="border-top:1px solid var(--ln0);padding:12px;background:var(--sf2)">' +
+        '<div style="font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">감지</b> — ' + esc(x.why) + "</div>" +
+        '<div style="margin-top:6px;font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">해석</b> — ' + esc(x.mean) + "</div>" +
+        '<div style="margin-top:4px;font-size:11px;color:var(--m2)">' + GN[x.group] + " 계열 · " + esc(x.barT) + " 봉 기준</div>" +
+        (imp ? '<div style="margin-top:6px;font-size:11.5px;color:var(--up)">기본 5지표 분석의 상승 확률 ' + Math.round(rk.prob) + '% — 이 신호와 같은 방향이라 먼저 올렸어요</div>' : "") +
+        (personaTopGroup() === x.group ? '<div style="margin-top:6px;font-size:11.5px;color:var(--cu)">내 페르소나(' + GN[x.group] + ' 관심)와 맞닿은 신호라 먼저 올렸어요</div>' : "") +
+        '<button data-go="' + esc(x.sym) + '" style="margin-top:12px;width:100%;min-height:46px;border-radius:9px;border:0;background:linear-gradient(135deg,#7b6cff,#4a3ce0);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">이 종목 분석하기 →</button></div>';
+    }
+
+    // 우측 고정 상세(expanded 전용)
+    function detailPaneHtml(x) {
+      if (!x) {
+        // 자동 선택이 있으므로 이 자리는 목록이 통째로 빌 때만 나온다 — 빈 상태를 두 번 외치지 않게 한 줄로.
+        return '<aside class="ms-md-detail"><div class="ms-md-inner" style="font-size:12.5px;color:var(--m2);text-align:center;padding:28px 8px">감지된 신호가 올라오면 여기에 근거와 해석이 보여요</div></aside>';
+      }
+      return '<aside class="ms-md-detail"><div class="ms-md-inner">' +
+        '<div style="display:flex;align-items:baseline;gap:8px">' +
+        '<span style="font-size:17px;font-weight:700;letter-spacing:-0.02em">' + esc(x.sym) + "</span>" +
+        '<span style="font-size:13px;font-weight:600;color:var(--t2);min-width:0">' + esc(x.title) + "</span>" +
+        '<span style="margin-left:auto;font-size:11px;color:var(--m2);white-space:nowrap">' + dayLabel(x.barT) + "</span></div>" +
+        '<div style="margin-top:10px;border:1px solid var(--ln0);border-radius:12px;overflow:hidden">' +
+        detailHtml(x) + "</div></div></aside>";
     }
 
     function bind() {
@@ -224,6 +256,7 @@
         el.addEventListener("click", function (e) {
           if (e.target.closest("[data-go]")) return;
           const k = el.getAttribute("data-sig");
+          if (MS.ui.isExpanded()) { sel = k; markRead(k); render(); return; }   // 선택 = 읽음(펼침과 같은 취급)
           const s = MS.store.get();
           const og = {};
           Object.keys(s.sgOpen || {}).forEach(function (kk) { og[kk] = s.sgOpen[kk]; });
@@ -279,11 +312,17 @@
     unsubRank = MS.store.subscribe(function (keys) {
       if (keys.indexOf("sigRank") >= 0 && MS.store.get().screen === "signal") render();
     });
+    // 접음↔펼침 전환에도 화면·선택을 유지한 채 배치만 바꾼다(§16 전환 연속성)
+    if (unsubMq) { unsubMq(); unsubMq = null; }
+    unsubMq = MS.ui.onExpandedChange(function () {
+      if (MS.store.get().screen === "signal") render();
+    });
   }
 
   MS.router.register("signal", { mount: mount,
     unmount: function () {
       if (sigTimer) { clearInterval(sigTimer); sigTimer = null; }
       if (unsubRank) { unsubRank(); unsubRank = null; }
+      if (unsubMq) { unsubMq(); unsubMq = null; }
     } });
 })();

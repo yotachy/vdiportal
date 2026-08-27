@@ -518,6 +518,25 @@
     });
   }
 
+  // ── 반응형 expanded 감지(지침서 §16) — 840px+ 는 목록 화면이 마스터-디테일이 된다.
+  // 폭 값은 app.css 의 @media (min-width:840px) 와 한 쌍이다(둘을 같이 고친다).
+  const EXPANDED_MQ = "(min-width:840px)";
+  function mq() { try { return window.matchMedia(EXPANDED_MQ); } catch (e) { return null; } }
+  function isExpanded() { const m = mq(); return !!(m && m.matches); }
+  // 접음↔펼침 전환에도 화면·선택 상태를 유지해야 하므로(§16 전환 연속성) 화면 모듈이 이걸 구독해 다시 그린다.
+  function onExpandedChange(cb) {
+    const m = mq();
+    if (!m) return function () {};
+    const h = function () { cb(m.matches); };
+    if (m.addEventListener) m.addEventListener("change", h);
+    else if (m.addListener) m.addListener(h);
+    return function () {
+      if (m.removeEventListener) m.removeEventListener("change", h);
+      else if (m.removeListener) m.removeListener(h);
+    };
+  }
+
   MS.ui = { init: init, flash: flash, reward: reward, openSheet: openSheet, closeSheet: closeSheet,
-    openAbout: openAbout, skeleton: skeleton, hap: hap, TAB_SCREENS: TAB_SCREENS };
+    openAbout: openAbout, skeleton: skeleton, hap: hap, TAB_SCREENS: TAB_SCREENS,
+    isExpanded: isExpanded, onExpandedChange: onExpandedChange };
 })();
