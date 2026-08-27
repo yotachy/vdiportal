@@ -2621,32 +2621,87 @@ test("trendScreenFit: 창 없음·밴드 이상이면 안전하게 false", () =>
   assert.equal(ForgeCore.trendScreenFit(w, { nowFi: 9, loV: 110, hiV: 90, last: 100 }).onScreen, false);  // hi<=lo
 });
 
-test("trendScreenFit: 실 analyzeTrend 산출과 물린다 — 국면이 바뀌면 장기창은 화면을 벗어난다", () => {
-  // 한결같은 지수 성장이면 전 이력 회귀선도 최근 창을 잘 지난다(그런 선은 그려야 맞다).
-  const steady = [];
-  for (let i = 0; i < 1200; i++) steady.push(10 * Math.exp(0.004 * i));
-  const fitSteady = (() => {
-    const ta = ForgeCore.analyzeTrend(steady, {});
-    const P = steady.length, s0 = P - 120, vis = steady.slice(s0);
-    return ForgeCore.trendScreenFit(ta.windows.long, { fiMin: s0, nowFi: P - 1,
-      loV: Math.min.apply(null, vis), hiV: Math.max.apply(null, vis), last: steady[P - 1] });
-  })();
-  assert.equal(fitSteady.onScreen, true);
-  assert.ok(fitSteady.coverage > 0.5, "한결같은 추세는 화면에 남아야 한다 coverage=" + fitSteady.coverage);
-
-  // 실제 사고는 국면 전환(NVDA: 앞 15년 완만 → 최근 5년 급가속)에서 난다.
-  // 전 이력 회귀선은 최근 구간을 한참 아래로 지나가 화면 밴드 밖이 된다.
+test("trendScreenFit: 캡 이전 동작을 재현하면 화면 밖, 현행(600봉 캡)은 화면 안", () => {
+  // 국면 전환 픽스처(앞 1,000봉 완만 → 최근 200봉 급가속) = NVDA 형태의 축약.
   const regime = [];
   for (let i = 0; i < 1000; i++) regime.push(10 * Math.exp(0.0008 * i));
   const base = regime[regime.length - 1];
   for (let i = 1; i <= 200; i++) regime.push(base * Math.exp(0.012 * i));
-  const ta2 = ForgeCore.analyzeTrend(regime, {});
-  const P2 = regime.length, s2 = P2 - 120, vis2 = regime.slice(s2);
-  const fitL = ForgeCore.trendScreenFit(ta2.windows.long, { fiMin: s2, nowFi: P2 - 1,
-    loV: Math.min.apply(null, vis2), hiV: Math.max.apply(null, vis2), last: regime[P2 - 1] });
-  const fitS = ForgeCore.trendScreenFit(ta2.windows.short, { fiMin: s2, nowFi: P2 - 1,
-    loV: Math.min.apply(null, vis2), hiV: Math.max.apply(null, vis2), last: regime[P2 - 1] });
-  assert.equal(fitL.onScreen, false, "국면 전환 후 장기창 coverage=" + fitL.coverage);
-  assert.ok(fitL.gapNowPct < -30, "현재가보다 한참 아래를 지난다 gap=" + fitL.gapNowPct);
-  assert.equal(fitS.onScreen, true);   // 단기창은 최근 국면을 잰다
+  const P = regime.length, s0 = P - 120, vis = regime.slice(s0);
+  const loV = Math.min.apply(null, vis), hiV = Math.max.apply(null, vis), last = regime[P - 1];
+
+  // 캡 이전(장기창 = 전 이력) — 회귀선이 화면 밴드를 아예 안 지난다. 이게 사용자가 본 '의미없는 선'이다.
+  const before = ForgeCore.analyzeTrend(regime, { win: 1e9 });
+  const fBefore = ForgeCore.trendScreenFit(before.windows.long, { fiMin: s0, nowFi: P - 1, loV, hiV, last });
+  assert.equal(before.windows.long.m, P);
+  assert.equal(fBefore.onScreen, false, "캡 이전 coverage=" + fBefore.coverage);
+  assert.ok(fBefore.gapNowPct < -30, "현재가보다 한참 아래 gap=" + fBefore.gapNowPct);
+
+  // 현행(600봉 캡) — 같은 픽스처에서 장기창이 화면 안으로 돌아온다.
+  const after = ForgeCore.analyzeTrend(regime, {});
+  const fAfter = ForgeCore.trendScreenFit(after.windows.long, { fiMin: s0, nowFi: P - 1, loV, hiV, last });
+  assert.equal(after.windows.long.m, 600);
+  assert.equal(fAfter.onScreen, true, "캡 이후 coverage=" + fAfter.coverage);
+
+  // 한결같은 추세라면 캡 전후 모두 화면에 남는다(캡이 멀쩡한 선을 쫓아내지 않는다).
+  const steady = [];
+  for (let i = 0; i < 1200; i++) steady.push(10 * Math.exp(0.004 * i));
+  const t2 = ForgeCore.analyzeTrend(steady, {});
+  const v2 = steady.slice(steady.length - 120);
+  const f2 = ForgeCore.trendScreenFit(t2.windows.long, { fiMin: steady.length - 120, nowFi: steady.length - 1,
+    loV: Math.min.apply(null, v2), hiV: Math.max.apply(null, v2), last: steady[steady.length - 1] });
+  assert.equal(f2.onScreen, true);
+});
+
+// ── analyzeTrend 창 캡(2026-08-28) — 라이브를 '검증된 영역'과 일치시킨다 ──────────
+// 백테스트는 매 시점 최근 ≤600봉만 엔진에 넣는다(backtest.js LOOKBACK 600). 그런데 라이브는
+// 전량 이력을 주므로 장기창이 5,030봉(20년) 회귀가 된다 — 검증된 적 없는 영역이다.
+// analyzeCycle 600봉 창(2026-08-26)과 같은 처방·같은 구조적 증명: ≤600 입력이면 캡이 안 걸려
+// no-op 이므로 백테스트 성적은 불변이고, 바뀌는 것은 라이브 전량-이력 구간뿐이다.
+test("analyzeTrend: ≤600봉 입력이면 캡이 걸리지 않는다(백테스트 영역 no-op)", () => {
+  const price = [];
+  for (let i = 0; i < 600; i++) price.push(100 * Math.exp(0.001 * i));
+  const ta = ForgeCore.analyzeTrend(price, {});
+  assert.equal(ta.windows.long.m, 600);
+  assert.equal(ta.windows.long.startIdx, 0);
+  assert.equal(ta.windows.mid.m, 300);
+});
+
+test("analyzeTrend: 600봉을 넘으면 장기창은 최근 600봉·중기창은 300봉", () => {
+  const price = [];
+  for (let i = 0; i < 5000; i++) price.push(100 * Math.exp(0.0005 * i));
+  const ta = ForgeCore.analyzeTrend(price, {});
+  assert.equal(ta.windows.long.m, 600);
+  assert.equal(ta.windows.long.startIdx, 4400);
+  assert.equal(ta.windows.mid.m, 300);
+  assert.equal(ta.windows.mid.startIdx, 4700);
+});
+
+test("analyzeTrend: 창 캡은 opts.win 으로 조정된다(랩 전용)", () => {
+  const price = [];
+  for (let i = 0; i < 2000; i++) price.push(100 + i * 0.1);
+  const ta = ForgeCore.analyzeTrend(price, { win: 800 });
+  assert.equal(ta.windows.long.m, 800);
+  assert.equal(ta.windows.mid.m, 400);
+});
+
+test("analyzeTrend: 채널 절편은 전체 인덱스 좌표로 되돌아온다(소비처 계약 불변)", () => {
+  // 소비처(forge-draw·app-chart)는 ch.bRaw + ch.slopeRaw * fi 로 읽는다 — 창을 씌워도 그 계약이 유지돼야 한다.
+  const price = [];
+  for (let i = 0; i < 3000; i++) price.push(50 + i * 0.05);
+  const ta = ForgeCore.analyzeTrend(price, {});
+  const P = price.length, w = ta.windows.long, ch = ta.channel;
+  const viaWindow = w.bRaw + w.slopeRaw * (P - 1 - w.startIdx);   // 창 좌표
+  const viaChannel = ch.bRaw + ch.slopeRaw * (P - 1);             // 전체 좌표
+  assert.ok(Math.abs(viaWindow - viaChannel) < 1e-6, viaWindow + " vs " + viaChannel);
+  // 완전 직선이면 잔차 σ 는 0 에 가깝다 — 창 밖 20년 이격이 섞이면 커진다(그 오염이 없어야 한다)
+  assert.ok(ch.sigma < 1e-6, "sigma=" + ch.sigma);
+});
+
+test("analyzeTrend: 짧은 이력은 종전과 같은 창(P·P/2)을 그대로 쓴다", () => {
+  const price = [];
+  for (let i = 0; i < 428; i++) price.push(100 + Math.sin(i / 20) * 5 + i * 0.02);
+  const ta = ForgeCore.analyzeTrend(price, {});
+  assert.equal(ta.windows.long.m, 428);
+  assert.equal(ta.windows.mid.m, 214);
 });

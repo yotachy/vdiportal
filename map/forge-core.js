@@ -1269,7 +1269,15 @@
       return { startIdx: start, m, slopeRaw: fr.b, bRaw: fr.a, slopeLog: fl.b, bLog: fl.a, r2, r2Log };
     }
 
-    let long = winFit(P), mid = winFit(Math.round(P * 0.5)), short = winFit(Math.min(P, shortLen));
+    // 검증 영역 정합(2026-08-28 · analyzeCycle 600봉 창 선례와 동형) — 백테스트는 매 시점 최근
+    // ≤600봉만 엔진에 넣는다(backtest.js LOOKBACK 600). 라이브는 전량 이력을 주므로 장기창이
+    // 5,030봉(20년) 회귀가 되는데, 그 영역은 검증된 적이 없다. 실측(2026-08-28): 그 회귀선은
+    // 화면 가격 밴드 밖 −2.1배·현재가 대비 −59% 지점을 지난다. 창을 씌워 라이브를 검증된 영역과
+    // 일치시킨다. ≤TR_WIN 입력이면 캡이 걸리지 않아 no-op — 백테스트 성적은 구조적으로 불변이다.
+    const TR_WIN = opts.win || 600;
+    let long = winFit(Math.min(P, TR_WIN)),
+        mid = winFit(Math.min(Math.round(P * 0.5), Math.round(TR_WIN * 0.5))),
+        short = winFit(Math.min(P, shortLen));
     if (mid && long && mid.m >= long.m) mid = null;
     if (short && mid && short.m >= mid.m) short = null;
     else if (short && !mid && long && short.m >= long.m) short = null;
@@ -1301,14 +1309,20 @@
     // 채널(장기 원시회귀 잔차 σ) + 채널 로그 σ(예측용)
     let channel = null, channelSigmaLog = 0;
     if (long) {
+      // 절편을 전체 인덱스 좌표로 되돌린다 — 소비처는 `ch.bRaw + ch.slopeRaw * fi`(전체 i)로 읽으므로
+      // 창을 씌워도 그 계약이 유지돼야 한다(cycle 이 icpt −= slope·off 로 되돌린 것과 같은 처리).
+      // 잔차도 창 안에서만 잰다 — 창 밖 이력의 이격이 섞이면 σ 가 그 종목의 20년 편차가 된다.
+      const s0 = long.startIdx;
+      const bFull = long.bRaw - long.slopeRaw * s0, bLogFull = long.bLog - long.slopeLog * s0;
       let s = 0; const r = [];
-      for (let i = 0; i < P; i++) { const e = price[i] - (long.bRaw + long.slopeRaw * i); r.push(e); s += e; }
-      const mu = s / P; let v = 0; for (const e of r) v += (e - mu) * (e - mu);
-      const dof = Math.max(1, P - 2);   // 회귀 잔차 자유도(P-2) — 모분산(/P)의 과소추정 보정
-      channel = { slopeRaw: long.slopeRaw, bRaw: long.bRaw, sigma: Math.sqrt(v / dof), k: channelK };
+      for (let i = s0; i < P; i++) { const e = price[i] - (bFull + long.slopeRaw * i); r.push(e); s += e; }
+      const m = r.length, mu = s / m;
+      let v = 0; for (const e of r) v += (e - mu) * (e - mu);
+      const dof = Math.max(1, m - 2);   // 회귀 잔차 자유도(m-2) — 모분산(/m)의 과소추정 보정
+      channel = { slopeRaw: long.slopeRaw, bRaw: bFull, sigma: Math.sqrt(v / dof), k: channelK };
       let sl = 0; const rl = [];
-      for (let i = 0; i < P; i++) { const e = logP[i] - (long.bLog + long.slopeLog * i); rl.push(e); sl += e; }
-      const ml = sl / P; let vl = 0; for (const e of rl) vl += (e - ml) * (e - ml);
+      for (let i = s0; i < P; i++) { const e = logP[i] - (bLogFull + long.slopeLog * i); rl.push(e); sl += e; }
+      const ml = sl / rl.length; let vl = 0; for (const e of rl) vl += (e - ml) * (e - ml);
       channelSigmaLog = Math.sqrt(vl / dof);
     }
 
