@@ -67,3 +67,51 @@ test("scan: 워치리스트 합산·봉 날짜 내림차순·키 결정성", () 
 test("데이터 부족(<30봉)은 빈 배열", () => {
   assert.deepEqual(signals.detect("T", base(20)), []);
 });
+
+// ── 확신도 게이트(rankSignal) — 앱 하이라이트와 스캐너 푸시 선별이 같은 함수를 쓴다 ──
+// 기대값은 설계서 §4.1에서 직접 계산한다(구현 상수 재사용 금지):
+// strength = |prob-50|/50, 기본 문턱 conv=0.30 → prob 65 이상 / 35 이하가 확신.
+test("rankSignal: 상승 시그널 + 강한 상승 판정 = 중요", () => {
+  const r = signals.rankSignal({ dir: 1 }, { regime: "bull", prob: 70 });
+  assert.equal(r.aligned, true);
+  assert.equal(r.important, true);
+  assert.equal(Math.round(r.score * 100) / 100, 0.4);
+});
+
+test("rankSignal: 상승 시그널 + 하락 국면 = 미정렬(중요 아님·score 0)", () => {
+  const r = signals.rankSignal({ dir: 1 }, { regime: "bear", prob: 20 });
+  assert.equal(r.aligned, false);
+  assert.equal(r.important, false);
+  assert.equal(r.score, 0);
+});
+
+test("rankSignal: 정렬돼도 확신이 약하면 중요 아님", () => {
+  const r = signals.rankSignal({ dir: 1 }, { regime: "bull", prob: 58 });
+  assert.equal(r.aligned, true);
+  assert.equal(r.important, false);   // strength 0.16 < 0.30
+});
+
+test("rankSignal: 하락 시그널은 하락 국면과 정렬", () => {
+  assert.equal(signals.rankSignal({ dir: -1 }, { regime: "bear", prob: 30 }).important, true);
+  assert.equal(signals.rankSignal({ dir: -1 }, { regime: "bull", prob: 80 }).important, false);
+});
+
+test("rankSignal: 국면 중립이면 확률 방향으로 정렬 판정", () => {
+  assert.equal(signals.rankSignal({ dir: 1 }, { regime: "neutral", prob: 68 }).aligned, true);
+  assert.equal(signals.rankSignal({ dir: 1 }, { regime: "neutral", prob: 32 }).aligned, false);
+});
+
+test("rankSignal: 방향 없는 룰(거래량·변동성)은 어느 쪽이든 강한 방향관이면 중요", () => {
+  assert.equal(signals.rankSignal({ dir: 0 }, { regime: "bear", prob: 25 }).important, true);
+  assert.equal(signals.rankSignal({ dir: 0 }, { regime: "neutral", prob: 52 }).important, false);
+});
+
+test("rankSignal: 판정이 없으면(엔진 실패) 중요 아님 — 지어내지 않는다", () => {
+  assert.equal(signals.rankSignal({ dir: 1 }, null).important, false);
+  assert.equal(signals.rankSignal({ dir: 1 }, { regime: "bull" }).important, false);
+});
+
+test("rankSignal: 문턱은 POLICY.signal.conv — opts.conv 로 덮어쓸 수 있다", () => {
+  assert.equal(require("./app-config.js").POLICY.signal.conv, 0.30);
+  assert.equal(signals.rankSignal({ dir: 1 }, { regime: "bull", prob: 58 }, { conv: 0.1 }).important, true);
+});
