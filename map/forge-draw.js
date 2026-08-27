@@ -2035,13 +2035,35 @@
     c.beginPath(); c.moveTo(seam, y); c.lineTo(xr, y); c.stroke();
     c.restore();
   }
+  // 화면 밖 추세선 알림 — 긋지 않는 대신 '엔진이 쓰는 그 값'을 우측 가장자리에 적는다.
+  // 생략만 하면 "엔진은 쓰는데 화면엔 없다"가 되어 정직 표기가 반대로 깨진다.
+  function _trendOffBadge(c, key, fit, M) {
+    if (!_skReady()) return;   // 라벨은 선이 거의 다 그려진 뒤(다른 라벨과 같은 규약). 배지는 라벨 모드와 무관 — 선을 대신하는 정보다
+    const nm = key === "long" ? "장기" : key === "mid" ? "중기" : "단기";
+    const up = fit.gapNowPct > 0;
+    const y = up ? (M.top != null ? M.top + 12 : 12) : (M.bot != null ? M.bot - 8 : 0);
+    const col = up ? FC_BULL : FC_BEAR;
+    _evLabel(c, nm + " 추세 화면 밖 " + (up ? "위" : "아래") + " · 현재가 대비 " +
+      (fit.gapNowPct >= 0 ? "+" : "") + fit.gapNowPct.toFixed(0) + "%", M.xRight, y, col, "right", true);
+  }
+
   function _drawTrendLayers(c, ta, M) {
     c.save();
-    const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0 } = M;
+    const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0, top, bot, loV, hiV, lastP } = M;
+    // 플롯 밖으로 새지 않게(Gann 과 동형) — 전 이력 회귀선은 밴드 밖 수 배 지점을 지날 수 있다
+    if (top != null && bot != null) { c.beginPath(); c.rect(0, top, xRight + 44, bot - top); c.clip(); }
     const COL = { long: "#46c28e", mid: "#5b8def", short: FC_GOLD };
     const DASH = { long: [], mid: [], short: CDASH.std };
     function winLine(w, key) {
       if (!w) return;
+      // ── 화면 적합도(작도 전용 · 엔진 값 불변, 2026-08-28) ─────────────────────
+      // 회귀창은 전 이력(장기)·절반(중기)이라, 화면이 최근 수개월이면 선이 가격 밴드
+      // 밖을 지난다(NVDA 장기: 밴드 아래 −2.1배, 현재가 대비 −59%). R² 는 자기 적합
+      // 구간을 설명하는 정도라 이걸 못 걸러낸다(그 선의 R²log 는 0.86). 값은 그대로 두고
+      // 표시만 정한다 — 밴드를 아예 안 지나면 긋지 않고 '어디에 있는지'를 값으로 알린다.
+      const fit = (typeof ForgeCore !== "undefined" && ForgeCore.trendScreenFit)
+        ? ForgeCore.trendScreenFit(w, { fiMin: fiMin, nowFi: nowFi, loV: loV, hiV: hiV, last: lastP }) : null;
+      if (fit && !fit.onScreen) { _trendOffBadge(c, key, fit, M); return; }
       // 차트 스케일에 맞는 회귀선: 로그차트면 로그공간 적합(지수추세, 로그축에서 직선) / 선형차트면 선형 적합
       const valAt = _logChart
         ? (fi => Math.exp(w.bLog + w.slopeLog * (fi - w.startIdx)))
@@ -2054,7 +2076,8 @@
       if (hp.length < 2 || !isFinite(yb)) return;
       const stroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); c.stroke(); };
       const pstroke = pts => { c.beginPath(); pts.forEach((p, i) => i ? c.lineTo(p[0], p[1]) : c.moveTo(p[0], p[1])); _skStroke(c, _polyLen(pts)); };   // 진행형(손그림)
-      const rq = (w.r2Log != null ? w.r2Log : w.r2), weak = rq < 0.15;   // 저신뢰(노이즈성) 추세선 — 흐리게+방향 화살표 생략
+      // 저신뢰(노이즈성) 또는 화면을 거의 안 지나는 선 — 흐리게 + 방향 화살표·투영 생략
+      const rq = (w.r2Log != null ? w.r2Log : w.r2), weak = rq < 0.15 || (fit && fit.coverage < 0.2);
       const emph = key === _domKey;   // 지배창(ta.dominant/최고 R²)만 강조 — 공통 위계 규약
       const _pctS = (Math.exp(w.slopeLog) - 1) * 100;   // 이 창의 추세 방향(%/봉)
       const dcol = _pctS > 0.05 ? FC_BULL : _pctS < -0.05 ? FC_BEAR : "#8a92b2";   // 상승=초록·하락=빨강·횡보=중립(위계는 굵기·alpha·라벨로)
@@ -2080,7 +2103,7 @@
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = weak ? "· 약함" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
       // 기본=축약(단기 ▲ — 뭉침 방지), '전체 라벨 표시'(_labelMode==='all') 켜면 상세(%/봉·R²)
       const _full = (typeof _labelMode !== "undefined" && _labelMode === "all") && ((typeof window === "undefined") || window.innerWidth >= 560);
-      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_full ? (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir : (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—"));
+      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_full ? w.m + "봉 " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir : (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—"));
       _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : dcol, "left");
       if (M.focused && !weak && emph) { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), dcol, "right"); }   // 추세 도달 ≈
     }
@@ -3094,7 +3117,8 @@
           if (_drawThis) _drawTrendLayers(cc, ta, {
             fiToX,
             pToY: v => toY(v),
-            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS, focused: (_focus === "trend")
+            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS, focused: (_focus === "trend"),
+            top: g.padTop, bot: g.ch - g.padBot, loV: g.loV, hiV: g.hiV, lastP: price[P - 1]
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
