@@ -1,7 +1,7 @@
 # 머니스쿱 앱 — 진행 로그 · 재개 지점
 
 **세션이 끊기면 이 문서 하나로 이어진다.** 페이즈 완료·배포·중요 결정 때마다 갱신한다(갱신 규칙은 맨 아래).
-최종 갱신: **2026-08-26 (실 출시 배선 감사 + SSV 배포 공백 수습 · 활성화 러너북)**
+최종 갱신: **2026-08-27 (FCM 푸시 Phase 1 구축 — 확신도 게이트·스캐너·등록부·인앱 하이라이트)**
 
 ---
 
@@ -20,14 +20,14 @@
 | P8 계정 | ✅ | 실 구글 OAuth(wallet-auth.php+w_merge 재사용 — auth_start/auth_poll)·게스트→계정 병합(서버 규칙: xp/페르소나 max·읽음/종목 합집합)·닉네임 자동 생성·XP 실적립 게이트 해제·변경 디바운스 push+부팅 pull·로그아웃/탈퇴·계정 해석 3갈래(최초 링크/병합-이동 기기/게스트) |
 | P9 마감 | ✅ | 반응형 §16 3단계(compact/medium 2패널·480 다이얼로그/expanded 좌측 레일)·접근성(tablist·dialog·Esc·포커스·aria-label)·fixture 로컬 호스트 게이트·앱 버전 상수·닉네임 리더보드 해금(적중·다작) |
 | P10 앱 셸 | ✅ | `app-shell/` Capacitor 8 안드로이드 셸(APK 빌드 성공 · 엔진은 서버 절대 URL — 사본 없음)·AdMob 보상 광고 배선(app-ads.js ↔ ad_config/ad_state ↔ wallet-ssv 실지급)·하드웨어 뒤로가기·빌드/광고 활성/릴리스 절차 문서 |
-| **다음** | — | **활성화 러너북 = [`LAUNCH.md`](LAUNCH.md)**(4기능 켜는 순서·포맷·검증 단일 출처). 외부 자원 대기: ① OAuth `forge_google_oauth.json`(웹 turnkey) · ② AdMob 유닛(SSV 404 수습 완료 — 콘솔+`ad_units.json`만) · ③ FCM(미구축·구축 과제) · ④ 서명 키. 코드 트랙은 이월·지속 개선(작도 PC 동조) |
+| **다음** | — | **활성화 러너북 = [`LAUNCH.md`](LAUNCH.md)**(4기능 켜는 순서·포맷·검증 단일 출처). 외부 자원 대기: ① OAuth `forge_google_oauth.json`(웹 turnkey) · ② AdMob 유닛(SSV 404 수습 완료 — 콘솔+`ad_units.json`만) · ③ FCM(**Phase 1 구축 완료 2026-08-27** — Firebase 게이트만 남음) · ④ 서명 키. 코드 트랙은 이월·지속 개선(작도 PC 동조) |
 
 **라이브**: https://parksvc.mycafe24.com/map/app/ (실데이터 — cafe24에서만 시세 프록시 동작. 로컬은 `?fixture=1`)
 
 ## 1. 새 세션 재개 절차
 
 1. 이 문서 → [`BUILD-PLAN.md`](BUILD-PLAN.md)(아키텍처·모듈 맵·엔진 브리지 계약·Q1~12) → `map/CLAUDE.md` §앱 트랙(규칙 요약) 순으로 읽는다.
-2. `cd map && ./tests/run.sh` — **947건 전체 초록이 기준선**(app 73 · app-ledger 21 · app-wallet-bridge 13 포함). wallet-lib 을 만졌으면 `./tests/run.sh concurrency` 도.
+2. `cd map && ./tests/run.sh` — **1003건 전체 초록이 기준선**(2026-08-27 · app 96 · scan 10 · app-push 14 · app-ledger 40 · app-sync 26 포함). wallet-lib 을 만졌으면 `./tests/run.sh concurrency` 도.
 3. 라이브 확인: 위 URL 부팅 + `curl -s -X POST https://parksvc.mycafe24.com/map/app-api.php -d '{"op":"list","device":"smoketest01"}'` → ok:true.
 4. 마지막 커밋 로그(`git log --oneline -10`)와 이 문서 §5 세션 로그 대조 → 다음 항목 착수.
 5. 상세 태스크 플랜: `docs/superpowers/plans/2026-08-24-app-p*.md` (P0·P1·P2 — 완료 헤더에 실행 중 조정사항 기록됨).
@@ -44,9 +44,9 @@
 ## 3. 배포 상태 (2026-08-25 기준 — P10까지 라이브 · APK 는 로컬 빌드만)
 
 - **앱**: `www/map/app/` — index.html·app.css·app-*.js(테스트 제외)·assets(intro/engine-deep/engine-apply.mp4).
-- **서버 동반 세트**: `www/map/app-api.php` + `app-ledger-lib.php` + `app-wallet-bridge.php` + `app-persona-bank.php`(P6) + `app-sync-lib.php`(P8) + `wallet-lib.php`(가드형 상수 — 같이 올리고 같이 검증, wallet-lib 수정 시 concurrency 관문 필수).
+- **서버 동반 세트**: `www/map/app-api.php` + `app-ledger-lib.php` + `app-wallet-bridge.php` + `app-persona-bank.php`(P6) + `app-sync-lib.php`(P8) + `app-push-lib.php`(푸시 Phase 1) + `wallet-lib.php`(가드형 상수 — 같이 올리고 같이 검증, wallet-lib 수정 시 concurrency 관문 필수).
 - **엔진**: 앱은 서버의 `www/map/forge-core.js` 를 상대참조 — **엔진 커밋 미배포 시 앱이 죽는다**(aggUpProb 사고, CLAUDE.md 기록). 엔진 올릴 땐 forge 동반 세트 확인.
-- **불가침**: `<data>/app_ledger.db`(예측·채점 원장) + 기존 forge_*·wallet 목록.
+- **불가침**: `<data>/app_ledger.db`(예측·채점 원장) · `app_push.db`(푸시 등록부) · `app_scan_key.txt` · `app_fcm.json` + 기존 forge_*·wallet 목록. `map/scan/` 은 cafe24 배포 대상 아님(외부 cron 호스트).
 - **앱 셸(APK)**: `map/app-shell/` — 스토어 릴리스 트랙(커밋+푸시 한 세트, 배포 별도). 절차·릴리스 준비 목록은 `docs/ANDROID-BUILD.md` 하단 절. 디버그 APK 44MB(인트로 mp4 3종 포함 — 릴리스 전 R8·에셋 다이어트 과제).
 - **⚠ 캐시버스터 필수(2026-08-25)**: cafe24 가 css/js 를 `max-age 604800`(7일)로 캐시한다 — **버전 쿼리 없이 배포하면 돌아온 사용자가 7일간 옛 파일을 본다**(작도·수정이 안 먹던 실제 원인). app/index.html·forge.html 은 캐시버스터가 붙는다. **배포 직전 반드시** `python3 scripts/stamp-cachebust.py <STAMP>`(예 20260825b) 실행 → 바뀐 css/js 의 ?v= 를 새로 찍고, app-forge-frame 의 iframe forge.html?…&v= 도 같이 올린다. 그 뒤 index.html·forge.html·바뀐 자산을 함께 배포. HTML 은 캐시헤더가 없어(휴리스틱) 곧 재검증되므로 새 버전 쿼리가 곧 반영된다.
 - 배포 방법: `lftp -u "parksvc,<메모리 scoopforge-deploy 참조>" sftp://parksvc.mycafe24.com` → put. **호스트는 mycafe24.com — `parksvc.cafe24.com`은 22 포트가 닫혀 있어 무한 대기한다**(2026-08-25 확인). `set net:timeout 15` 걸고 올릴 것.
@@ -101,6 +101,16 @@
 - **다음(외부 자원 열리는 순서)**: ① `forge_google_oauth.json` 업로드 → 실 로그인 라이브 검증(오늘 가능) ② AdMob 콘솔 유닛+SSV URL → `ad_units.json` ③ 서명 키 → assembleRelease ④ Firebase → FCM. 코드 이월은 §5 상단 목록 유지.
 - **FCM 푸시 설계 완료(2026-08-26, 승인·미착수)**: 사용자가 4기능 중 FCM을 "구축 트랙"으로 선택 → brainstorming 완료. **설계서 `docs/superpowers/specs/2026-08-26-app-push-signals-design.md`(커밋 238442e)**. 확정: 일일 다이제스트·엔진 확신도 게이트(`rankSignal` 공유 순수함수: 시그널 dir × `aggUpProb` strength≥0.30·하루 3건 캡)·07시 KST 발송·디바이스 등록부. 외부 node 스캐너(실 app-signals·forge-core)·서버는 등록부·발송로그만(감지 결정적→앱 재현). **Phase 1**(Firebase 무관·지금 구축 가능): rankSignal+인앱 '밤사이 중요' 하이라이트+`scan/scan-core.mjs`+`app-push-lib.php`(push_register/scan_registry/push_send)+테스트. **Phase 2**(Firebase 게이트): `@capacitor` 푸시 플러그인+FCM HTTP v1 발송+`app_fcm.json` 킬스위치+APK 재빌드. **재개 지점 = 설계서 사용자 리뷰 → writing-plans(Phase 1)**. 미결: 스캐너 cron 호스트(코드 무관).
 - **도메인 전환 계획 확정(2026-08-26)**: 출시 얼굴 = `moneyscoop.co.kr/app`(개발은 parksvc.mycafe24.com/map 유지). cafe24 멀티도메인 연결폴더=`map`로 루트 매핑 → 파일 이동·데이터 이사 없음, 웹 무변경(상대경로), APK 상수 2곳(`build-www.mjs` SERVER_BASE·`app-forge-frame.js` PROD_BASE) `/map` 제거+재빌드, OAuth/SSV URI만 moneyscoop 호스트. 상세 `LAUNCH.md §4-B`.
+
+### 2026-08-27 — FCM 푸시 Phase 1(Firebase 무관 전량 구축)
+- **확신도 게이트 `rankSignal`(app-signals, 공유 순수함수)**: `strength=|prob−50|/50`, 정렬(방향 시그널=국면/확률 방향 일치, 무방향 룰=강한 방향관) ∧ `strength ≥ POLICY.signal.conv(0.30)`. **앱과 스캐너가 같은 함수를 호출**한다(사본 0). `POLICY.signal` 신설(conv·pushCap 3·pushHourKST 7·**verdictTier basic**).
+- **판정 계약 확정**: 시그널 확신도 = `app-engine.analyze({tier:"basic", tfKo:"일", 전량 이력})`. 티어·봉 길이를 못박은 이유 = 판정이 이력 길이에 의존(2026-08-25 실측), 앱은 관심종목 전량을 백그라운드로 돌 수 있어야 한다. **설계서가 열어둔 '판정 정합 이식'은 불필요**했다 — `app-engine.js` 가 이미 node-require 가능해 스캐너가 같은 함수를 부른다.
+- **비용 실측(프로덕션 GET, 읽기 전용)**: NVDA 5,030봉 fetch 188ms + **basic 판정 82ms**(TSLA 4,066봉 39ms). 인앱 랭킹 비용 위험 해소 — 감지 0건 종목은 엔진을 아예 부르지 않는다.
+- **스캐너 `map/scan/`**: `scan-core.mjs`(순수 — 종목 합집합·선별·캡·다이제스트, 10건) + `scanner.mjs`(배선 — registry→OHLC 전량→detect→analyze→push_send, `--dry-run`) + README(cron 22:00 UTC = 07:00 KST). 엔진·감지는 `../app/*` 원본 require. **cafe24 배포 대상 아님**.
+- **서버 `app-push-lib.php`**: `<data>/app_push.db`(devices·sends) · `push_register`(앱) · `scan_registry`/`push_send`(`X-Scan-Key` — device 검증 앞에서 인증, 키 파일 부재=403 fail-closed) · **하루 1회 캡은 `unique(device, day)`가 강제**(스캐너 재실행 멱등) · FCM HTTP v1 발송기(JWT→OAuth2→messages:send)는 `app_fcm.json` 있을 때만 생성(킬스위치 — Phase 1 은 `queued`만). 테스트 14건.
+- **인앱 하이라이트**: `app-push.js`(등록 송신 디바운스 3s + 종목 판정 캐시 `sym|barT` + 순차 랭킹·부분 결과 스트리밍) → 시그널 화면 '엔진 확신' 배지 · **정렬 3단(확신 → 페르소나 → 최신 봉)** · 펼침에 실측 상승 확률 표기. `sigRank`/`sigImpN` 은 휘발(persistKeys 아님). 헤드리스 검증 390×844 pageerror 0. 부수: `bind()` 스크롤 핸들러에 복제돼 있던 정렬 블록 제거(길이만 필요).
+- 관문 **1003건**(app 96 · scan 10 · app-push 14 신규). 라이브 배포(앱 + 서버 세트).
+- **남은 것(Phase 2 · Firebase 게이트)**: 푸시 플러그인·토큰 포착·딥링크·APK 재빌드·`app_fcm.json`·`app_scan_key.txt`·스캐너 cron 호스트(운영 결정 — 코드 무관). 절차는 [`LAUNCH.md`](LAUNCH.md) §3.
 
 ---
 

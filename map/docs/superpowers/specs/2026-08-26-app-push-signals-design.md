@@ -3,7 +3,9 @@
 **날짜**: 2026-08-26
 **트랙**: 머니스쿱 앱(`map/app/`) — FCM 푸시(P10 이후 외부 자원 대기 4기능 중 유일한 "구축" 과제)
 **정본 참조**: `map/CLAUDE.md` §⓪·§②·§⑤·§⑥, `docs/design-v2/BUILD-PLAN.md`, `docs/design-v2/LAUNCH.md`
-**상태**: 승인됨(사용자 확정 2026-08-26) → 구현 플랜 대기
+**상태**: 승인됨(2026-08-26) → **Phase 1 구현 완료(2026-08-27)** — 플랜 [`../plans/2026-08-27-app-push-phase1.md`](../plans/2026-08-27-app-push-phase1.md), 진행 로그 [`../../design-v2/PROGRESS.md`](../../design-v2/PROGRESS.md) 2026-08-27 절. Phase 2(Firebase)는 [`../../design-v2/LAUNCH.md`](../../design-v2/LAUNCH.md) §3.
+
+> **구현 중 확정된 것**(설계서가 열어둔 지점): 판정 = `app-engine.analyze({tier:"basic", tfKo:"일", 전량 이력})` — `app-engine.js` 가 이미 node-require 가능하므로 §4.2 의 "UMD 추출 또는 분리"는 **불필요**했고, 스캐너는 앱과 같은 함수를 그대로 부른다. `TH.conv` 는 `POLICY.signal.conv` 로 승격(단일 출처).
 
 ---
 
