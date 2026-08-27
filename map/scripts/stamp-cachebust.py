@@ -32,6 +32,9 @@ stamp_html("forge.html", [r'forge[\w-]*\.js', r'forge\.css'])
 # app-forge-frame.js 의 iframe forge.html?embed=app&...&v=STAMP — 같은 스탬프로(사용자가 새 forge 자산을 받게)
 fp = os.path.join(HERE, "app/app-forge-frame.js")
 s = open(fp).read()
-s2 = re.sub(r'(forge\.html\?embed=app[^"]*?&v=)[^"&]+', r'\g<1>' + stamp, s)
+# ⚠ URL 이 JS 문자열 연결로 끊긴다("...&th=" + th + "&v=20260826k") — 따옴표를 건너뛰지 못하는
+# 패턴은 조용히 0건 매치로 끝나고, 앱 iframe 만 옛 버전에 고정된다(2026-08-28 실제로 그랬다).
+# 그래서 그 파일 안의 버전 리터럴(YYYYMMDD+영문자)을 직접 찍는다.
+s2 = re.sub(r'(&v=)(\d{8}[a-z]+)', r'\g<1>' + stamp, s)
 if s2 != s: open(fp, "w").write(s2); print("app-forge-frame.js iframe v →", stamp)
 else: print("app-forge-frame.js iframe v: no change (패턴 확인)")
