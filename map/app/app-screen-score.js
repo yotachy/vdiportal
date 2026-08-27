@@ -30,6 +30,8 @@
     let data = null, err = null;
     let filter = null, search = null, range = 90, shown = 20, carousel = 0;
     let open = {}, hintOpen = {};
+    let sel = null;            // expanded 마스터-디테일에서 우측에 고정 표시할 행 id(§16)
+    let unsubMq = null;
 
     async function load() {
       err = null;
@@ -132,7 +134,14 @@
       const rows = data ? filtered() : [];
       const c = data ? data.cnt : null;
 
+      const exp = MS.ui.isExpanded();
+      // expanded 에서는 선택이 비면 첫 행을 고정 표시한다(§16 "펼침 대신 우측 고정 표시")
+      if (exp && rows.length && !rows.some(function (r) { return String(r.id) === String(sel); })) sel = rows[0].id;
+      if (!exp) sel = null;
+      const selRow = exp ? rows.filter(function (r) { return String(r.id) === String(sel); })[0] : null;
+
       host.innerHTML =
+        (exp ? '<div class="ms-md"><div class="ms-md-list">' : "") +
         '<div style="padding:0 0 90px">' +
         '<div style="padding:16px 16px 0">' +
         '<div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:19px;font-weight:700;letter-spacing:-0.03em">채점</span>' +
@@ -171,13 +180,15 @@
         (data && rows.length > shown ? '<button data-more style="display:block;margin:12px auto;font-size:12.5px;color:var(--ac);border:1px solid rgba(123,108,255,0.35);border-radius:99px;padding:8px 20px;background:none;cursor:pointer;font-family:inherit">더 보기</button>' : "") +
         (data && rows.length ? '<div style="margin:14px 16px 0;font-size:11px;color:var(--m2);text-align:center">화면에는 최근 90일까지 보여요 · 원본 기록은 안전하게 보관됩니다</div>' : "") +
         '<div style="margin:16px;font-size:11px;color:var(--m2);line-height:1.7">예측 성적은 보정 없이 그대로예요 · 예측은 참고용이며 투자 판단과 책임은 본인에게 있습니다.</div>' +
-        "</div>";
+        "</div>" +
+        (exp ? "</div>" + detailPaneHtml(selRow) + "</div>" : "");
       bind();
     }
 
     function rowHtml(r) {
       const k = r.id;
-      const isOpen = !!open[k];
+      const exp = MS.ui.isExpanded();
+      const isOpen = exp ? String(sel) === String(k) : !!open[k];   // expanded 는 '선택'이 활성 상태다
       const scored = r.status !== "wait";
       const today = r.today && scored;
       const ch = chgPct(r);
@@ -185,7 +196,9 @@
         r.status === "miss" ? "빗나감 " + (ch >= 0 ? "+" : "") + ch.toFixed(1) + "%" : ddayTxt(r) + " 대기";
       const resC = r.status === "hit" ? "var(--up)" : r.status === "miss" ? "var(--dn)" : "var(--am)";
       const bd = isOpen ? "var(--ln2)" : today ? "rgba(123,108,255,0.6)" : "var(--ln0)";
-      const bg = today && !isOpen ? "linear-gradient(135deg,rgba(123,108,255,0.16),rgba(123,108,255,0.04) 55%,var(--sf1))" : "var(--sf1)";
+      // expanded 는 '선택'이 주 상태라 배경까지 바꿔 또렷하게 한다(좌측 컬러 라인 금지 — 배경·보더로만)
+      const bg = today && !isOpen ? "linear-gradient(135deg,rgba(123,108,255,0.16),rgba(123,108,255,0.04) 55%,var(--sf1))"
+        : (exp && isOpen) ? "var(--sf2)" : "var(--sf1)";
       let out =
         '<div data-row="' + k + '" style="margin:8px 16px 0;border:1px solid ' + bd + ";border-radius:12px;background:" + bg +
         (today && !isOpen ? ";box-shadow:0 0 0 1px rgba(123,108,255,0.3),0 6px 22px -6px rgba(123,108,255,0.45)" : "") + ';cursor:pointer;overflow:hidden">' +
@@ -196,8 +209,20 @@
         '<span style="font-size:10.5px;color:var(--t2);border:1px solid var(--ln1);border-radius:4px;padding:1px 6px">' + r.tf + "봉</span>" +
         '<span style="width:7px;height:7px;border-radius:50%;background:' + (TIER_C[r.tier] || "#8b93a7") + ';flex:none"></span>' +
         '<span class="mono" style="margin-left:auto;font-size:12.5px;font-weight:600;color:' + resC + ';white-space:nowrap">' + resTxt + "</span>" +
-        '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--m2)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:' + (isOpen ? "rotate(180deg)" : "none") + ';transition:transform 0.2s;flex:none"><path d="M5 9l7 7 7-7"></path></svg></div>';
-      if (isOpen) {
+        (exp ? "" : '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="var(--m2)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:' + (isOpen ? "rotate(180deg)" : "none") + ';transition:transform 0.2s;flex:none"><path d="M5 9l7 7 7-7"></path></svg>') + "</div>";
+      if (isOpen && !MS.ui.isExpanded()) out += detailHtml(r);   // expanded 는 우측 패널이 대신 보여준다
+      out += "</div>";
+      return out;
+    }
+
+    // 상세 본문 — compact/medium 은 행 아래 펼침, expanded 는 우측 고정 패널이 같은 내용을 쓴다.
+    function detailHtml(r) {
+      const k = r.id;
+      const scored = r.status !== "wait";
+      const ch = chgPct(r);
+      const resC = r.status === "hit" ? "var(--up)" : r.status === "miss" ? "var(--dn)" : "var(--am)";
+      let out = "";
+      {
         const dirTxt = r.dir === "up" ? "▲ 상승" : r.dir === "down" ? "▼ 하락" : "— 중립";
         out += '<div style="border-top:1px solid var(--ln0);padding:12px;background:var(--sf2)">' +
           '<div style="font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">당시 예측</b> — ' +
@@ -226,8 +251,27 @@
           '<button data-again="' + k + '" style="margin-top:10px;width:100%;min-height:44px;border-radius:9px;border:1px solid var(--ln2);background:var(--sf1);color:var(--t1);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">다시 분석하기</button>' +
           "</div>";
       }
-      out += "</div>";
       return out;
+    }
+
+    // 우측 고정 상세(expanded 전용)
+    function detailPaneHtml(r) {
+      if (!r) {
+        // 자동 선택이 있으므로 이 자리는 목록이 통째로 빌 때만 나온다 — 빈 상태를 두 번 외치지 않게 한 줄로.
+        return '<aside class="ms-md-detail"><div class="ms-md-inner" style="font-size:12.5px;color:var(--m2);text-align:center;padding:28px 8px">채점 기록이 쌓이면 여기에 당시 예측과 실제 결과가 보여요</div></aside>';
+      }
+      const ch = chgPct(r);
+      const resC = r.status === "hit" ? "var(--up)" : r.status === "miss" ? "var(--dn)" : "var(--am)";
+      const resTxt = r.status === "hit" ? "적중" : r.status === "miss" ? "빗나감" : ddayTxt(r) + " 대기";
+      return '<aside class="ms-md-detail"><div class="ms-md-inner">' +
+        '<div style="display:flex;align-items:baseline;gap:8px">' +
+        '<span style="font-size:17px;font-weight:700;letter-spacing:-0.02em">' + esc(r.sym) + "</span>" +
+        '<span style="font-size:12px;color:var(--t2)">' + r.tf + "봉 · " + esc(r.preset || r.tier) + "</span>" +
+        '<span class="mono" style="margin-left:auto;font-size:13px;font-weight:600;color:' + resC + '">' + resTxt +
+        (r.status !== "wait" ? " " + (ch >= 0 ? "+" : "") + ch.toFixed(1) + "%" : "") + "</span></div>" +
+        '<div style="margin-top:4px;font-size:11px;color:var(--m2)">' + fmtWhen(r.reg_at) + " 등록</div>" +
+        '<div style="margin-top:10px;border:1px solid var(--ln0);border-radius:12px;background:var(--sf1);overflow:hidden">' +
+        detailHtml(r) + "</div></div></aside>";
     }
 
     function reGoPreset(r) {
@@ -268,8 +312,9 @@
         el.addEventListener("click", function (e) {
           if (e.target.closest("[data-hint],[data-rego],[data-again]")) return;
           const k = el.getAttribute("data-row");
-          open[k] = !open[k];
-          if (open[k]) {
+          const exp = MS.ui.isExpanded();
+          if (exp) sel = k; else open[k] = !open[k];
+          if (exp || open[k]) {
             const row = data.rows.filter(function (x) { return String(x.id) === k; })[0];
             const st2 = MS.store.get();
             const xk = "score:" + k;
@@ -321,7 +366,16 @@
 
     render();
     load();
+    // 접음↔펼침 전환에도 화면·선택을 유지한 채 배치만 바꾼다(§16 전환 연속성)
+    if (unsubMq) { unsubMq(); unsubMq = null; }
+    unsubMq = MS.ui.onExpandedChange(function () {
+      if (MS.store.get().screen === "score") render();
+    });
+    unmountScore = function () { if (unsubMq) { unsubMq(); unsubMq = null; } };
   }
 
-  MS.router.register("score", { mount: mount });
+  let unmountScore = null;
+
+  MS.router.register("score", { mount: mount,
+    unmount: function () { if (unmountScore) { unmountScore(); unmountScore = null; } } });
 })();
