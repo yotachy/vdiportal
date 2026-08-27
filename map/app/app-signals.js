@@ -6,9 +6,9 @@
    임계값은 POLICY.signal(리모트 컨피그 대상 — §15 협의 고정점). UMD — node 테스트 가능.
    서버 스캔·푸시 승격은 P5+ (BUILD-PLAN §6-3). */
 (function (root, factory) {
-  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("../forge-core.js"));
-  else { root.MS = root.MS || {}; root.MS.signals = factory(root.ForgeCore); }
-})(typeof self !== "undefined" ? self : this, function (core) {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("../forge-core.js"), require("./app-config.js"));
+  else { root.MS = root.MS || {}; root.MS.signals = factory(root.ForgeCore, root.MS.config); }
+})(typeof self !== "undefined" ? self : this, function (core, config) {
   "use strict";
 
   // 임계 기준선(§15 시그널 감지 규칙 — 협의 대상, 리모트 컨피그로 조정)
@@ -160,6 +160,24 @@
     return out;
   }
 
+  // 확신도 게이트(설계서 2026-08-26 §4.1) — 감지된 시그널이 '중요'한가를 엔진 판정으로 가른다.
+  // 앱(인앱 하이라이트)과 외부 스캐너(푸시 선별)가 이 함수 하나를 공유한다 — 두 번 구현하면 드리프트한다.
+  // 엔진 판정·확률을 바꾸지 않는다(§② 불변) — 읽어서 분류만 한다.
+  function rankSignal(sig, verdict, opts) {
+    const conv = (opts && typeof opts.conv === "number") ? opts.conv
+      : (config && config.POLICY.signal ? config.POLICY.signal.conv : 0.3);
+    const p = (verdict && typeof verdict.prob === "number" && isFinite(verdict.prob)) ? verdict.prob : null;
+    if (p === null) return { important: false, aligned: false, score: 0 };   // 판정 없음 = 중요 아님(지어내지 않는다)
+    const strength = Math.min(1, Math.abs(p - 50) / 50);
+    const dir = sig && typeof sig.dir === "number" ? sig.dir : 0;
+    const side = p > 50 ? 1 : p < 50 ? -1 : 0;
+    const regSide = verdict.regime === "bull" ? 1 : verdict.regime === "bear" ? -1 : 0;
+    // 방향 있는 룰: 국면이 서면 국면과, 국면이 중립이면 확률 방향과 일치해야 정렬.
+    // 방향 없는 룰(거래량 급증·변동성 확대): 방향관이 강하기만 하면 중요(어느 쪽으로든 결정 국면).
+    const aligned = dir === 0 ? true : (regSide === 0 ? side === dir : regSide === dir);
+    return { important: aligned && strength >= conv, aligned: aligned, score: aligned ? strength : 0 };
+  }
+
   // 워치리스트 전체 스캔 → 시그널 목록(봉 날짜 내림차순)
   function scan(watch, candlesBySym) {
     let all = [];
@@ -171,5 +189,5 @@
     return all;
   }
 
-  return { detect: detect, scan: scan, TH: TH };
+  return { detect: detect, scan: scan, rankSignal: rankSignal, TH: TH };
 });

@@ -39,6 +39,26 @@ $raw = file_get_contents("php://input");
 if (strlen($raw) > 65536) al_out(array("ok" => false, "error" => "too-large"), 413);
 $in = json_decode($raw, true);
 if (!is_array($in) || !isset($in["op"])) al_out(array("ok" => false, "error" => "bad-json"), 400);
+// ── 스캐너 ops(설계서 2026-08-26 §4.3) — 디바이스가 아니라 스캐너 키로 인증한다.
+// device 검증 앞에 둔다: 외부 스캐너는 기기가 아니다. 키 파일 부재 = 전부 403(fail-closed).
+$opRaw = (string)$in["op"];
+if ($opRaw === "scan_registry" || $opRaw === "push_send") {
+  require_once __DIR__ . "/app-push-lib.php";
+  $realKey = pl_scan_key($AL_DIR);
+  $gotKey = isset($_SERVER["HTTP_X_SCAN_KEY"]) ? (string)$_SERVER["HTTP_X_SCAN_KEY"] : "";
+  if ($realKey === null || $gotKey === "" || !hash_equals($realKey, $gotKey)) {
+    al_out(array("ok" => false, "error" => "scan-key"), 403);
+  }
+  try {
+    $pdb = pl_db($AL_DIR);
+    if ($opRaw === "scan_registry") al_out(array("ok" => true, "registry" => pl_registry($pdb)));
+    $sends = isset($in["sends"]) && is_array($in["sends"]) ? array_slice($in["sends"], 0, 50) : array();
+    $conf = pl_fcm_conf($AL_DIR);
+    al_out(pl_send($pdb, $sends, time(), $conf ? pl_fcm_sender($conf) : null));
+  } catch (Throwable $e) {
+    al_out(array("ok" => false, "error" => "server"), 500);
+  }
+}
 $device = isset($in["device"]) ? preg_replace("/[^A-Za-z0-9_-]/", "", (string)$in["device"]) : "";
 if ($device === "" || strlen($device) > 64) al_out(array("ok" => false, "error" => "device"), 400);
 
@@ -57,6 +77,16 @@ catch (Throwable $e) { al_out(array("ok" => false, "error" => "storage"), 500); 
 
 $op = (string)$in["op"];
 try {
+  // 푸시 등록(앱) — 토큰은 Phase 2(네이티브 셸)부터 실린다. 지금은 종목·설정만으로도 등록된다.
+  if ($op === "push_register") {
+    require_once __DIR__ . "/app-push-lib.php";
+    $pdb = pl_db($AL_DIR);
+    al_out(pl_register($pdb, $device, array(
+      "token" => isset($in["token"]) ? $in["token"] : null,
+      "picks" => isset($in["picks"]) ? $in["picks"] : array(),
+      "on" => isset($in["on"]) ? (bool)$in["on"] : true
+    ), time()));
+  }
   if ($op === "register") {
     $in["device"] = $device;
     al_out(al_register($db, $in));

@@ -11,6 +11,7 @@
   const str = MS.str;
   const GC = { t: "var(--bl)", m: "var(--up)", v: "var(--cy)", q: "var(--am)", s: "var(--pk)" };
   let sigTimer = null;   // 캐러셀 자동 슬라이드(3초) — 재마운트/이탈 시 정리
+  let unsubRank = null;  // 확신도 랭킹 구독 해제(unmount 에서 호출)
   const GN = { t: "추세", m: "모멘텀", v: "변동성", q: "거래량", s: "구조" };
 
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
@@ -37,6 +38,18 @@
     const today = MS.state.dayKey(Date.now());
     const unreadToday = all.filter(function (x) { return x.barT === today && !s.sigRead[x.key]; }).length;
     MS.store.set({ sigTodayN: unreadToday, sigList: all });
+    // 확신도 랭킹은 백그라운드 — 목록은 즉시 보이고, 종목 판정이 끝나는 대로 배지가 붙는다.
+    // 등록부 송신도 같이(스캐너가 무엇을 훑을지 알게 — 푸시 Phase 1).
+    if (MS.push) {
+      MS.push.registerSoon();
+      if (all.length) {
+        MS.push.rankList(all, function (partial) {
+          MS.store.set({ sigRank: partial, sigImpN: MS.push.impCount(partial) });
+        }).then(function (rank) {
+          MS.store.set({ sigRank: rank, sigImpN: MS.push.impCount(rank) });
+        }).catch(function () {});
+      }
+    }
     return all;
   };
 
@@ -121,13 +134,17 @@
       const today = MS.state.dayKey(Date.now());
       const pg = personaTopGroup();
       let rows = (list || []).filter(function (x) { return !search || x.sym === search; });
-      if (pg) {   // 내 성향과 맞닿은 신호를 먼저(지침서 §7 — 골드 우선)
-        rows = rows.slice().sort(function (a2, b2) {
+      const rank = s.sigRank || {};
+      rows = rows.slice().sort(function (a2, b2) {
+        const ia = rank[a2.key] && rank[a2.key].important ? 1 : 0;
+        const ib = rank[b2.key] && rank[b2.key].important ? 1 : 0;
+        if (ia !== ib) return ib - ia;                       // ① 엔진 확신
+        if (pg) {                                            // ② 내 성향(골드 우선 — 지침서 §7)
           const ga = a2.group === pg ? 1 : 0, gb = b2.group === pg ? 1 : 0;
           if (ga !== gb) return gb - ga;
-          return a2.barT < b2.barT ? 1 : a2.barT > b2.barT ? -1 : 0;
-        });
-      }
+        }
+        return a2.barT < b2.barT ? 1 : a2.barT > b2.barT ? -1 : 0;   // ③ 최신 봉
+      });
       const todayN = (list || []).filter(function (x) { return x.barT === today; }).length;
 
       host.innerHTML =
@@ -153,7 +170,9 @@
           '<div style="margin-top:6px;font-size:12.5px;color:var(--m1)">조용한 것도 정보예요 — 눈에 띄는 움직임이 생기면 여기에 올라옵니다</div></div>' : "") +
         (list ? rows.slice(0, shown).map(rowHtml).join("") : "") +
         (list && rows.length > shown ? '<button data-more style="display:block;margin:12px auto;font-size:12.5px;color:var(--ac);border:1px solid rgba(123,108,255,0.35);border-radius:99px;padding:8px 20px;background:none;cursor:pointer;font-family:inherit">더 보기</button>' : "") +
-        '<div style="margin:14px 16px 0;font-size:11px;color:var(--m2);text-align:center">푸시 알림은 준비 중이에요 · 감지는 봉 확정 기준이라 표시가 늦을 수 있어요</div>' +
+        '<div style="margin:14px 16px 0;font-size:11px;color:var(--m2);text-align:center">' +
+        ((s.sigImpN || 0) > 0 ? "엔진 확신 " + s.sigImpN + "건 — 기본 5지표 판정과 같은 방향인 신호예요 · " : "") +
+        '감지는 봉 확정 기준이라 표시가 늦을 수 있어요</div>' +
         "</div>";
       bind();
     }
@@ -163,12 +182,15 @@
       const isOpen = !!(s.sgOpen && s.sgOpen[x.key]);
       const unread = x.barT === MS.state.dayKey(Date.now()) && !s.sigRead[x.key];
       const psy = personaTopGroup() === x.group;   // 내 성향 연동 — 골드 강조
+      const rk = (s.sigRank || {})[x.key];
+      const imp = !!(rk && rk.important);          // 엔진 확신(rankSignal — 스캐너 푸시와 같은 게이트)
       return '<div data-sig="' + esc(x.key) + '" style="margin:8px 16px 0;border:1px solid ' + (psy ? "rgba(210,165,22,0.5)" : isOpen ? "var(--ln2)" : "var(--ln0)") + ";border-radius:12px;background:" + (psy && !isOpen ? "linear-gradient(135deg,rgba(210,165,22,0.08),var(--sf1) 60%)" : isOpen ? "var(--sf2)" : "var(--sf1)") + ';cursor:pointer;overflow:hidden">' +
         '<div style="display:flex;align-items:center;gap:8px;padding:12px">' +
         '<span style="position:relative;width:7px;height:7px;flex:none"><span style="position:absolute;inset:0;border-radius:50%;background:' + GC[x.group] + '"></span>' +
         (unread ? '<span style="position:absolute;inset:0;border-radius:50%;background:' + GC[x.group] + ';animation:msPing 1.8s ease-out infinite"></span>' : "") + "</span>" +
         '<span style="font-size:13px;font-weight:700;flex:none">' + esc(x.sym) + "</span>" +
         '<span style="font-size:13px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.title) + "</span>" +
+        (imp ? '<span style="flex:none;font-size:10px;font-weight:700;color:var(--up);background:rgba(46,194,142,0.14);border:1px solid rgba(46,194,142,0.35);border-radius:99px;padding:2px 7px">엔진 확신</span>' : "") +
         '<span style="margin-left:auto;font-size:11px;color:var(--m2);white-space:nowrap;flex:none">' + dayLabel(x.barT) + "</span>" +
         '<svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="var(--m2)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" style="transform:' + (isOpen ? "rotate(180deg)" : "none") + ';transition:transform 0.2s;flex:none"><path d="M5 9l7 7 7-7"></path></svg></div>' +
         (!isOpen ? '<div style="padding:0 12px 12px;margin-top:-4px;font-size:12px;color:var(--m1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(x.d) + "</div>" : "") +
@@ -177,6 +199,7 @@
           '<div style="font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">감지</b> — ' + esc(x.why) + "</div>" +
           '<div style="margin-top:6px;font-size:12.5px;color:var(--t2);line-height:1.7"><b style="color:var(--t1)">해석</b> — ' + esc(x.mean) + "</div>" +
           '<div style="margin-top:4px;font-size:11px;color:var(--m2)">' + GN[x.group] + " 계열 · " + esc(x.barT) + " 봉 기준</div>" +
+          (imp ? '<div style="margin-top:6px;font-size:11.5px;color:var(--up)">기본 5지표 분석의 상승 확률 ' + Math.round(rk.prob) + '% — 이 신호와 같은 방향이라 먼저 올렸어요</div>' : "") +
           (personaTopGroup() === x.group ? '<div style="margin-top:6px;font-size:11.5px;color:var(--cu)">내 페르소나(' + GN[x.group] + ' 관심)와 맞닿은 신호라 먼저 올렸어요</div>' : "") +
           '<button data-go="' + esc(x.sym) + '" style="margin-top:12px;width:100%;min-height:46px;border-radius:9px;border:0;background:linear-gradient(135deg,#7b6cff,#4a3ce0);color:#fff;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit">이 종목 분석하기 →</button></div>'
           : "") +
@@ -191,15 +214,8 @@
       const more = host.querySelector("[data-more]");
       if (more) more.addEventListener("click", function () { shown += 10; render(); });
       host.addEventListener("scroll", function () {
-        const pg = personaTopGroup();
-      let rows = (list || []).filter(function (x) { return !search || x.sym === search; });
-      if (pg) {   // 내 성향과 맞닿은 신호를 먼저(지침서 §7 — 골드 우선)
-        rows = rows.slice().sort(function (a2, b2) {
-          const ga = a2.group === pg ? 1 : 0, gb = b2.group === pg ? 1 : 0;
-          if (ga !== gb) return gb - ga;
-          return a2.barT < b2.barT ? 1 : a2.barT > b2.barT ? -1 : 0;
-        });
-      }
+        // 길이만 필요하다 — 정렬은 render 소관(여기서 복제하면 두 곳이 어긋난다)
+        const rows = (list || []).filter(function (x) { return !search || x.sym === search; });
         if (host.scrollHeight - host.scrollTop - host.clientHeight < 90 && rows.length > shown) {
           shown += 10; render();
         }
@@ -258,8 +274,16 @@
       list = all;
       if (MS.store.get().screen === "signal") render();
     });
+    // 확신도가 백그라운드로 채워지면 목록을 다시 그린다(배지·정렬 반영)
+    if (unsubRank) { unsubRank(); unsubRank = null; }
+    unsubRank = MS.store.subscribe(function (keys) {
+      if (keys.indexOf("sigRank") >= 0 && MS.store.get().screen === "signal") render();
+    });
   }
 
   MS.router.register("signal", { mount: mount,
-    unmount: function () { if (sigTimer) { clearInterval(sigTimer); sigTimer = null; } } });
+    unmount: function () {
+      if (sigTimer) { clearInterval(sigTimer); sigTimer = null; }
+      if (unsubRank) { unsubRank(); unsubRank = null; }
+    } });
 })();

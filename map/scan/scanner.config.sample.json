@@ -1,0 +1,5 @@
+{
+  "serverBase": "https://parksvc.mycafe24.com/map",
+  "scannerKey": "<서버 <data>/app_scan_key.txt 와 같은 값>",
+  "batch": 50
+}

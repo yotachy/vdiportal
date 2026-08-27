@@ -14,10 +14,10 @@
 |---|---|---|---|---|---|---|
 | ① | 구글 로그인(OAuth) | ✅ wallet-auth+w_merge | ✅ auth_start→window.open→poll | 불필요(웹 브라우저) | `forge_google_oauth.json` + 콘솔 웹 클라이언트 | `auth-disabled` (정상 대기) |
 | ② | 보상 광고(AdMob) | ✅ ad_config/ad_state+SSV | ✅ Capacitor AdMob 플러그인 | ✅ admob 8.1.0 | `ad_units.json` + 콘솔 유닛 + SSV URL 등록 | `ads-disabled` (정상 대기) **+ ⚠ SSV 404** |
-| ③ | 푸시 알림(FCM) | ❌ 없음 | ❌ 없음 | ❌ 플러그인 없음 | Firebase 프로젝트 전체(빌드 필요) | **미구축** |
+| ③ | 푸시 알림(FCM) | ✅ app-push-lib(등록부·발송로그·HTTP v1 발송기) | ✅ 등록 송신·인앱 확신 하이라이트 | ❌ 플러그인 없음(Phase 2) | Firebase 프로젝트 + `app_fcm.json` + `app_scan_key.txt` + 스캐너 호스트 | **Phase 1 구축 완료 · 실발송 대기** |
 | ④ | 릴리스 서명 | — | — | ⚠ release 빌드타입만(서명·R8 없음) | keystore + keystore.properties | debug APK만 |
 
-**결론**: ①은 오늘 켤 수 있다(웹). ②는 켜기 전 **wallet-ssv.php 배포 선행 필수**(아래 §2 경보). ③은 구축 과제(단발 아님). ④는 스토어 제출 직전.
+**결론**: ①은 오늘 켤 수 있다(웹). ②는 켜기 전 **wallet-ssv.php 배포 선행 필수**(아래 §2 경보). ③은 **Phase 1(Firebase 무관 전량)이 2026-08-27 구축 완료** — 남은 것은 Firebase 게이트뿐(§3). ④는 스토어 제출 직전.
 
 **엔진↔서버 동조 불변**: 셸은 `app/` 를 `www/` 로 복사하고 index.html 의 엔진 태그를 **서버 절대 URL**(`https://parksvc.mycafe24.com/map/forge-core.js`)로 재작성한다(`app-shell/build-www.mjs`). 즉 APK 안엔 엔진 사본이 없다 — **cafe24 에 현행 엔진·API 가 올라가 있어야 앱이 산다**(2026-08-24 `core.aggUpProb` 사고 계열). 앱을 빌드하기 전 `www/map/` 스냅샷이 현행인지 먼저 확인한다.
 
@@ -67,17 +67,33 @@
 
 ---
 
-## 3. ③ 푸시 알림(FCM) — 미구축 (단발 아닌 구축 과제)
+## 3. ③ 푸시 알림(FCM) — Phase 1 구축 완료(2026-08-27) · Phase 2 는 Firebase 게이트
 
-지금 저장소에 Firebase/FCM 흔적이 전혀 없다(app-shell 플러그인 목록에도 없음). 켜는 게 아니라 **짓는** 일이다.
-[`../ANDROID-BUILD.md` §릴리스 트랙](../ANDROID-BUILD.md)이 방향을 남겼다 — 요약:
+설계서 [`../superpowers/specs/2026-08-26-app-push-signals-design.md`](../superpowers/specs/2026-08-26-app-push-signals-design.md),
+구현 플랜 [`../superpowers/plans/2026-08-27-app-push-phase1.md`](../superpowers/plans/2026-08-27-app-push-phase1.md).
 
-- Firebase 프로젝트 생성 → `google-services.json`(app-shell/android/app/).
-- 플러그인 `@capacitor-firebase/messaging 8.x` + Gradle `com.google.gms.google-services`(§⑥ 의존성 정책: 공식 네임스페이스라 허용, 정확 버전 고정).
-- 클라: 토큰 등록 → 서버 저장(새 op) / 서버: 발송 엔드포인트.
-- **시그널 서버 스캔 승격과 한 세트** — 앱이 지금 로컬에서 감지하는 시그널(app-signals)을 서버가 돌려 푸시로 밀 때 의미가 생긴다. 그 전엔 보낼 내용이 없다.
+### 이미 지어진 것 (Phase 1 — 지금 켤 것이 없다)
 
-→ 별도 브레인스토밍/설계서 대상. 이 러너북의 '켜기' 범위 밖.
+- **확신도 게이트** `MS.signals.rankSignal(sig, verdict)` — 앱과 스캐너가 **같은 함수**를 쓴다(사본 0). 문턱 `POLICY.signal.conv 0.30`.
+- **인앱 하이라이트** — 시그널 화면 '엔진 확신' 배지·우선 정렬(사용자가 지금 바로 얻는 가치).
+- **스캐너** `map/scan/`(`scan-core.mjs` 순수 + `scanner.mjs` 배선) — 등록부→실봉 전량→감지→엔진 판정→발송 요청. cafe24 배포 대상 아님(외부 호스트).
+- **서버** `app-push-lib.php` + ops `push_register`(앱) / `scan_registry`·`push_send`(스캐너 키). `<data>/app_push.db`.
+- **하루 1회 캡**은 `unique(device, day)`가 강제(스캐너 재실행 멱등). **실발송은 `app_fcm.json` 부재로 꺼져 있다**(킬스위치 — 지금은 `queued`만 쌓인다).
+
+### Phase 2 켜는 순서 (Firebase 필요)
+
+1. **Firebase 프로젝트** 생성 → `google-services.json` → `app-shell/android/app/`.
+2. 푸시 플러그인 추가(`@capacitor/push-notifications` 또는 `@capacitor-firebase/messaging` — §⑥ 절차: 정확 버전 고정 → `npx cap sync android` → `assembleDebug` 확인) → `app-push.js`에 토큰 포착·딥링크 추가 → APK 재빌드.
+3. **서버 스캐너 키**: `<data>/app_scan_key.txt`에 임의의 긴 문자열(서버에서 생성·불가침). 없으면 스캐너 ops 는 전부 403(fail-closed) — 정상 대기 상태다.
+4. **스캐너 호스트**: `map/scan/scanner.config.json`(gitignore) 작성 → `node scan/scanner.mjs --dry-run` 확인 → cron `0 22 * * *`(UTC 22:00 = KST 07:00).
+5. **마지막에** `<data>/app_fcm.json`(서비스 계정 JSON) 업로드 → 이때부터 실발송(킬스위치를 맨 끝에 올린다 — 코드가 살아있는지 먼저 확인하고 설정을 켠다).
+
+검증:
+
+```bash
+curl -s -X POST <base>/app-api.php -H 'X-Scan-Key: <키>' -d '{"op":"scan_registry"}'   # ok:true (키 없으면 403 이 정상)
+cd map && node scan/scanner.mjs --dry-run                                              # 선별 결과만 — 발송 없음
+```
 
 ---
 

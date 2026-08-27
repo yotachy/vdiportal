@@ -70,6 +70,7 @@ fi
 if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
   run_suite "app"         "$ROOT/app" bash -c 'node --test ./*.test.js'   # 글롭 — 새 테스트 파일이 자동 편입되게(나열 방식은 누락 사고를 만든다)
   run_suite "app-shell"   "$ROOT/app-shell" bash -c 'node --test ./*.test.mjs'   # Capacitor 셸 www 생성기 관문(P10)
+  run_suite "scan"        "$ROOT/scan" bash -c 'node --test ./*.test.mjs'   # 시그널 스캐너 순수 로직(푸시 Phase 1)
 fi
 
 # 앱 채점 원장(PHP) — 서버 판정 로직. 'all'에 낀다(빠름).
@@ -78,6 +79,7 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
     run_suite "app-ledger" "$ROOT" php tests/app-ledger.test.php
     run_suite "app-wallet-bridge" "$ROOT" php tests/app-wallet-bridge.test.php
     run_suite "app-sync" "$ROOT" php tests/app-sync.test.php
+    run_suite "app-push" "$ROOT" php tests/app-push.test.php
   else
     printf '── %-22s 건너뜀 (php 없음 — 채점 판정 미검사)\n' "app-ledger"
     SKIPPED+=("app-ledger")
