@@ -64,6 +64,39 @@ if ($method === "GET") {
     echo json_encode(["ok"=>true, "jobs"=>$list], JSON_UNESCAPED_UNICODE);
     exit;
   }
+  // ── 종목 검색(2026-08-28) — 앱 '종목 추가' 시트가 쓴다 ──────────────────────────
+  // Yahoo 검색을 그대로 노출하지 않는다: 선물·해외 중복상장·지수가 섞여 오는데, 그걸 담으면
+  // 차트에서 죽는다. forge-search-lib 가 '우리 프록시가 시세를 주는 것'만 남긴다.
+  // 검색어별 파일 캐시(TTL 24h) — Yahoo 는 무인증이라 남용하면 우리가 막힌다.
+  if (isset($_GET["search"])) {
+    require_once __DIR__ . "/forge-search-lib.php";
+    $q = fs_clean_query($_GET["search"]);
+    if ($q === "") { echo json_encode(["ok"=>true,"q"=>"","items"=>[]], JSON_UNESCAPED_UNICODE); exit; }
+    if (!function_exists("curl_init")) {   // 로컬 개발 PHP 엔 curl 이 없다 — 흰 화면 대신 정직한 오류
+      http_response_code(503);
+      echo json_encode(["ok"=>false,"error"=>"no-curl","q"=>$q], JSON_UNESCAPED_UNICODE); exit;
+    }
+    header("Cache-Control: private, max-age=86400");
+    $cf = __DIR__ . "/forge_search_cache_" . md5(strtolower($q)) . ".json";
+    if (is_readable($cf) && (time() - filemtime($cf)) < 86400) { readfile($cf); exit; }
+    $ch = curl_init("https://query2.finance.yahoo.com/v1/finance/search?q=" . rawurlencode($q) . "&quotesCount=20&newsCount=0");
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true, CURLOPT_TIMEOUT => 12, CURLOPT_FOLLOWLOCATION => false,
+      CURLOPT_HTTPHEADER => ["accept: application/json"],
+      CURLOPT_USERAGENT => "ScoopForge/1.0 (+moneyscoop.co.kr)",   // Yahoo 는 UA 없으면 429
+    ]);
+    $raw = curl_exec($ch); $code = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE); curl_close($ch);
+    if ($raw === false || $code < 200 || $code >= 300) {
+      http_response_code(502);
+      echo json_encode(["ok"=>false,"error"=>"upstream","q"=>$q], JSON_UNESCAPED_UNICODE); exit;
+    }
+    $j = json_decode($raw, true);
+    $items = fs_build_items(isset($j["quotes"]) ? $j["quotes"] : null, 10);
+    $payload = json_encode(["ok"=>true,"q"=>$q,"items"=>$items], JSON_UNESCAPED_UNICODE);
+    @file_put_contents($cf, $payload, LOCK_EX);
+    echo $payload; exit;
+  }
+
   if (isset($_GET["ohlc"])) {
     $sym = isset($_GET["symbol"]) ? trim($_GET["symbol"]) : "";
     $tf  = isset($_GET["tf"]) ? $_GET["tf"] : "1day";

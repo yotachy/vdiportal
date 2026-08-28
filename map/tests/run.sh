@@ -80,6 +80,7 @@ if [ "$SCOPE" = "all" ] || [ "$SCOPE" = "app" ]; then
     run_suite "app-wallet-bridge" "$ROOT" php tests/app-wallet-bridge.test.php
     run_suite "app-sync" "$ROOT" php tests/app-sync.test.php
     run_suite "app-push" "$ROOT" php tests/app-push.test.php
+    run_suite "forge-search" "$ROOT" php tests/forge-search.test.php
   else
     printf '── %-22s 건너뜀 (php 없음 — 채점 판정 미검사)\n' "app-ledger"
     SKIPPED+=("app-ledger")

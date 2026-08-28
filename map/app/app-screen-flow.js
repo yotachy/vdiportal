@@ -462,6 +462,9 @@
     if (scr === "run" || scr === "mix") return;
     const quotes = {};
     let q = "";
+    // 서버 검색(2026-08-28) — MASTER 11종 필터가 전부였는데 시트 카피는 "미국 전 종목"이라 적혀 있었다.
+    let results = null;      // null=아직 안 찾음 · [] = 결과 없음
+    let searching = false, searchErr = false, seq = 0, qTimer = null;
     MS.ui.openSheet("stocks", function (body) {
       function fetchQuotes(syms) {
         syms.forEach(function (sym) {
@@ -493,15 +496,37 @@
         if (goChart) { MS.store.set({ ticker: sym }); MS.ui.closeSheet(); MS.router.go("chart"); }
         else paintSheet();
       }
+      // 서버 검색 — 250ms 디바운스, 마지막 요청만 반영(seq 로 늦게 온 응답 무시)
+      function runSearch(raw) {
+        const key = String(raw || "").trim();
+        if (qTimer) { clearTimeout(qTimer); qTimer = null; }
+        if (key.length < 2) { results = null; searching = false; searchErr = false; return; }
+        searching = true; searchErr = false;
+        const my = ++seq;
+        qTimer = setTimeout(function () {
+          qTimer = null;
+          const store = MS.data.search;
+          if (!store) { searching = false; searchErr = true; paintSheet(); return; }
+          store.find(key).then(function (items) {
+            if (my !== seq) return;                     // 더 최근 질의가 있다 — 늦게 온 응답 버림
+            results = items; searching = false; searchErr = false;   // 빈 결과는 오류가 아니다(아래 "결과 없음" 분기)
+            paintSheet();
+          }).catch(function () {
+            if (my !== seq) return;
+            results = []; searching = false; searchErr = true; paintSheet();
+          });
+        }, 250);
+      }
+
       function paintSheet() {
         const s = MS.store.get();
         const picks = s.picks;
         const qq = q.trim().toLowerCase();
-        const cands = MS.data.MASTER.filter(function (t) { return picks.indexOf(t.sym) < 0; })
-          .filter(function (t) {
-            if (!qq) return true;
-            return t.sym.toLowerCase().indexOf(qq) >= 0 || t.name.indexOf(q.trim()) >= 0;
-          });
+        // 검색어가 없으면 인기 목록(MASTER), 있으면 서버 검색 결과. 담긴 종목은 후보에서 뺀다.
+        const cands = (!qq
+          ? MS.data.MASTER.filter(function (t) { return picks.indexOf(t.sym) < 0; })
+          : (results || []).map(function (r) { return { sym: r.s, name: r.n || "", kind: r.t }; })
+              .filter(function (t) { return picks.indexOf(t.sym) < 0; }));
         const full = picks.length >= P().limits.stocksMax;
         body.innerHTML =
           '<div style="display:flex;align-items:baseline;gap:8px;padding:4px 0 12px;border-bottom:1px solid var(--sf3)">' +
@@ -528,15 +553,21 @@
           '<span style="font-size:12px;color:var(--m1)">미국 전 종목 · 주요 암호화폐</span></div>' +
           '<div style="display:flex;align-items:center;gap:8px;height:46px;border:1.5px solid rgba(123,108,255,0.45);border-radius:12px;background:var(--sf2);padding:0 12px">' +
           '<svg viewBox="0 0 24 24" width="15" height="15" style="flex:none;color:var(--ac)"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M15.8 15.8 20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>' +
-          '<input data-q placeholder="티커나 이름으로 검색 · 예: TSLA, 솔라나" value="' + esc(q) + '" style="flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:13.5px;font-family:inherit"></div>' +
+          '<input data-q placeholder="티커·영문 이름으로 검색 · 예: NVDA, bitcoin" value="' + esc(q) + '" style="flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:13.5px;font-family:inherit"></div>' +
           (full ? '<div style="margin-top:4px;font-size:12.5px;color:var(--am)">내 관심 종목이 가득 찼어요(' + picks.length + "/" + P().limits.stocksMax + "). 하나를 빼면 추가할 수 있습니다</div>" : "") +
-          (qq && !cands.length ?
-            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 결과가 없어요. 전 종목 검색은 곧 열립니다</div>' : "") +
+          (qq && searching ?
+            '<div style="margin-top:8px;padding:14px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 중…</div>' : "") +
+          (qq && !searching && searchErr ?
+            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">지금은 검색이 안 돼요 · 잠시 뒤 다시 시도해 주세요</div>' : "") +
+          (qq && !searching && !searchErr && !cands.length ?
+            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 결과가 없어요 · 티커(예: NVDA)나 영문 이름으로 찾아보세요</div>' : "") +
           (!qq ? '<div style="padding:12px 0 4px;display:flex;align-items:baseline;gap:7px;font-size:12px"><span style="font-weight:600;color:var(--t2)">요즘 많이 담는 종목</span><span style="color:var(--m2)">맛보기예요 — 검색하면 모든 종목이 나옵니다</span></div>' : "") +
           cands.map(function (t) {
             const qt = quotes[t.sym];
             return '<div style="display:flex;align-items:center;gap:8px;min-height:50px;padding:8px 0;border-bottom:1px solid var(--ln0)">' +
-              '<div style="width:96px"><div style="font-weight:600;font-size:13.5px;color:var(--t2)">' + esc(t.sym) + '</div><div style="font-size:12.5px;color:var(--m2)">' + esc(t.name) + "</div></div>" +
+              '<div style="min-width:96px;max-width:190px"><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600;font-size:13.5px;color:var(--t2)">' + esc(t.sym) + "</span>" +
+              (t.kind && t.kind !== "stock" ? '<span style="font-size:9.5px;font-weight:700;color:var(--m1);border:1px solid var(--ln1);border-radius:4px;padding:1px 4px">' + (t.kind === "coin" ? "코인" : "ETF") + "</span>" : "") + "</div>" +
+              '<div style="font-size:12.5px;color:var(--m2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.name) + "</div></div>" +
               '<div style="margin-left:auto;display:flex;align-items:center;gap:8px">' +
               '<span class="mono" style="font-size:13px;color:' + (qt ? (qt.up ? "var(--up)" : "var(--dn)") : "var(--m2)") + '">' + (qt ? (qt.up ? "▲" : "▼") + Math.abs(qt.chg).toFixed(2) + "%" : "—") + "</span>" +
               '<button data-add="' + esc(t.sym) + '" style="font-size:12.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:7px;padding:8px 12px;background:none;cursor:pointer;font-family:inherit">추가만</button>' +
@@ -572,12 +603,14 @@
         inp.addEventListener("input", function () {
           q = inp.value;
           const pos = inp.selectionStart;
+          runSearch(q);          // 디바운스 250ms — 타자마다 서버를 부르지 않는다
           paintSheet();
           const inp2 = body.querySelector("[data-q]");
           inp2.focus();
           try { inp2.setSelectionRange(pos, pos); } catch (e) {}
         });
-        fetchQuotes(picks.concat(cands.slice(0, 6).map(function (t) { return t.sym; })));
+        // 시세는 **담긴 종목과 인기 목록에만** 붙인다. 검색 결과 10건마다 OHLC 를 부르면 비용이 폭증한다.
+        fetchQuotes(picks.concat(qq ? [] : cands.slice(0, 6).map(function (t) { return t.sym; })));
       }
       paintSheet();
     });

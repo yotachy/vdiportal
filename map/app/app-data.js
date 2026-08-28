@@ -158,6 +158,27 @@
     } };
   }
 
+  // ── 종목 검색(2026-08-28) — 서버 forge-api.php?search= 를 감싼 세션 캐시 ──────────
+  // 서버가 '우리 프록시가 시세를 주는 것'만 걸러 준다(forge-search-lib). 여기서는 캐시와
+  // 실패 처리만 한다 — 실패를 캐시하면 일시 장애가 영구 빈 결과가 된다.
+  function createSearch(io) {
+    const cache = Object.create(null);
+    return {
+      find: async function (q) {
+        const key = String(q == null ? "" : q).trim().toLowerCase();
+        if (key.length < 2) return [];
+        if (cache[key]) return cache[key];
+        let j = null;
+        try { j = await io.fetchJson(serverBase() + "/forge-api.php?search=" + encodeURIComponent(key)); }
+        catch (e) { return []; }
+        if (!j || j.ok !== true || !Array.isArray(j.items)) return [];   // 실패는 캐시하지 않는다
+        cache[key] = j.items;
+        return j.items;
+      },
+      _cache: cache
+    };
+  }
+
   // ── 기기 식별자(익명) — 채점 원장·이후 지갑(P5)이 같은 값을 쓴다(w_account_id(deviceId) 합류 전제) ──
   function deviceId() {
     let id = null;
@@ -182,14 +203,15 @@
   }
 
   const api = { MASTER: MASTER, tfApi: tfApi, quote: quote, spark: spark,
-    createOHLC: createOHLC, mergeCandles: mergeCandles, browserIO: browserIO, fixtureStore: fixtureStore,
-    deviceId: deviceId, api: serverApi, serverBase: serverBase, ohlc: null };
+    createOHLC: createOHLC, createSearch: createSearch, mergeCandles: mergeCandles, browserIO: browserIO, fixtureStore: fixtureStore,
+    deviceId: deviceId, api: serverApi, serverBase: serverBase, ohlc: null, search: null };
   // 브라우저에선 기본 스토어를 미리 만들어 둔다(테스트는 createOHLC 로 주입 생성)
   if (typeof window !== "undefined" && typeof fetch !== "undefined") {
     // dev 게이트(P9): ?fixture=1 은 로컬·사설망 호스트에서만 산다 — 프로덕션 URL 로는 켤 수 없다
     api.devMode = /^(localhost|127\.0\.0\.1|10\.|192\.168\.|100\.)/.test(window.location.hostname) &&
       /[?&]fixture=1/.test(window.location.search);
     api.ohlc = api.devMode ? fixtureStore() : createOHLC(browserIO());
+    api.search = createSearch(browserIO());   // 검색은 fixture 모드에서도 실서버(로컬 PHP 는 curl 이 없어 빈 결과)
   }
   return api;
 });
