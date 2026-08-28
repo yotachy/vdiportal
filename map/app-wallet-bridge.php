@@ -77,3 +77,16 @@ function app_wallet_sweep_refunds($wdb, $aldb, $device, $acctId) {
   }
   return $granted;
 }
+
+// 이 기기의 '구글 인증은 끝났는데 아직 병합되지 않은' 논스(TTL 안, 최신 1건).
+// 왜(2026-08-28 원장 실측): 실패 16건이 전부 이 상태로 남아 있었다. 앱이 반응 없어 보이면 사용자가
+// 다시 누르고, 그때 클라가 새 논스로 갈아타 완료된 논스는 영영 버려졌다(6~17초 간격 연타 흔적).
+// 폴링이 어느 논스를 들고 있든 서버가 이걸 주워 병합하면 탭 수명·연타 타이밍과 무관해진다.
+function app_nonce_completed($db, $device) {
+  $st = $db->prepare("select * from auth_nonce
+                      where device_id = ? and used = 0 and google_sub is not null and created_at >= ?
+                      order by created_at desc limit 1");
+  $st->execute(array($device, gmdate("c", time() - W_NONCE_TTL_SEC)));
+  $r = $st->fetch();
+  return $r ? $r : null;
+}

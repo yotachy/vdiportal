@@ -179,16 +179,28 @@ try {
     if (!w_oauth_conf()) al_out(array("ok" => false, "error" => "auth-disabled"));
     $wdb = w_db($AL_DIR);
     app_wallet_acct($wdb, $AL_DIR, $device);   // 계정 보장 — 병합(w_merge)이 no-account 로 늦게 죽지 않게
-    $n = w_nonce_make($wdb, $device);
     $base = "https://" . $_SERVER["HTTP_HOST"] . rtrim(dirname($_SERVER["SCRIPT_NAME"]), "/");
+    // 이미 구글 인증이 끝난 논스가 있으면 새로 시작하지 않는다 — 앱은 구글을 거치지 않고 바로 폴링해
+    // 병합한다(2026-08-28 원장 실측: 반응 없다고 다시 누를 때마다 완료된 논스가 버려지고 있었다).
+    $done = app_nonce_completed($wdb, $device);
+    if ($done) al_out(array("ok" => true, "nonce" => $done["nonce"], "completed" => true,
+                            "authUrl" => $base . "/wallet-auth.php?nonce=" . urlencode($done["nonce"])));
+    $n = w_nonce_make($wdb, $device);
     al_out(array("ok" => true, "nonce" => $n, "authUrl" => $base . "/wallet-auth.php?nonce=" . urlencode($n)));
   }
   if ($op === "auth_poll") {
     $wdb = w_db($AL_DIR);
     $nonce = isset($in["nonce"]) ? (string)$in["nonce"] : "";
     $row = $nonce !== "" ? w_nonce_read($wdb, $nonce) : null;
+    if ($row && $row["device_id"] !== $device) $row = null;   // 남의 논스는 모르는 것과 같다
+    // 들고 온 논스가 아직 대기 중이거나 모르는 것이어도, 이 기기에 '구글 인증이 끝난' 논스가 있으면
+    // 그걸 병합한다 — 클라가 어느 논스를 폴링하든 결과가 같아야 연타·탭 수명에 흔들리지 않는다.
+    if (!$row || $row["google_sub"] === null) {
+      $done = app_nonce_completed($wdb, $device);
+      if ($done) { $row = $done; $nonce = $done["nonce"]; }
+    }
     // 모르는·만료된·남의 논스는 같은 401(wallet-api 와 동일 판단 — 존재 여부를 캐낼 수 없게)
-    if (!$row || $row["device_id"] !== $device) al_out(array("ok" => false, "error" => "unauthorized"), 401);
+    if (!$row) al_out(array("ok" => false, "error" => "unauthorized"), 401);
     if ($row["google_sub"] === null) al_out(array("ok" => true, "pending" => true));
     $m = w_merge($wdb, $device, $row["google_sub"]);
     if (!$m["ok"]) {

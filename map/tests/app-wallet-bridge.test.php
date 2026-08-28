@@ -72,6 +72,25 @@ ok($g === 1 && w_true_balance($w, $acct["id"]) === $bal + 1, "적중 환급 +1 �
 $g = app_wallet_sweep_refunds($w, $al, "dev_bridge_1", $acct["id"]);
 ok($g === 0 && w_true_balance($w, $acct["id"]) === $bal + 1, "환급 재실행 멱등(0)");
 
+// ── 완료·미병합 논스 스위프(2026-08-28) ──
+{
+  $dev = "sweepdev01";
+  $sw = w_db($dir);
+  $n1 = w_nonce_make($sw, $dev);                       // ①발급만
+  ok(app_nonce_completed($sw, $dev) === null, "sweep: 발급만 된 논스는 잡지 않는다");
+  w_nonce_complete($sw, $n1, "sub-sweep-1");           // ②구글 완료
+  $c = app_nonce_completed($sw, $dev);
+  ok($c && $c["nonce"] === $n1, "sweep: 완료·미병합 논스를 잡는다");
+  ok(app_nonce_completed($sw, "otherdev") === null, "sweep: 다른 기기 논스는 안 잡는다");
+  w_nonce_burn($sw, $n1);                              // ③병합·소각
+  ok(app_nonce_completed($sw, $dev) === null, "sweep: 소각된 논스는 잡지 않는다");
+  // 여러 개면 최신 1건
+  $a = w_nonce_make($sw, $dev); w_nonce_complete($sw, $a, "sub-a");
+  $sw->prepare("update auth_nonce set created_at = ? where nonce = ?")->execute(array(gmdate("c", time() - 100), $a));
+  $b = w_nonce_make($sw, $dev); w_nonce_complete($sw, $b, "sub-b");
+  ok(app_nonce_completed($sw, $dev)["nonce"] === $b, "sweep: 여러 개면 최신 1건");
+}
+
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
 exit($FAIL ? 1 : 0);

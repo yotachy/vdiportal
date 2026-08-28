@@ -61,6 +61,18 @@
   // 영영 못 집는다 — 사용자에겐 "You are signed in. Return to the app" 만 보이고 끝난다.
   // 논스 TTL 은 서버가 600초(W_NONCE_TTL_SEC)다 — 같은 창을 클라도 쓴다.
   const PENDING_KEY = "ms_auth_pending", PENDING_TTL_MS = 600000;
+  // 로그인 진단 로그(최근 30건, localStorage) — 간헐 실패를 코드 추측이 아니라 사실로 받기 위해.
+  // 콘솔에서 MS.auth.trace() 로 읽는다. 시크릿·토큰은 절대 넣지 않는다(논스 앞 6자만).
+  const TRACE_KEY = "ms_auth_log";
+  function trace(ev, extra) {
+    try {
+      const arr = JSON.parse(localStorage.getItem(TRACE_KEY) || "[]");
+      arr.push({ t: new Date().toISOString().slice(11, 19), ev: ev, x: extra || null });
+      while (arr.length > 30) arr.shift();
+      localStorage.setItem(TRACE_KEY, JSON.stringify(arr));
+    } catch (e) {}
+  }
+  function readTrace() { try { return JSON.parse(localStorage.getItem(TRACE_KEY) || "[]"); } catch (e) { return []; } }
   function savePending(nonce) {
     try { localStorage.setItem(PENDING_KEY, JSON.stringify({ n: nonce, t: Date.now() })); } catch (e) {}
   }
@@ -77,6 +89,7 @@
   function pollOnce(nonce) {
     return MS.data.api("auth_poll", { nonce: nonce, state: syncState() }).then(function (p) {
       if (p && p.ok && p.pending) return false;
+      trace("poll", { n: String(nonce).slice(0, 6), ok: !!(p && p.ok), linked: !!(p && p.linked), err: (p && (p.error || p.reason)) || null });
       // 종료로 볼 수 있는 답만 종료한다. 서버 오류·네트워크 실패는 **일시적일 수 있으므로 계속 문는다**
       // — 서버는 이 경우 논스를 태우지 않고 물러난다(재시도가 정답). 예산이 다하면 그때 알린다.
       if (!p || (p.ok !== true && p.error !== "unauthorized" && p.error !== "device-claimed")) {
@@ -148,6 +161,12 @@
         return;
       }
       savePending(r.nonce);          // 창을 옮기는 순간 페이지가 죽어도 돌아와서 이어받는다
+      trace("start", { n: String(r.nonce).slice(0, 6), completed: !!r.completed, popup: !!(win && !win.closed) });
+      if (r.completed) {              // 서버에 이미 인증 끝난 논스가 있다 — 구글을 다시 거치지 않는다
+        if (win && !win.closed) { try { win.close(); } catch (e) {} }
+        beginPoll(r.nonce);
+        return;
+      }
       if (win && !win.closed) {
         try { win.location.href = r.authUrl; } catch (e) { win = null; }
       }
@@ -235,5 +254,6 @@
     }
   }
 
-  MS.auth = { start: start, logout: logout, withdraw: withdraw, syncSoon: syncSoon, init: init, stub: isFixture };
+  MS.auth = { start: start, logout: logout, withdraw: withdraw, syncSoon: syncSoon, init: init, stub: isFixture,
+    trace: readTrace };
 })();
