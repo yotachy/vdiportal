@@ -2705,3 +2705,86 @@ test("analyzeTrend: 짧은 이력은 종전과 같은 창(P·P/2)을 그대로 �
   assert.equal(ta.windows.long.m, 428);
   assert.equal(ta.windows.mid.m, 214);
 });
+
+// ── analyzeElliott 검출 창 600봉(2026-08-28) — cycle·trend 와 같은 처방 ──────────
+// 전수 감사 실측: 구조 탐색형 5지표(elliott·structure·volume·fib·pattern)가 전 이력에서
+// detectSwings 를 돌려, 라이브(5,030봉)와 검증 영역(≤600봉)의 bias 가 갈린다.
+// elliott 이 최악 — 9종목 중 6종목에서 부호 반전(최대 Δ0.610).
+test("analyzeElliott: ≤600봉이면 창이 안 걸린다(백테스트 영역 no-op)", () => {
+  const p = [];
+  for (let i = 0; i < 600; i++) p.push(100 * Math.exp(0.001 * i) + 8 * Math.sin(i / 17) + 4 * Math.sin(i / 5));
+  const a = ForgeCore.analyzeElliott(p, { swing: 0.03 });
+  const b = ForgeCore.analyzeElliott(p, { swing: 0.03, win: 1e9 });
+  assert.deepEqual(a, b);
+});
+
+test("analyzeElliott: 600봉 초과면 최근 600봉만 보고, 인덱스는 전체 좌표로 돌아온다", () => {
+  const p = [];
+  for (let i = 0; i < 2000; i++) p.push(100 * Math.exp(0.0008 * i) + 10 * Math.sin(i / 23) + 5 * Math.sin(i / 7));
+  const off = p.length - 600;
+  const full = ForgeCore.analyzeElliott(p, { swing: 0.03 });
+  const win = ForgeCore.analyzeElliott(p.slice(off), { swing: 0.03 });   // 같은 구간을 직접 잘라 계산
+  assert.equal(full.bias, win.bias, "bias 는 창 계산과 같아야 한다");
+  assert.equal(full.waves.length, win.waves.length);
+  full.waves.forEach(function (w, i) {
+    assert.equal(w.idx, win.waves[i].idx + off, "wave idx 가 전체 좌표로 복원돼야 한다");
+    assert.equal(w.price, win.waves[i].price);
+  });
+  if (full.primary && win.primary) {
+    full.primary.waves.forEach(function (w, i) {
+      assert.equal(w.idx, win.primary.waves[i].idx + off);
+    });
+  }
+  // 복원된 인덱스는 전부 실제 배열 범위 안이고, 그 자리의 가격과 맞아야 한다(작도가 이 좌표를 쓴다)
+  full.waves.forEach(function (w) {
+    assert.ok(w.idx >= 0 && w.idx < p.length, "idx 범위 " + w.idx);
+    assert.ok(Math.abs(p[w.idx] - w.price) < 1e-9, "idx 위치의 가격 불일치");
+  });
+});
+
+test("analyzeElliott: win 옵션으로 창을 조정한다(랩 전용)", () => {
+  const p = [];
+  for (let i = 0; i < 1500; i++) p.push(100 + 10 * Math.sin(i / 11) + i * 0.02);
+  const a = ForgeCore.analyzeElliott(p, { swing: 0.03, win: 300 });
+  const b = ForgeCore.analyzeElliott(p.slice(p.length - 300), { swing: 0.03 });
+  assert.equal(a.bias, b.bias);
+});
+
+// ── analyzeStructure 검출 창 600봉(2026-08-28) — 같은 처방 ────────────────────
+// 감사 실측: 9종목 중 3종목 부호 반전(AAPL −0.30→+0.30 등, 최대 Δ0.600).
+test("analyzeStructure: ≤600봉이면 창이 안 걸린다(no-op)", () => {
+  const p = [];
+  for (let i = 0; i < 600; i++) p.push(100 + 10 * Math.sin(i / 19) + i * 0.03);
+  assert.deepEqual(ForgeCore.analyzeStructure(p, { swing: 0.03 }),
+    ForgeCore.analyzeStructure(p, { swing: 0.03, win: 1e9 }));
+});
+
+test("analyzeStructure: 600봉 초과면 최근 600봉 · 스윙 인덱스는 전체 좌표", () => {
+  const p = [];
+  for (let i = 0; i < 2200; i++) p.push(100 + 14 * Math.sin(i / 29) + 6 * Math.sin(i / 8) + i * 0.02);
+  const off = p.length - 600;
+  const full = ForgeCore.analyzeStructure(p, { swing: 0.03 });
+  const win = ForgeCore.analyzeStructure(p.slice(off), { swing: 0.03 });
+  assert.equal(full.bias, win.bias);
+  assert.equal(full.trend, win.trend);
+  assert.equal(full.event, win.event);
+  assert.equal(full.swings.length, win.swings.length);
+  full.swings.forEach(function (s, i) {
+    assert.equal(s.idx, win.swings[i].idx + off);
+    assert.ok(Math.abs(p[s.idx] - s.price) < 1e-9, "idx 위치의 가격 불일치");
+  });
+  if (full.swingHigh) assert.equal(full.swingHigh.idx, win.swingHigh.idx + off);
+  if (full.swingLow) assert.equal(full.swingLow.idx, win.swingLow.idx + off);
+});
+
+test("analyzeStructure: 작도 다중스케일 티어는 전 이력을 그대로 본다(의도된 예외)", () => {
+  // collectStructure 는 대/중/소 티어를 위해 전 이력을 보도록 설계됐다(작도 전용·엔진 bias 불변).
+  const p = [];
+  for (let i = 0; i < 2200; i++) p.push(100 + 14 * Math.sin(i / 29) + 6 * Math.sin(i / 8) + i * 0.02);
+  const d = ForgeCore.analyzeStructure(p, { swing: 0.03, draw: true });
+  assert.ok(d.tiers, "tiers 가 있어야 한다");
+  const all = [];
+  d.tiers.forEach(function (t) { (t.swings || []).forEach(function (s) { all.push(s); }); });
+  assert.ok(all.length > 0, "티어 스윙이 있어야 한다");
+  assert.ok(all.some(function (s) { return s.idx < p.length - 600; }), "창 밖 구조도 작도에는 남아야 한다");
+});
