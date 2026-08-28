@@ -55,6 +55,53 @@
 
   function stopPoll() { if (polling) { clearInterval(polling); polling = null; } }
 
+  // ── 대기 중인 논스를 영속화한다(2026-08-28 버그 수정) ──────────────────────────
+  // 왜: 논스가 setInterval 클로저에만 있어서, 구글 탭에 가 있는 동안 앱 페이지가 새로고침되거나
+  // (모바일에선 흔히) 폐기되면 폴링이 통째로 사라졌다. 서버엔 로그인이 완료돼 있는데 앱은
+  // 영영 못 집는다 — 사용자에겐 "You are signed in. Return to the app" 만 보이고 끝난다.
+  // 논스 TTL 은 서버가 600초(W_NONCE_TTL_SEC)다 — 같은 창을 클라도 쓴다.
+  const PENDING_KEY = "ms_auth_pending", PENDING_TTL_MS = 600000;
+  function savePending(nonce) {
+    try { localStorage.setItem(PENDING_KEY, JSON.stringify({ n: nonce, t: Date.now() })); } catch (e) {}
+  }
+  function clearPending() { try { localStorage.removeItem(PENDING_KEY); } catch (e) {} }
+  function readPending() {
+    let v = null;
+    try { v = JSON.parse(localStorage.getItem(PENDING_KEY) || "null"); } catch (e) { v = null; }
+    if (!v || !v.n || !v.t || (Date.now() - v.t) > PENDING_TTL_MS) { clearPending(); return null; }
+    return v.n;
+  }
+
+  // 폴 1회. 끝났으면 true 를 반환해 루프를 멈춘다.
+  function pollOnce(nonce) {
+    return MS.data.api("auth_poll", { nonce: nonce, state: syncState() }).then(function (p) {
+      if (p && p.ok && p.pending) return false;
+      stopPoll(); clearPending(); busy = false;
+      if (p && p.ok && p.linked) {
+        finishLink(p.nick, p.state, p.wallet ? p.wallet.balance : null);
+      } else {
+        MS.store.set({ gBusy: 0 });
+        MS.ui.flash(p && p.error === "device-claimed"
+          ? "이 기기는 이미 다른 구글 계정과 연결돼 있어요" : "로그인이 완료되지 않았어요 — 다시 시도해 주세요", "");
+      }
+      return true;
+    }).catch(function () { return false; });
+  }
+
+  function beginPoll(nonce) {
+    savePending(nonce);
+    busy = true;
+    MS.store.set({ gBusy: 1 });
+    let tries = 0;
+    stopPoll();
+    polling = setInterval(function () {
+      tries++;
+      if (tries > 120) { stopPoll(); clearPending(); busy = false; MS.store.set({ gBusy: 0 }); return; }
+      pollOnce(nonce);
+    }, 2500);
+    pollOnce(nonce);   // 즉시 1회 — 돌아왔을 때 2.5초를 더 기다리지 않는다
+  }
+
   function start() {
     const s = MS.store.get();
     if (s.gLinked || busy) return;
@@ -73,25 +120,9 @@
         MS.ui.flash(r && r.error === "auth-disabled" ? "로그인은 준비 중이에요 — 곧 열려요" : "연결을 시작하지 못했어요", "");
         return;
       }
+      savePending(r.nonce);          // 창을 옮기는 순간 페이지가 죽어도 돌아와서 이어받는다
       window.open(r.authUrl, "_blank");
-      let tries = 0;
-      stopPoll();
-      polling = setInterval(function () {
-        tries++;
-        if (tries > 120) { stopPoll(); busy = false; MS.store.set({ gBusy: 0 }); return; }
-        MS.data.api("auth_poll", { nonce: r.nonce, state: syncState() }).then(function (p) {
-          if (p && p.ok && p.pending) return;
-          stopPoll();
-          busy = false;
-          if (p && p.ok && p.linked) {
-            finishLink(p.nick, p.state, p.wallet ? p.wallet.balance : null);
-          } else {
-            MS.store.set({ gBusy: 0 });
-            MS.ui.flash(p && p.error === "device-claimed"
-              ? "이 기기는 이미 다른 구글 계정과 연결돼 있어요" : "로그인이 완료되지 않았어요 — 다시 시도해 주세요", "");
-          }
-        }).catch(function () {});
-      }, 2500);
+      beginPoll(r.nonce);
     }).catch(function () {
       busy = false;
       MS.store.set({ gBusy: 0 });
@@ -100,7 +131,7 @@
   }
 
   function logout() {
-    stopPoll();
+    stopPoll(); clearPending();
     MS.store.set({ gLinked: 0, nick: null, gBusy: 0 });
     MS.ui.flash("로그아웃했어요. 기록은 이 기기에만 남습니다", "");
   }
@@ -137,6 +168,21 @@
         if (keys.indexOf(SYNC_KEYS[i]) >= 0) { syncSoon(); return; }
       }
     });
+    // 로그인 도중 페이지가 다시 뜬 경우 — 저장해 둔 논스로 폴링을 이어받는다.
+    // (이게 없으면 구글이 "You are signed in" 을 띄운 뒤 앱은 영영 링크되지 않는다.)
+    if (!isFixture && !MS.store.get().gLinked) {
+      const pend = readPending();
+      if (pend) beginPoll(pend);
+    }
+    // 모바일은 백그라운드 탭의 타이머를 강하게 조인다(분 단위) — 돌아온 순간 한 번 즉시 확인한다.
+    if (typeof document !== "undefined" && document.addEventListener) {
+      document.addEventListener("visibilitychange", function () {
+        if (document.visibilityState !== "visible") return;
+        const n = readPending();
+        if (!n || MS.store.get().gLinked) return;
+        if (!polling) beginPoll(n); else pollOnce(n);
+      });
+    }
     // 부팅 시 연결 기기는 pull 로 다른 기기 진행분을 받는다(push 는 변경 훅이 처리)
     if (MS.store.get().gLinked && !isFixture) {
       MS.data.api("sync_pull", {}).then(function (r) {
