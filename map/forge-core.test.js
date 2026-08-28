@@ -2825,3 +2825,46 @@ test("analyzeFib: 기본 창은 600(검증 영역)", () => {
   const w600 = ForgeCore.analyzeFib(p, { len: 120, swing: 0.05, win: 600 });
   assert.deepEqual(def, w600);
 });
+
+// ── 다중스케일 작도 순수 함수(2026-08-28) — 작도 전용, run() 미호출 ──────────────
+test("scaleSet: 이력 길이에 따라 3단·2단·1단으로 축약", () => {
+  assert.deepEqual(ForgeCore.scaleSet(5030), [120, 600, Infinity]);
+  assert.deepEqual(ForgeCore.scaleSet(901), [120, 600, Infinity]);
+  assert.deepEqual(ForgeCore.scaleSet(900), [120, Infinity]);
+  assert.deepEqual(ForgeCore.scaleSet(429), [120, Infinity]);
+  assert.deepEqual(ForgeCore.scaleSet(241), [120, Infinity]);
+  assert.deepEqual(ForgeCore.scaleSet(240), [Infinity]);
+  assert.deepEqual(ForgeCore.scaleSet(50), [Infinity]);
+});
+
+test("scaleConfluence: 2개 이상 모이면 합류, 값 1개·먼 값은 아님", () => {
+  const r = ForgeCore.scaleConfluence([100.00, 100.05, 110.00]);
+  assert.equal(r.groups.length, 1);
+  assert.deepEqual(r.groups[0].idx, [0, 1]);
+  assert.equal(r.groups[0].n, 2);
+  assert.ok(Math.abs(r.groups[0].price - 100.025) < 1e-9);
+
+  assert.equal(ForgeCore.scaleConfluence([100, 110, 120]).groups.length, 0);
+  assert.equal(ForgeCore.scaleConfluence([100]).groups.length, 0);
+  assert.equal(ForgeCore.scaleConfluence([100, null, 100.01]).groups.length, 1);
+});
+
+test("scaleConfluence: 셋 다 모이면 한 그룹에 3개", () => {
+  const r = ForgeCore.scaleConfluence([200.0, 200.1, 200.2]);
+  assert.equal(r.groups.length, 1);
+  assert.equal(r.groups[0].n, 3);
+});
+
+test("scaleVerdictText: 표에 있는 조합만 문구, 없으면 나열", () => {
+  assert.equal(ForgeCore.scaleVerdictText([1, 1, 1]), "세 시간틀 모두 상승");
+  assert.equal(ForgeCore.scaleVerdictText([-1, -1, -1]), "세 시간틀 모두 하락");
+  assert.equal(ForgeCore.scaleVerdictText([-1, 1, 1]), "장기 상승 속 단기 하락 — 되돌림 구간");
+  assert.equal(ForgeCore.scaleVerdictText([1, -1, -1]), "장기 하락 속 단기 상승 — 되돌림 구간");
+  assert.equal(ForgeCore.scaleVerdictText([1, 1, -1]), "장기 추세와 어긋나는 최근 상승");
+  assert.equal(ForgeCore.scaleVerdictText([-1, -1, 1]), "장기 추세와 어긋나는 최근 하락");
+  assert.equal(ForgeCore.scaleVerdictText([1, -1, 1]), "좁게 ▲ · 판정 ▼ · 넓게 ▲");
+  assert.equal(ForgeCore.scaleVerdictText([0, 1, 1]), "좁게 — · 판정 ▲ · 넓게 ▲");
+  assert.equal(ForgeCore.scaleVerdictText([1, -1]), "좁게 ▲ · 넓게 ▼");
+  assert.equal(ForgeCore.scaleVerdictText([1, 1]), "두 시간틀 모두 상승");
+  assert.equal(ForgeCore.scaleVerdictText([1]), "");
+});
