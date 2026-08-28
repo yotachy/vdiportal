@@ -1314,6 +1314,16 @@
     return null;
   }
   let _labelMode = "key";        // 기본 "key"=중요 라벨만(차트 정돈) / "all"=전체(토글)
+  // 다중스케일 작도 시연(2026-08-28) — null 이면 종전 동작(단일 스케일).
+  // { i:단계, wins:[120,600,Infinity], all:겹침 } 을 forge-embed 가 단계마다 설정한다.
+  // 설계: docs/superpowers/specs/2026-08-28-multiscale-drawing-demo-design.md
+  let _scaleStage = null;
+  function setScaleStage(s) { _scaleStage = (s && s.wins && s.wins.length) ? s : null; }
+  function _scaleWinOpt(w) { return w === Infinity ? 1e9 : w; }   // Infinity → analyze* 의 win 값
+  function _scaleLabelOf(wins, i) {
+    if (!wins || i < 0) return "";
+    return (wins.length >= 3 ? ["좁게", "판정", "넓게"][i] : ["좁게", "넓게"][i]) || "";
+  }
   const _KEYLBL = /목표|반대|지지|저항|골든포켓|장기|중기|단기/;   // 중요 라벨 판별(목표·S/R·반대·주요 추세선)
   document.addEventListener("click", function (e) {   // 중앙 보드 패널 접기/펼치기(헤더 클릭)
     const ph = e.target.closest && e.target.closest(".board-pane .fc-phead"); if (!ph) return;
@@ -2049,7 +2059,11 @@
 
   function _drawTrendLayers(c, ta, M) {
     c.save();
-    const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0, top, bot, loV, hiV, lastP } = M;
+    const { fiToX, pToY, nowFi, xNow, xRight, futBars, fiMin = 0, top, bot, loV, hiV, lastP,
+      scaleIdx = -1, scaleWins = null, scaleAll = false, scaleConf = null, scaleSigns = null } = M;
+    // 겹침 단계: 넓은 스케일이 마지막이라 그것만 선명하고 앞 스케일은 흐리게(기존 강조/디밍 위계)
+    const _scAlpha = (scaleAll && scaleWins && scaleWins.length > 1)
+      ? (scaleIdx === scaleWins.length - 1 ? 1 : 0.42) : 1;
     // 플롯 밖으로 새지 않게(Gann 과 동형) — 전 이력 회귀선은 밴드 밖 수 배 지점을 지날 수 있다
     if (top != null && bot != null) { c.beginPath(); c.rect(0, top, xRight + 44, bot - top); c.clip(); }
     const COL = { long: "#46c28e", mid: "#5b8def", short: FC_GOLD };
@@ -2084,7 +2098,7 @@
       const lw = weak ? CW.hair : emph ? CW.bold : CW.base;
       c.setLineDash([]);
       if (!weak && emph) { c.strokeStyle = "rgba(11,15,20,.8)"; c.lineWidth = lw + CW.halo; pstroke(hp); }   // 지배창만 헤일로
-      c.globalAlpha = weak ? 0.28 : emph ? 1 : 0.5;   // 지배창 강조·나머지 디밍
+      c.globalAlpha = (weak ? 0.28 : emph ? 1 : 0.5) * _scAlpha;   // 지배창 강조·나머지 디밍 · 스케일 위계
       c.strokeStyle = dcol; c.lineWidth = lw; c.setLineDash(weak ? CDASH.fine : DASH[key]); pstroke(hp);
       c.globalAlpha = 1;
       // 투영(현재→미래): 신뢰도 낮으면 생략. 손그림 중엔 본선 다 그려진 뒤 등장.
@@ -2103,9 +2117,34 @@
       const pct = (Math.exp(w.slopeLog) - 1) * 100, dir = weak ? "· 약함" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—";
       // 기본=축약(단기 ▲ — 뭉침 방지), '전체 라벨 표시'(_labelMode==='all') 켜면 상세(%/봉·R²)
       const _full = (typeof _labelMode !== "undefined" && _labelMode === "all") && ((typeof window === "undefined") || window.innerWidth >= 560);
-      const lab = (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_full ? w.m + "봉 " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir : (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—"));
+      // 다중스케일 단계에서는 '어느 스케일인가'가 먼저다. 판정 근거 배지는 중간(600봉)에만 — 정직 표기.
+      const _scName = (scaleIdx < 0 || !scaleWins) ? "" : _scaleLabelOf(scaleWins, scaleIdx) + " ";
+      const _scTag = (scaleIdx < 0 || !scaleWins) ? ""
+        : (scaleWins[scaleIdx] === 600 ? " · 판정 근거" : " · 맥락 · 판정 미반영");
+      const lab = _scName + (key === "long" ? "장기" : key === "mid" ? "중기" : "단기") + " " + (_full ? w.m + "봉 " + (pct >= 0 ? "+" : "") + pct.toFixed(2) + "%/봉 R²" + rq.toFixed(2) + " " + dir : (weak ? "·약" : pct > 0.05 ? "▲" : pct < -0.05 ? "▼" : "—")) + _scTag;
       _evLabel(c, lab, Math.min(xb, xRight - 4) + 3, yb - 4, weak ? "rgba(138,146,178,.92)" : dcol, "left");
       if (M.focused && !weak && emph) { const endV = valAt(nowFi + futBars); if (isFinite(endV)) _evLabel(c, "\ucd94\uc138 \ub3c4\ub2ec \u2248 " + _hzFmt(endV), xRight, pToY(endV), dcol, "right"); }   // 추세 도달 ≈
+      // 합류 = 2개 이상 스케일의 '현재 선 값'이 tol 안에 모인 자리. 링 마커로 최강 강조.
+      if (scaleAll && scaleConf && scaleConf.groups.length && key === "long") {
+        scaleConf.groups.forEach(function (grp) {
+          if (grp.idx.indexOf(scaleIdx) < 0) return;
+          const cy = pToY(grp.price);
+          if (!isFinite(cy)) return;
+          c.save();
+          c.globalAlpha = 0.9; c.strokeStyle = dcol; c.lineWidth = CW.base; c.setLineDash([]);
+          c.beginPath(); c.arc(xb, cy, 6.5, 0, Math.PI * 2); c.stroke();
+          c.globalAlpha = 0.25; c.beginPath(); c.arc(xb, cy, 10.5, 0, Math.PI * 2); c.stroke();
+          c.restore();
+          _evLabel(c, "합류 ×" + grp.n, xb + 13, cy - 2, dcol, "left", true);
+        });
+      }
+    }
+    // 겹침 단계 요약 — 세 스케일의 부호를 그대로 적는다(해석은 표에 있는 조합만).
+    // 마지막(넓게) 스케일이 그릴 때 한 번만 — 스케일마다 찍으면 세 번 겹친다.
+    if (scaleAll && scaleWins && scaleWins.length > 1 && scaleSigns && _skReady()
+        && scaleIdx === scaleWins.length - 1) {
+      const _vt = ForgeCore.scaleVerdictText(scaleSigns);
+      if (_vt) _evLabel(c, _vt, (fiToX(fiMin) || 0) + 8, (top != null ? top + 14 : 14), FC_ETH, "left", true);
     }
     // 채널(장기 ±k·σ) — 로그차트면 로그공간(지수) 중심±σ, 다점 샘플로 곡선 정합
     if (ta.channel) {
@@ -2206,7 +2245,10 @@
   // 피보 작도(차트·오버레이 공용, reveal 인지). M=좌표 매퍼.
   function _drawFibLayers(c, fib, M) {
     c.save();
-    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight, top, bot } = M;
+    const { fiToX, pToY, nowFi, fiMin = 0, reveal = Infinity, xRight, top, bot,
+      scaleIdx = -1, scaleWins = null, scaleAll = false } = M;
+    // 겹침 단계: 넓은 스케일(마지막)만 선명, 앞 스케일은 흐리게 — 추세선과 같은 위계
+    if (scaleAll && scaleWins && scaleWins.length > 1 && scaleIdx !== scaleWins.length - 1) c.globalAlpha *= 0.42;
     const xL = fiToX(Math.max(fiMin, 0)), xR = (xRight != null ? xRight : fiToX(nowFi)), GOLD = FC_GOLD, DIM = FC_GOLD;
     const _near = (a, arr) => arr.some(k => Math.abs(a - k) < 0.002);
     const KEYR = [0.382, 0.5, 0.618], KEYE = [1.618, 2.618];   // 되돌림·확장 핵심(골든 포켓)
@@ -3112,18 +3154,43 @@
           legend.push({ col, t: EV_LABEL.ma + "(다중)", _key: n.blockType });
         } else if (n.blockType === "trend") {
           const _prof = ForgeCore.trendProfileForTF(activeTF());
-          const ta = _an("Trend", price, { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights });
+          const _tOpt = { shortLen: Math.max(8, Math.round(((n.params && n.params.len) || 40) * (_prof.shortScale || 1))), pivotSwing: (n.params && n.params.pivotSwing != null ? n.params.pivotSwing / 100 : 0.08), channelK: (n.params && n.params.channelK) || 2, weights: _prof.weights };
           const futBars = (g.path && g.path.length) || 24;
-          if (_drawThis) _drawTrendLayers(cc, ta, {
-            fiToX,
-            pToY: v => toY(v),
-            nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS, focused: (_focus === "trend"),
-            top: g.padTop, bot: g.ch - g.padBot, loV: g.loV, hiV: g.hiV, lastP: price[P - 1]
+          const _tBase = { fiToX, pToY: v => toY(v), nowFi: P - 1, xNow: g.seamX, xRight: g.padX + g.plotW, futBars, fiMin: wS,
+            focused: (_focus === "trend"), top: g.padTop, bot: g.ch - g.padBot, loV: g.loV, hiV: g.hiV, lastP: price[P - 1] };
+          // 겹침 단계: 세 스케일의 '현재 시점 선 값'으로 합류와 부호를 먼저 구한다
+          let _tConf = null, _tSigns = null;
+          if (_scaleStage && _scaleStage.all) {
+            const _vals = [], _sgs = [];
+            _scaleStage.wins.forEach(function (w) {
+              const r = _an("Trend", price, Object.assign({}, _tOpt, { win: _scaleWinOpt(w) }));
+              const L = r.windows && r.windows.long;
+              _vals.push(L ? Math.exp(L.bLog + L.slopeLog * ((P - 1) - L.startIdx)) : null);
+              const _pctS = L ? (Math.exp(L.slopeLog) - 1) * 100 : 0;
+              _sgs.push(_pctS > 0.05 ? 1 : _pctS < -0.05 ? -1 : 0);
+            });
+            _tConf = ForgeCore.scaleConfluence(_vals); _tSigns = _sgs;
+          }
+          const _tWins = _scaleStage ? (_scaleStage.all ? _scaleStage.wins : [_scaleStage.wins[_scaleStage.i]]) : [null];
+          _tWins.forEach(function (w, k) {
+            const r = _an("Trend", price, w == null ? _tOpt : Object.assign({}, _tOpt, { win: _scaleWinOpt(w) }));
+            if (!_drawThis) return;
+            const gi = _scaleStage ? (_scaleStage.all ? k : _scaleStage.i) : -1;
+            _drawTrendLayers(cc, r, Object.assign({}, _tBase, { scaleIdx: gi, scaleWins: _scaleStage ? _scaleStage.wins : null,
+              scaleAll: !!(_scaleStage && _scaleStage.all), scaleConf: _tConf, scaleSigns: _tSigns }));
           });
           legend.push({ col, t: EV_LABEL.trend + (_prof.label ? " \xb7 " + _prof.label : ""), _key: n.blockType });
         } else if (n.blockType === "fib") {
-          const fib = _an("Fib", price, { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 });
-          if (_drawThis) _drawFibLayers(cc, fib, { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot });
+          const _fOpt = { len: (n.params && n.params.len) || 120, swing: ((n.params && n.params.swing) != null ? n.params.swing : 5) / 100 };
+          const _fBase = { fiToX, pToY: v => toY(v), nowFi: P - 1, fiMin: wS, reveal: _playing ? (_evReveal[n.id] || 0) : Infinity, xRight: g.padX + g.plotW, top: g.padTop, bot: g.ch - g.padBot };
+          const _fWins = _scaleStage ? (_scaleStage.all ? _scaleStage.wins : [_scaleStage.wins[_scaleStage.i]]) : [null];
+          _fWins.forEach(function (w, k) {
+            const fib = _an("Fib", price, w == null ? _fOpt : Object.assign({}, _fOpt, { win: _scaleWinOpt(w) }));
+            if (!_drawThis) return;
+            const gi = _scaleStage ? (_scaleStage.all ? k : _scaleStage.i) : -1;
+            _drawFibLayers(cc, fib, Object.assign({}, _fBase, { scaleIdx: gi, scaleWins: _scaleStage ? _scaleStage.wins : null,
+              scaleAll: !!(_scaleStage && _scaleStage.all) }));
+          });
           legend.push({ col, t: EV_LABEL.fib + "(전문)", _key: n.blockType });
         } else if (n.blockType === "elliott") {
           const ea = _an("Elliott", price, { swing: ((n.params && n.params.swing) != null ? n.params.swing : 3) / 100 });

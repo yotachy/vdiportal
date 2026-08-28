@@ -1194,28 +1194,38 @@
   function analyzeFib(price, opts) {
     opts = opts || {};
     const len = opts.len || 120, swing = opts.swing != null ? opts.swing : 0.05, srPct = opts.srPct != null ? opts.srPct : 0.01;
-    const P = price.length;
+    const Pfull = price.length;
     const EMPTY = { dir: null, swing: null, levels: [], zone: { nearest: null, inGolden: false, lower: null, upper: null, goldenLo: null, goldenHi: null }, bias: 0, degrees: [] };
-    if (P < 2) return EMPTY;
+    if (Pfull < 2) return EMPTY;
+    // 검증 영역 정합 + 다중스케일 작도(2026-08-28 · cycle·trend·elliott·structure 600봉 창과 동형).
+    // 스윙 탐색을 최근 FIB_WIN 봉으로 씌운다. ≤FIB_WIN 이면 off=0 → 기존과 완전히 동일(no-op).
+    // 반환 인덱스는 전체 배열 좌표로 되돌린다 — 작도가 그 좌표로 스윙선을 긋는다.
+    const FIB_WIN = opts.win || 600;
+    const off = Pfull > FIB_WIN ? Pfull - FIB_WIN : 0;
+    const wp = off > 0 ? price.slice(off) : price;
+    const P = wp.length;
     // 단기: 최근 피벗 스윙(없으면 len 창 폴백)
-    const sw = detectSwings(price, swing);
+    const sw = detectSwings(wp, swing);
     let shortSw;
     if (sw.length >= 2) { const a = sw[sw.length - 2], b = sw[sw.length - 1]; shortSw = { fromIdx: a.idx, fromPrice: a.price, toIdx: b.idx, toPrice: b.price, dir: b.price >= a.price ? "up" : "down" }; }
-    else shortSw = _domSwing(price, Math.max(0, P - len)) || _domSwing(price, 0);
+    else shortSw = _domSwing(wp, Math.max(0, P - len)) || _domSwing(wp, 0);
     if (!shortSw) return EMPTY;
-    const shortDeg = _fibDegree(price, shortSw, len, srPct); shortDeg.name = "단기";
+    const shortDeg = _fibDegree(wp, shortSw, len, srPct); shortDeg.name = "단기";
     const degrees = [shortDeg];
     const dup = (deg, s) => deg.swing.fromIdx === s.fromIdx && deg.swing.toIdx === s.toIdx;
     // 중기: 최근 len(기본 120)봉 지배 스윙 — 시계열이 len보다 길 때만(짧으면 장기와 동일 스윙이라 오라벨 방지)
-    const midSw = (P > len) ? _domSwing(price, P - len) : null;
-    if (midSw && !dup(shortDeg, midSw)) { const m = _fibDegree(price, midSw, len, srPct); m.name = "중기"; degrees.push(m); }
-    // 장기: 전체 시계열 지배 스윙
-    const longSw = _domSwing(price, 0);
-    if (longSw && !degrees.some(d => dup(d, longSw))) { const l = _fibDegree(price, longSw, len, srPct); l.name = "장기"; degrees.push(l); }
+    const midSw = (P > len) ? _domSwing(wp, P - len) : null;
+    if (midSw && !dup(shortDeg, midSw)) { const m = _fibDegree(wp, midSw, len, srPct); m.name = "중기"; degrees.push(m); }
+    // 장기: (창 안의) 전체 시계열 지배 스윙
+    const longSw = _domSwing(wp, 0);
+    if (longSw && !degrees.some(d => dup(d, longSw))) { const l = _fibDegree(wp, longSw, len, srPct); l.name = "장기"; degrees.push(l); }
     // bias 블렌드(존재 degree만 가중 재정규화: 단.5/중.3/장.2)
     const W = { "단기": 0.5, "중기": 0.3, "장기": 0.2 };
     let bw = 0, bs = 0; for (const d of degrees) { bw += W[d.name]; bs += W[d.name] * d.bias; }
     const bias = bw ? Math.max(-1, Math.min(1, bs / bw)) : shortDeg.bias;
+    if (off > 0) {   // 창 좌표 → 전체 배열 좌표(작도 정합). shortDeg.swing 은 degrees[0].swing 과 같은 객체다.
+      degrees.forEach(function (d) { if (d && d.swing) { d.swing.fromIdx += off; d.swing.toIdx += off; } });
+    }
     return { dir: shortDeg.dir, swing: shortDeg.swing, levels: shortDeg.levels, zone: shortDeg.zone, bias: bias, degrees: degrees };
   }
 
@@ -1366,6 +1376,77 @@
     out.onScreen = inBand > 0;
     out.gapNowPct = (isFinite(now) && isFinite(last) && last > 0) ? (now / last - 1) * 100 : 0;
     return out;
+  }
+
+  // ── 다중스케일 작도 전용(2026-08-28) — run() 은 이 셋을 부르지 않는다 ─────────────
+  // 설계: docs/superpowers/specs/2026-08-28-multiscale-drawing-demo-design.md
+  // 좁게(최근)만 그리고 끝내면 "그게 다"처럼 보인다. 실측상 같은 지표가 시간틀에 따라
+  // 반대를 가리킨다(TSLA 120봉 −0.109%/봉 vs 600봉 +0.132%) — 그 충돌이 곧 정보다.
+
+  const SCALE_NARROW = 120, SCALE_MID = 600;   // 중간=엔진 판정 창(백테스트 LOOKBACK 600)
+
+  // 이력 길이에 맞는 스케일 목록. 같은 선을 두 번 그리지 않도록 접는다.
+  //   P > 900        → 3단  (전량이 중간창의 1.5배는 돼야 다른 선이 나온다)
+  //   240 < P ≤ 900  → 2단  (600 과 전량이 사실상 같다)
+  //   P ≤ 240        → 1단  (좁게가 별개 스케일이 못 된다 — 240 = 120×2)
+  function scaleSet(P) {
+    const n = (typeof P === "number" && isFinite(P)) ? P : 0;
+    if (n > SCALE_MID * 1.5) return [SCALE_NARROW, SCALE_MID, Infinity];
+    if (n > SCALE_NARROW * 2) return [SCALE_NARROW, Infinity];
+    return [Infinity];
+  }
+
+  // 스케일 간 합류 — forge-draw 의 교차-degree 규약과 같은 tol(가격 범위 × 1.2%).
+  // 2개 이상 스케일이 같은 가격대를 가리키면 그 자리가 최강이다.
+  function scaleConfluence(values) {
+    const pts = [];
+    (values || []).forEach(function (v, i) { if (typeof v === "number" && isFinite(v)) pts.push({ v: v, i: i }); });
+    const out = { groups: [], tol: 0 };
+    if (pts.length < 2) return out;
+    // tol 은 '가격 수준'의 1.2% 다. 설계서엔 fib 교차-degree 규약대로 '비교값의 범위 × 1.2%' 로
+    // 적었는데, 그 규약은 레벨이 여러 개 흩어진 경우를 전제한다. 스케일 값은 2~3개뿐이라
+    // 범위 기준을 쓰면 순환이 된다 — 값들이 가까울수록 tol 이 같이 작아져 영원히 합류가 안 난다
+    // (실측: [100, 100.01] → 범위 0.01 → tol 0.00012 → 0.01 이 tol 밖). 가격 수준으로 고정한다.
+    let sumAll = 0;
+    pts.forEach(function (q) { sumAll += q.v; });
+    const tol = Math.abs(sumAll / pts.length) * 0.012 || 1e-9;
+    out.tol = tol;
+    const used = {};
+    for (let a = 0; a < pts.length; a++) {
+      if (used[a]) continue;
+      const idx = [pts[a].i]; let sum = pts[a].v, cnt = 1;
+      for (let b = a + 1; b < pts.length; b++) {
+        if (used[b]) continue;
+        if (Math.abs(pts[b].v - pts[a].v) <= tol) { used[b] = 1; idx.push(pts[b].i); sum += pts[b].v; cnt++; }
+      }
+      if (cnt >= 2) { used[a] = 1; out.groups.push({ price: sum / cnt, n: cnt, idx: idx }); }
+    }
+    return out;
+  }
+
+  // 방향 충돌 요약 — 부호 조합에서 기계적으로. 표에 없는 조합은 나열로 끝낸다(해석을 지어내지 않는다).
+  const _SCALE_LBL3 = ["좁게", "판정", "넓게"], _SCALE_LBL2 = ["좁게", "넓게"];
+  function scaleVerdictText(signs) {
+    const s = (signs || []).map(function (x) { return x > 0 ? 1 : x < 0 ? -1 : 0; });
+    if (s.length < 2) return "";
+    const lbl = s.length >= 3 ? _SCALE_LBL3 : _SCALE_LBL2;
+    const arrow = function (v) { return v > 0 ? "▲" : v < 0 ? "▼" : "—"; };
+    const listed = s.map(function (v, i) { return lbl[i] + " " + arrow(v); }).join(" · ");
+    if (s.indexOf(0) >= 0) return listed;                     // 중립이 끼면 해석 없음
+    const allSame = s.every(function (v) { return v === s[0]; });
+    if (allSame) return (s.length >= 3 ? "세" : "두") + " 시간틀 모두 " + (s[0] > 0 ? "상승" : "하락");
+    // 아래 해석 둘은 3단에서만 쓴다 — 2단이 어긋나면 1 대 1 이라 '장기 추세 속 되돌림'을
+    // 주장할 근거가 없다(3단은 두 스케일이 한쪽으로 모여야 성립한다). 2단 불일치는 나열로 끝낸다.
+    if (s.length < 3) return listed;
+    const wide = s[s.length - 1], narrow = s[0], rest = s.slice(1);
+    if (rest.every(function (v) { return v === wide; }) && narrow !== wide) {
+      return "장기 " + (wide > 0 ? "상승" : "하락") + " 속 단기 " + (narrow > 0 ? "상승" : "하락") + " — 되돌림 구간";
+    }
+    const head = s.slice(0, s.length - 1);
+    if (head.every(function (v) { return v === narrow; }) && wide !== narrow) {
+      return "장기 추세와 어긋나는 최근 " + (narrow > 0 ? "상승" : "하락");
+    }
+    return listed;
   }
 
   function trendProfileForTF(tf) {
@@ -2883,5 +2964,5 @@
     });
   }
 
-  return { version, indicatorCount, indicatorRegistry, indicatorTiers, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, trendScreenFit, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
+  return { version, indicatorCount, indicatorRegistry, indicatorTiers, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, trendScreenFit, scaleSet, scaleConfluence, scaleVerdictText, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });
