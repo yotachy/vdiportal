@@ -135,7 +135,14 @@
     var lo = pr.lo, hi = pr.hi;
     if (reg.pl != null) { lo = Math.min(lo, reg.pl); hi = Math.max(hi, reg.ph); }   // 도형(피보 확장 등)이 화면 안에 들어오게 합집합
     var ylo = null, yhi = null;
-    if (isFinite(lo) && isFinite(hi) && hi > lo) { var pad = 0.10 * (hi - lo); ylo = lo - pad; yhi = hi + pad; }
+    if (isFinite(lo) && isFinite(hi) && hi > lo) {
+      // 패딩을 선형으로만 주면 광범위 창에서 **음수 가격**이 나온다(NVDA 12년: lo 0.5 · hi 240 →
+      // pad 24 → ylo −23.5). 로그축에서 음수는 매핑이 깨져 캔들이 상단에 눌린다 — 340봉 상한이
+      // 그동안 이걸 가려왔고, 상한을 풀자 드러났다(2026-08-28 실측 _yScale.lo = −3.57).
+      if (lo > 0 && hi / lo > 4) { var f = Math.pow(hi / lo, 0.04); ylo = lo / f; yhi = hi * f; }
+      else { var pad = 0.10 * (hi - lo); ylo = lo - pad; yhi = hi + pad; }
+      if (!(ylo > 0) && lo > 0) ylo = lo * 0.9;   // 가격은 음수가 될 수 없다
+    }
     return { count: count, start: start, ylo: ylo, yhi: yhi };
   }
 
