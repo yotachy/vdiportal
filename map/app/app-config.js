@@ -25,8 +25,8 @@
     analysis: {
       ttlMs: 86400000,           // 결과 수명 24h
       warnMs: 10800000,          // 곧 만료 경고 잔여 3h
-      basicCount: 5,             // 기본 지표 수
-      fullCount: 32,             // 심화·커스텀 지표 수(엔진 indicatorCount 와 동기)
+      // (fullCount 제거 2026-08-28 — 소비처 0인 죽은 상수였고, 엔진이 늘면 거짓말이 된다.
+      //  지표 수가 필요한 화면은 전부 MS.engine.indicatorCount() 라이브 파생을 쓴다.)
       concurrent: 1,             // 동시 실행 1건
       reanalysisFreeTiers: ["deep", "custom"]  // 24h 내 재분석 무차감 — Q3: 심화·커스텀 대칭
     },

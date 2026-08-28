@@ -5,7 +5,6 @@
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
   const version = "1.11.2";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
-  const indicatorCount = 32;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
   // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
   // ledger = 라이브 트랙레코드 메타(단일 출처 — 라이브 UI는 이 레지스트리로 자동 확장, 새 축 추가 시 하드코딩 금지):
   //   key=predledger 집계 필드 · mode="rate"(적중률) | "calib"(예측평균 vs 실제발생률) · note=채점 주석.
@@ -2871,5 +2870,16 @@
     { id: "pattern", label: "차트 패턴", tier: 4, group: "s", input: "data", analyze: analyzePattern }
   ];
 
-  return { version, indicatorCount, indicatorRegistry, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, trendScreenFit, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
+  // 지표 종수는 레지스트리에서 파생한다 — 상수로 두면 지표를 추가할 때 두 곳이 갈린다(2026-08-28).
+  const indicatorCount = indicatorRegistry.length;
+  // 등급표(lv → 이름·지표 id)도 레지스트리 파생 — PC 레일·백테스트 사본이 이걸 쓰면 사본이 사라진다.
+  const TIER_NAMES = { 1: "핵심 지표", 2: "주요 지표", 3: "보조·전문", 4: "고급·심화" };
+  function indicatorTiers() {
+    return [1, 2, 3, 4].map(function (lv) {
+      return { lv: lv, name: TIER_NAMES[lv],
+        types: indicatorRegistry.filter(function (e) { return e.tier === lv; }).map(function (e) { return e.id; }) };
+    });
+  }
+
+  return { version, indicatorCount, indicatorRegistry, indicatorTiers, validatedAxes, calibrateUpProb, upProb, aggUpProb, forecastVolatility, forecastDrawdown, forecastUpside, forecastSpike, forecastGapRisk, forecastTrendPersist, forecastRelStrength, forecastRelSector, _relFeats, _coneVolMult, mergeCandles, makeDemoSeries, buildDAG, evalBlocks, detrendNorm, pdmTheta, scanPeriod, run, runSteps, visionBiasFrom, sampleSeries, sampleGraph, analyzeTrend, trendProfileForTF, trendScreenFit, analyzeMA, maSteps, analyzeFib, fibSteps, analyzeElliott, elliottSteps, primarySwings, analyzeRSI, rsiSteps, synthVolume, analyzeVolume, volumeSteps, analyzeBollinger, bollingerSteps, analyzeMACD, macdSteps, analyzeADX, adxSteps, analyzeVolumeProfile, volumeProfileSteps, analyzeIchimoku, ichimokuSteps, analyzeStructure, structureSteps, analyzeATR, atrSteps, analyzeSMC, smcSteps, analyzeCycle, cycleSteps, analyzeVWAP, vwapSteps, analyzeSupertrend, supertrendSteps, analyzeStochastic, stochSteps, analyzePivot, pivotSteps, collectAnchors, collectLevels, collectStructure, analyzeGann, gannSteps, analyzePSAR, psarSteps, analyzeKeltner, keltnerSteps, analyzeDonchian, donchianSteps, cciSeries, analyzeCCI, cciSteps, williamsSeries, analyzeWilliams, williamsSteps, rocSeries, analyzeROC, rocSteps, aoSeries, analyzeAO, aoSteps, aroonSeries, analyzeAroon, aroonSteps, mfiSeries, analyzeMFI, mfiSteps, cmfSeries, analyzeCMF, cmfSteps, detectPatterns, analyzePattern, patternSteps };
 });

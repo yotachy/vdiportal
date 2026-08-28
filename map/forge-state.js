@@ -232,12 +232,10 @@
   ];
 
   /* 지표 우선순위(등급) — 기술적 분석에서 중요도·사용빈도 순. 지표 레일 정렬 + 등급 배지에 사용 */
-  const IND_TIERS = [
-    { lv: 1, name: "핵심 지표",  types: ["ma", "macd", "rsi", "bollinger", "volume"] },
-    { lv: 2, name: "주요 지표",  types: ["trend", "adx", "stochastic", "fib", "ichimoku", "pivot", "psar", "gann"] },
-    { lv: 3, name: "보조·전문",  types: ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian", "cci", "williams", "aroon", "mfi"] },
-    { lv: 4, name: "고급·심화",  types: ["elliott", "smc", "cycle", "phasefold", "roc", "ao", "cmf", "pattern"] },
-  ];
+  // 지표 등급표는 엔진 레지스트리에서 파생한다(2026-08-28) — 여기에 목록을 다시 적으면
+  // 엔진에 지표를 추가할 때 레일만 옛 개수로 남는다(실측: 가짜 33번째를 넣었을 때 앱은
+  // 33으로 확장됐는데 PC 레일은 32에 멈췄다). forge-core 가 먼저 로드된다(로드 순서 고정).
+  const IND_TIERS = ForgeCore.indicatorTiers();
   const NEW_INDICATORS = new Set(["pivot", "psar", "keltner", "donchian", "cci", "williams", "roc", "ao", "aroon", "mfi", "cmf", "gann"]);   // 신규 추가 지표 — 레일에 'new' 표기
   const PATTERN_NATURE = new Set(["structure", "elliott", "smc", "pattern"]);   // '구조·패턴' 성격 태그 대상(레일 표기)
 
