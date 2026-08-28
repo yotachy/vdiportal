@@ -4,7 +4,7 @@
   else root.ForgeCore = api;
 })(typeof self !== "undefined" ? self : this, function () {
   "use strict";
-  const version = "1.11.1";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
+  const version = "1.11.2";   // 엔진 버전 — 개선 이력은 forge-scorecard '개선 이력' 참조
   const indicatorCount = 32;   // 지표 배터리 종수 (forge-state IND_TIERS와 동기 — 지표 추가 시 함께 갱신)
   // 검증된 예측 축(백테스트 OOS). acc=대표 지평 정확도(%), hz=지평 라벨, stock=주식 한정.
   // ledger = 라이브 트랙레코드 메타(단일 출처 — 라이브 UI는 이 레지스트리로 자동 확장, 새 축 추가 시 하드코딩 금지):
@@ -1501,17 +1501,26 @@
   function analyzeElliott(price, opts) {
     opts = opts || {};
     const swing = opts.swing != null ? opts.swing : 0.03;
-    const P = price.length;
+    const Pfull = price.length;
     const EMPTY = { waves: [], rules: { r1: false, r2: false, r3: false, score: 0 }, structure: "uncertain", current: { label: "-", dir: 0 }, next: null, bias: 0 };
-    if (P < 2) return EMPTY;
-    const sw = detectSwings(price, swing);
+    if (Pfull < 2) return EMPTY;
+    // 검증 영역 정합(2026-08-28 · analyzeCycle·analyzeTrend 600봉 창과 동형) — 파동 탐색을 최근
+    // EW_WIN 봉으로 씌운다. 백테스트는 매 시점 ≤600봉만 넣으므로(LOOKBACK 600) 전 이력 파동 카운트는
+    // 검증된 적이 없다. 전수 감사 실측(2026-08-28): 9종목 중 6종목에서 라이브(전량)와 검증 영역의
+    // bias 부호가 갈렸다(최대 Δ0.610). ≤EW_WIN 입력이면 off=0 → 기존과 완전히 동일(no-op).
+    // 파동 인덱스는 전체 배열 좌표로 되돌린다 — 작도가 그 좌표로 라벨을 찍는다.
+    const EW_WIN = opts.win || 600;
+    const off = Pfull > EW_WIN ? Pfull - EW_WIN : 0;
+    const wp = off > 0 ? price.slice(off) : price;
+    const P = wp.length;
+    const sw = detectSwings(wp, swing);
     if (sw.length < 2) return EMPTY;
     const legs = [];
     for (let i = 1; i < sw.length; i++) legs.push({ from: sw[i - 1], to: sw[i], up: sw[i].price >= sw[i - 1].price });
     const minor = elliottDegree(legs);
     let primary = null, bias = minor.bias;
     if (!opts._minorOnly) {
-      const ps = primarySwings(price, swing);
+      const ps = primarySwings(wp, swing);
       if (ps && ps.swings.length >= 2) {
         const pl = [];
         for (let i = 1; i < ps.swings.length; i++) pl.push({ from: ps.swings[i - 1], to: ps.swings[i], up: ps.swings[i].price >= ps.swings[i - 1].price });
@@ -1519,6 +1528,8 @@
         bias = Math.max(-1, Math.min(1, minor.bias * 0.35 + primary.bias * 0.65));
       }
     }
+    const shift = arr => { if (off > 0 && arr) arr.forEach(function (w) { if (w && typeof w.idx === "number") w.idx += off; }); return arr; };
+    shift(minor.waves); if (primary) shift(primary.waves);
     return { waves: minor.waves, rules: minor.rules, structure: minor.structure, current: minor.current, next: minor.next, primary: primary, bias: bias };
   }
 
@@ -1766,10 +1777,17 @@
   /* ── 시장구조(Market Structure · BOS/CHoCH) ── */
   function analyzeStructure(price, opts) {
     opts = opts || {};
-    const swing = opts.swing != null ? opts.swing : 0.03, P = price.length;
+    const swing = opts.swing != null ? opts.swing : 0.03, Pfull = price.length;
     const EMPTY = { swings: [], trend: "none", event: "none", swingHigh: null, swingLow: null, bias: 0 };
-    if (P < 12) return EMPTY;
-    const sw = detectSwings(price, swing); if (sw.length < 4) return EMPTY;
+    if (Pfull < 12) return EMPTY;
+    // 검증 영역 정합(2026-08-28 · cycle·trend·elliott 600봉 창과 동형). 감사 실측: 9종목 중 3종목에서
+    // 라이브(전량)와 검증 영역의 구조 판정 부호가 갈렸다(최대 Δ0.600). ≤ST_WIN 이면 off=0 → no-op.
+    // 스윙 인덱스는 전체 좌표로 되돌린다(작도가 그 좌표를 쓴다).
+    const ST_WIN = opts.win || 600;
+    const off = Pfull > ST_WIN ? Pfull - ST_WIN : 0;
+    const wp = off > 0 ? price.slice(off) : price;
+    const P = wp.length;
+    const sw = detectSwings(wp, swing); if (sw.length < 4) return EMPTY;
     const pts = sw.map((s, i) => ({ idx: s.idx, price: s.price, type: (i > 0 ? (s.price > sw[i - 1].price ? "H" : "L") : (s.price > sw[1].price ? "H" : "L")) }));
     const highs = pts.filter(p => p.type === "H"), lows = pts.filter(p => p.type === "L");
     const lastH = highs[highs.length - 1] || null, prevH = highs[highs.length - 2] || null;
@@ -1780,13 +1798,15 @@
     const vote = hUp + lUp;
     if (vote > 0) trend = "up"; else if (vote < 0) trend = "down";
     else { const nP = pts.length, net = pts[nP - 1].price - pts[Math.max(0, nP - 4)].price; trend = net > 0 ? "up" : net < 0 ? "down" : "none"; }   // 불명확 시 최근 스윙 넷 방향
-    const last = price[P - 1], refH = lastH ? lastH.price : Infinity, refL = lastL ? lastL.price : -Infinity;
+    const last = wp[P - 1], refH = lastH ? lastH.price : Infinity, refL = lastL ? lastL.price : -Infinity;
     let event = "none";
     if (last > refH) event = trend === "down" ? "CHoCH_up" : "BOS_up";
     else if (last < refL) event = trend === "up" ? "CHoCH_down" : "BOS_down";
     let bias = event === "BOS_up" ? 0.6 : event === "BOS_down" ? -0.6 : event === "CHoCH_up" ? 0.5 : event === "CHoCH_down" ? -0.5 : (trend === "up" ? 0.3 : trend === "down" ? -0.3 : 0);
     bias = Math.max(-1, Math.min(1, bias));
+    if (off > 0) pts.forEach(function (q) { q.idx += off; });   // 전체 배열 좌표로 복원(lastH·lastL 은 같은 객체라 함께 이동)
     const out = { swings: pts, trend, event, swingHigh: lastH, swingLow: lastL, bias };
+    // 작도 다중스케일 티어는 의도적으로 전 이력을 본다(대/중/소 위계 — 작도 전용·엔진 bias 불변)
     if (opts.draw) out.tiers = collectStructure(price, opts).tiers;
     return out;
   }
