@@ -79,6 +79,10 @@
       stopPoll(); clearPending(); busy = false;
       if (p && p.ok && p.linked) {
         finishLink(p.nick, p.state, p.wallet ? p.wallet.balance : null);
+      } else if (p && p.error === "unauthorized") {
+        // 논스가 이미 소각됨 = 대개 다른 탭이 먼저 병합했다는 뜻이다. 조용히 접고 서버 상태를 따른다.
+        MS.store.set({ gBusy: 0 });
+        if (MS.wallet) MS.wallet.state();   // linked·nick 은 wallet_state 가 정본으로 되돌려준다
       } else {
         MS.store.set({ gBusy: 0 });
         MS.ui.flash(p && p.error === "device-claimed"

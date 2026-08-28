@@ -27,7 +27,7 @@
     iframe.setAttribute("allow", "fullscreen");
     iframe.style.cssText = "display:block;width:100%;height:100%;border:0;background:var(--sf0)";
     const th = (MS.store && MS.store.get().theme === "light") ? "daylight" : "midnight";
-    iframe.src = base() + "/forge.html?embed=app&th=" + th + "&v=20260828q";
+    iframe.src = base() + "/forge.html?embed=app&th=" + th + "&v=20260828r";
     window.addEventListener("message", onMessage);
     return iframe;
   }

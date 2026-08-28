@@ -9,12 +9,23 @@ require __DIR__ . "/wallet-lib.php";
 
 $W_DIR = dirname(dirname(__DIR__)) . "/data";
 
-function a_html($msg) {
+function a_html($msg, $done = false) {
   header("Content-Type: text/html; charset=utf-8");
   echo "<!doctype html><meta charset=utf-8><meta name=viewport content=\"width=device-width,initial-scale=1\">"
      . "<title>MoneyScoop</title><style>body{font:16px/1.6 system-ui;margin:0;display:flex;min-height:100vh;"
-     . "align-items:center;justify-content:center;background:#0b0f14;color:#e8ecf4;padding:24px;text-align:center}</style>"
-     . "<div>" . htmlspecialchars($msg, ENT_QUOTES, "UTF-8") . "</div>";
+     . "align-items:center;justify-content:center;background:#0b0f14;color:#e8ecf4;padding:24px;text-align:center}"
+     . "a.b{display:inline-block;margin-top:18px;padding:12px 20px;border-radius:10px;background:#7b6cff;color:#fff;"
+     . "text-decoration:none;font-weight:700}</style>"
+     . "<div>" . htmlspecialchars($msg, ENT_QUOTES, "UTF-8");
+  // 성공 화면은 막다른 길이면 안 된다(2026-08-28): 스크립트로 열린 창이면 스스로 닫아 앱 탭으로
+  // 돌려보내고, 못 닫는 브라우저에는 돌아가는 버튼을 준다. 자동 이동은 하지 않는다 —
+  // 원래 앱 탭이 살아 있는데 여기서 또 앱을 열면 두 탭이 같은 논스를 두고 경쟁한다.
+  if ($done) {
+    echo "<div id=b style=\"display:none\"><a class=b href=\"../app/\">앱으로 돌아가기</a></div>"
+       . "<script>setTimeout(function(){try{window.close();}catch(e){}"
+       . "setTimeout(function(){var e=document.getElementById('b');if(e)e.style.display='block';},700);},250);</script>";
+  }
+  echo "</div>";
   exit;
 }
 function a_fail($code, $msg) { http_response_code($code); a_html($msg); }
@@ -81,4 +92,4 @@ if (!$sub) a_fail(400, "Sign-in failed. Please try again from the app.");
 // 한쪽만 통과시킨다. 패자가 반환값을 무시하면 "로그인됨"을 보여주지만 실제로
 // 기록된 sub 은 승자의 것이라 화면이 거짓말을 한다.
 if (!w_nonce_complete($db, $row["nonce"], $sub)) a_fail(400, "Sign-in failed. Please try again from the app.");
-a_html("You are signed in. Return to the MoneyScoop app.");
+a_html("로그인됐어요 · 앱으로 돌아가면 연결이 끝납니다", true);
