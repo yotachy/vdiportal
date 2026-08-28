@@ -55,8 +55,11 @@ test("정책 기준선 스모크 — 지침서 §8·§10 수치", () => {
   assert.equal(P.scoop.hitRefund, 1);            // Q1 확정
   assert.equal(P.analysis.ttlMs, 86400000);
   assert.equal(P.analysis.warnMs, 10800000);
-  assert.equal(P.analysis.basicCount, 5);
-  assert.equal(P.analysis.fullCount, 32);
+  // basicCount·fullCount 는 제거됐다(2026-08-28) — 소비처 0인 죽은 상수였고, 엔진에 지표가
+  // 늘면 거짓말이 된다. 지표 수의 단일 출처는 엔진 레지스트리이며 화면은 라이브 파생을 쓴다.
+  // 그 동기 가드는 registry-sync.test.js 가 본다.
+  assert.equal(P.analysis.basicCount, undefined);
+  assert.equal(P.analysis.fullCount, undefined);
   assert.equal(P.analysis.concurrent, 1);
   assert.deepEqual(P.analysis.reanalysisFreeTiers, ["deep", "custom"]); // Q3 대칭
   assert.deepEqual(P.xp.levels, [40, 70, 110, 160]);

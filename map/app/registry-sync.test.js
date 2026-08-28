@@ -16,9 +16,14 @@ function fixtureCandles(n) {
   return out;
 }
 
-test("레지스트리 = indicatorCount = IND_TIERS 사본 (3자 완전 동기)", () => {
+test("레지스트리가 유일한 목록 — 개수는 밖에서 고정한 기대값과 대조", () => {
   const reg = core.indicatorRegistry;
-  assert.equal(reg.length, core.indicatorCount, "레지스트리 수 ≠ indicatorCount");
+  // ⚠ 기대값은 구현이 아니라 밖에서 온다. indicatorCount·등급표·앱 화면은 전부 이 배열에서
+  // 파생되므로 그것들과 대조하면 항등식이 된다. 지표를 추가할 때 **의도적으로** 갱신할 곳은
+  // 이 숫자 하나이고, 나머지(PC 레일·백테스트 등급표·앱 UI·분석)는 전부 자동으로 따라온다.
+  assert.equal(reg.length, 32, "지표 수가 바뀌었다면 이 기대값을 의도적으로 갱신할 것");
+  assert.equal(reg.filter((e) => e.tier === 1).length, 5, "기본 티어(Lv1) 종수");
+  assert.equal(reg.length, core.indicatorCount, "indicatorCount 는 레지스트리 파생이어야 한다");
   const byTier = {};
   reg.forEach((e) => { (byTier[e.tier] = byTier[e.tier] || []).push(e.id); });
   tiers.TIERS.forEach((t) => {
@@ -65,4 +70,46 @@ test("자동 확장 증명: 가짜 33번째 지표 추가 → 별도 구현 없�
     core.indicatorRegistry.pop();                     // 반드시 원복
   }
   assert.equal(engine.indicatorCount(), 32);
+});
+
+// ── 사본 금지 가드(2026-08-28) — 목록을 다시 적으면 자동 확장이 깨진다 ──────────────
+// 실측 배경: 가짜 33번째 지표를 레지스트리에 넣었을 때 앱은 33 으로 확장됐지만 PC 레일은
+// 32 에 멈췄다(forge-state.js 에 지표 id 목록 사본이 있었기 때문). 그 사본들을 파생으로
+// 바꿨고, 다시 생기지 않게 소스를 직접 본다.
+const fs = require("node:fs");
+const path = require("node:path");
+function srcOf(rel) { return fs.readFileSync(path.join(__dirname, "..", rel), "utf8"); }
+
+test("사본 금지: forge-state·ind-tiers 는 등급표를 엔진에서 파생한다", () => {
+  const st = srcOf("forge-state.js");
+  assert.ok(/IND_TIERS\s*=\s*ForgeCore\.indicatorTiers\(\)/.test(st),
+    "forge-state 의 IND_TIERS 가 레지스트리 파생이 아니다");
+  const it = srcOf("backtest/ind-tiers.js");
+  assert.ok(/TIERS\s*=\s*core\.indicatorTiers\(\)/.test(it),
+    "backtest/ind-tiers 의 TIERS 가 레지스트리 파생이 아니다");
+  // 등급표 사본이 다시 생기는 것만 겨냥한다 — `lv:` 와 지표 id 나열이 한 줄에 같이 있으면 사본이다.
+  // 겨냥에서 빼는 것 둘(자동 확장 대상이 아니다):
+  //  · NEW_INDICATORS — 레일 'new' 배지용 편집 목록(사람이 올리고 내린다)
+  //  · 프리셋(`key:`) — 백테스트로 k 를 정한 큐레이션 집합(새 지표가 조용히 끼면 안 된다)
+  [["forge-state.js", st], ["backtest/ind-tiers.js", it]].forEach(function (pair) {
+    const ids = core.indicatorRegistry.map((e) => e.id);
+    pair[1].split("\n").forEach(function (ln, i) {
+      if (!/\blv\s*:/.test(ln)) return;
+      const hits = ids.filter((id) => new RegExp('"' + id + '"').test(ln)).length;
+      assert.ok(hits < 3, pair[0] + ":" + (i + 1) + " 에 등급표 사본으로 보이는 줄이 있다");
+    });
+  });
+});
+
+test("자동 확장: 가짜 33번째를 넣으면 등급표·개수가 함께 늘어난다", () => {
+  const reg = core.indicatorRegistry;
+  const fake = { id: "__fake33", label: "가짜", tier: 2, group: "m", input: "price",
+    analyze: function (p) { return { bias: 0, last: p[p.length - 1] }; } };
+  reg.push(fake);
+  try {
+    assert.equal(core.indicatorTiers().reduce((s, t) => s + t.types.length, 0), 33);
+    assert.ok(core.indicatorTiers()[1].types.indexOf("__fake33") >= 0, "Lv2 에 들어가야 한다");
+    assert.equal(engine.fullSet().length, 33, "앱 브리지도 33 으로");
+  } finally { reg.pop(); }
+  assert.equal(core.indicatorTiers().reduce((s, t) => s + t.types.length, 0), 32);
 });

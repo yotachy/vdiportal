@@ -1,23 +1,16 @@
 // 지표 4등급(Lv1~Lv4). 시안 20a 의 판독문 화면이 이 라벨로 섹션을 나눈다.
 //
-// 원본은 PC 의 forge-state.js `IND_TIERS` 다. 모바일이 그 파일을 로드하지 않으므로(엔진만
-// 공유하고 UI 는 갈린다) 여기 한 벌이 더 존재한다 — **두 벌이 생기는 것 자체가 위험**이라
-// 관문(ind-tiers.test.mjs)이 세 가지를 대조한다: ① 합이 ForgeCore.indicatorCount 와 같은가
-// ② Lv1 이 MSGraph.BASIC(기본 티어가 읽는 5종)과 같은가 ③ 중복·누락이 없는가.
-// 셋 중 하나라도 어긋나면 등급표가 낡았다는 뜻이고, 화면은 "32개 중 24개"라고 말하면서
-// 목록에는 다른 수를 그리게 된다.
+// **사본이 아니다(2026-08-28)** — 등급표는 엔진 레지스트리(`ForgeCore.indicatorTiers()`)에서
+// 파생한다. 예전엔 여기에 지표 id 목록이 한 벌 더 있었고, 지표를 추가하면 두 곳이 갈렸다.
+// 이제 엔진에 지표 하나를 넣으면 이 표도 자동으로 늘어난다(열린 엔진 원칙).
+// 브라우저에서는 MSGlobals 로, node 에서는 require 로 같은 원본을 본다.
 (function (root, factory) {
-  if (typeof module !== "undefined" && module.exports) module.exports = factory();
-  else MSGlobals.define("MSIndTiers", factory());
-})(typeof self !== "undefined" ? self : this, function () {
+  if (typeof module !== "undefined" && module.exports) module.exports = factory(require("../forge-core.js"));
+  else MSGlobals.define("MSIndTiers", factory(root.ForgeCore));
+})(typeof self !== "undefined" ? self : this, function (core) {
   "use strict";
 
-  var TIERS = [
-    { lv: 1, name: "핵심 지표", types: ["ma", "macd", "rsi", "bollinger", "volume"] },
-    { lv: 2, name: "주요 지표", types: ["trend", "adx", "stochastic", "fib", "ichimoku", "pivot", "psar", "gann"] },
-    { lv: 3, name: "보조·전문", types: ["vwap", "supertrend", "atr", "volumeprofile", "structure", "keltner", "donchian", "cci", "williams", "aroon", "mfi"] },
-    { lv: 4, name: "고급·심화", types: ["elliott", "smc", "cycle", "phasefold", "roc", "ao", "cmf", "pattern"] }
-  ];
+  var TIERS = core.indicatorTiers();   // 엔진 레지스트리 파생 — 여기에 목록을 다시 적지 말 것
 
   // 전문분석 가중치 레일에서 빠지는 둘(인벤토리 §0 충돌 1). 판독문·심화 판정은 32종 전부지만,
   // 사용자가 배율을 만지는 대상은 30종이다.
