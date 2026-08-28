@@ -121,7 +121,16 @@
 
   function start() {
     const s = MS.store.get();
-    if (s.gLinked || busy) return;
+    if (s.gLinked) return;
+    // 이전 시도의 폴링이 살아 있으면 버튼이 조용히 무시됐다(2026-08-28 사용자 제보: 아무 반응 없음).
+    // 사용자가 다시 눌렀다는 건 '처음부터 다시'라는 뜻이다 — 묵히지 말고 접고 새로 시작한다.
+    if (busy) { stopPoll(); clearPending(); busy = false; MS.store.set({ gBusy: 0 }); }
+    // 팝업은 **클릭 그 순간에** 열어야 한다. auth_start 응답을 기다렸다가 열면 모바일 브라우저가
+    // 사용자 제스처와 무관한 창으로 보고 조용히 막는다(계정 선택 창이 아예 안 뜨던 원인).
+    // 빈 창을 먼저 잡아 두고 주소만 나중에 넣는다. 막혔으면 같은 탭으로 이동한다 —
+    // 논스를 영속화해 뒀으므로 돌아왔을 때 폴링이 이어진다.
+    let win = null;
+    if (!isFixture) { try { win = window.open("about:blank", "_blank"); } catch (e) { win = null; } }
     busy = true;
     MS.store.set({ gBusy: 1 });
     MS.ui.hap("tick");
@@ -133,15 +142,25 @@
     MS.data.api("auth_start", {}).then(function (r) {
       if (!r || !r.ok) {
         busy = false;
+        if (win && !win.closed) { try { win.close(); } catch (e) {} }
         MS.store.set({ gBusy: 0 });
         MS.ui.flash(r && r.error === "auth-disabled" ? "로그인은 준비 중이에요 — 곧 열려요" : "연결을 시작하지 못했어요", "");
         return;
       }
       savePending(r.nonce);          // 창을 옮기는 순간 페이지가 죽어도 돌아와서 이어받는다
-      window.open(r.authUrl, "_blank");
+      if (win && !win.closed) {
+        try { win.location.href = r.authUrl; } catch (e) { win = null; }
+      }
+      if (!win || win.closed) {
+        // 팝업이 막혔다 — 같은 탭으로 간다. 돌아오면 부팅 시 대기 논스로 폴링이 재개된다.
+        beginPoll(r.nonce);
+        window.location.href = r.authUrl;
+        return;
+      }
       beginPoll(r.nonce);
     }).catch(function () {
       busy = false;
+      if (win && !win.closed) { try { win.close(); } catch (e) {} }
       MS.store.set({ gBusy: 0 });
       MS.ui.flash("연결을 시작하지 못했어요", "");
     });
