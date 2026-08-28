@@ -712,6 +712,21 @@ function w_merge($db, $deviceId, $googleSub) {
         return $fail("device-claimed");
       }
 
+      // 이 기기 계정이 이미 다른 계정으로 흡수됐다면 그 대상이 진짜 지갑이다. 여기서 빈 껍데기를
+      // claim 하면 잔액 0 인 계정이 로그인된다(2026-08-28 원장 실측). 대상이 미연결이면 대상을
+      // claim 하고, 같은 구글이면 그대로 쓴다. 다른 구글에 묶여 있으면 아래 일반 경로로 간다.
+      // 같은 구글이면 아래 일반 경로가 맞다(멱등 원장에서 '버린 수량'까지 되돌려준다) — 여기서는
+      // 대상이 **미연결(로그아웃)** 일 때만 대상을 되찾아 claim 한다.
+      $tgt = w_is_merged_away($db, $dev["id"]) ? w_merge_target($db, $dev["id"]) : null;
+      if ($tgt && $tgt["google_sub"] === null) {
+        $db->prepare("update accounts set google_sub = ? where id = ?")->execute(array($googleSub, $tgt["id"]));
+        w_ledger_insert($db, $tgt["id"], 0, "merge_claim", $googleSub, "merge:" . $googleSub . ":" . $tgt["id"] . ":reclaim:" . w_now());
+        $db->exec("commit");
+        $st = $db->prepare("select * from accounts where id = ?");
+        $st->execute(array($tgt["id"]));
+        return array("ok" => true, "acct" => $st->fetch(), "moved" => true, "discarded" => 0, "reason" => null);
+      }
+
       $st = $db->prepare("select * from accounts where google_sub = ?");
       $st->execute(array($googleSub));
       $g = $st->fetch();
@@ -814,6 +829,21 @@ function w_is_merged_away($db, $acctId) {
   $st->execute(array($acctId));
   $r = $st->fetch();
   return ($r && $r["reason"] === "merge_discard");
+}
+
+// 흡수된 기기 계정이 '어디로' 갔는지 — 원장의 merge_from 을 계정 id 로 따라간다(최신 1건).
+// 왜(2026-08-28 실측): 예전엔 merge_discard 의 ref(구글 sub)로 대상 계정을 찾았다. 그 sub 가
+// 로그아웃·재로그인으로 바뀌면 못 찾아 게스트로 해석됐고, 폰에서 로그인이 성공한 직후
+// wallet_state 가 linked:0 을 돌려줘 바로 풀렸다. 계정 id 는 바뀌지 않는다.
+function w_merge_target($db, $acctId) {
+  $st = $db->prepare("select account_id from ledger where reason = 'merge_from' and ref like ? order by id desc limit 1");
+  $st->execute(array($acctId . ":%"));
+  $r = $st->fetch();
+  if (!$r) return null;
+  $st = $db->prepare("select * from accounts where id = ?");
+  $st->execute(array($r["account_id"]));
+  $g = $st->fetch();
+  return $g ? $g : null;
 }
 
 // ── 광고 지급 ─────────────────────────────────────────────────────────────────

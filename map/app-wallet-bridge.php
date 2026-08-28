@@ -35,15 +35,12 @@ function app_acct_resolve($db, $dir, $device, $create = true) {
     return array("acct" => $acct, "linked" => true, "sub" => $acct["google_sub"]);
   }
   if (w_is_merged_away($db, $acct["id"])) {
-    $st = $db->prepare("select ref from ledger where account_id = ? and reason = 'merge_discard' order by id desc limit 1");
-    $st->execute(array($acct["id"]));
-    $r = $st->fetch();
-    if ($r && $r["ref"] !== null) {
-      $st = $db->prepare("select * from accounts where google_sub = ?");
-      $st->execute(array($r["ref"]));
-      $g = $st->fetch();
-      if ($g) return array("acct" => $g, "linked" => true, "sub" => $g["google_sub"]);
-    }
+    // 흡수된 기기: 대상 계정을 **계정 id 로** 따라간다(구글 sub 로 찾지 않는다 — sub 는 바뀐다).
+    // 대상이 로그아웃 상태여도 데이터는 거기 있으므로 계정은 대상, 연결 여부만 그 상태를 따른다.
+    // 대상이 **연결돼 있을 때만** 대상을 따른다. 미연결(로그아웃·탈퇴)이면 빈 기기 계정으로 —
+    // 탈퇴한 계정의 잔액을 흡수 기기가 계속 쓰면 안 된다(재발행 없음 계약, app-sync 테스트).
+    $g = w_merge_target($db, $acct["id"]);
+    if ($g && $g["google_sub"] !== null) return array("acct" => $g, "linked" => true, "sub" => $g["google_sub"]);
   }
   return array("acct" => $acct, "linked" => false, "sub" => null);
 }

@@ -1092,6 +1092,28 @@ t("논스 재사용 조회가 전체 스캔이 아니다 — auth_nonce 는 청�
   $db = null; rmrf($d);
 });
 
+// ── 흡수된 기기 재로그인(2026-08-28) ───────────────────────────────────
+t("흡수된 기기 — 대상이 로그아웃돼도 재로그인이 빈 껍데기가 아니라 대상을 되찾는다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip"); w_merge($db, "dev-A", "gsub-1");   // A = 구글 계정
+  w_create_account($db, "dev-B", "ip"); $m1 = w_merge($db, "dev-B", "gsub-1"); // B → A 로 흡수
+  eq($m1["moved"], true, "B 가 A 로 흡수돼야 한다");
+  $A = w_get_account($db, "dev-A"); $B = w_get_account($db, "dev-B");
+  eq($m1["acct"]["id"], $A["id"], "흡수 대상은 A");
+  eq(w_merge_target($db, $B["id"])["id"], $A["id"], "w_merge_target 이 A 를 가리킨다");
+  // A 로그아웃(구글 링크 해제)
+  $db->prepare("update accounts set google_sub = null where id = ?")->execute(array($A["id"]));
+  // B 에서 같은 구글로 재로그인 → A 를 되찾아야 한다(예전엔 B 껍데기를 claim 해 잔액 0 계정이 됐다)
+  $m2 = w_merge($db, "dev-B", "gsub-1");
+  eq($m2["ok"], true, "재로그인 실패");
+  eq($m2["acct"]["id"], $A["id"], "재로그인은 대상 A 를 되찾아야 한다");
+  eq(w_get_account($db, "dev-A")["google_sub"], "gsub-1", "A 가 다시 gsub-1 에 연결돼야 한다");
+  eq(w_get_account($db, "dev-B")["google_sub"], null, "B 껍데기는 그대로 미연결이어야 한다");
+  // 대상이 이미 같은 구글이면 그대로 대상
+  $m3 = w_merge($db, "dev-B", "gsub-1");
+  eq($m3["acct"]["id"], $A["id"], "같은 구글 재병합도 대상 A");
+});
+
 // ── Task 3 (8c): 병합 ────────────────────────────────────────────────
 
 t("첫 병합 — 익명 계정이 곧 구글 계정이 된다(잔량 그대로)", function () {

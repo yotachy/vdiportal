@@ -91,6 +91,26 @@ ok($g === 0 && w_true_balance($w, $acct["id"]) === $bal + 1, "환급 재실행 �
   ok(app_nonce_completed($sw, $dev)["nonce"] === $b, "sweep: 여러 개면 최신 1건");
 }
 
+// ── 흡수된 기기 해석(2026-08-28) — sub 가 바뀌어도 계정 id 로 대상을 따라간다 ──
+{
+  $rd = w_db($dir);
+  w_create_account($rd, "rs-A", "ip"); w_merge($rd, "rs-A", "sub-R1");
+  w_create_account($rd, "rs-B", "ip"); w_merge($rd, "rs-B", "sub-R1");   // B → A 흡수
+  $A = w_get_account($rd, "rs-A");
+  $r1 = app_acct_resolve($rd, $dir, "rs-B", false);
+  ok($r1["acct"]["id"] === $A["id"] && $r1["linked"] === true, "resolve: 흡수된 B 는 A 로 해석(연결)");
+  // A 가 다른 구글로 갈아탄 뒤(로그아웃 → 재로그인) — 예전엔 옛 sub 로 못 찾아 게스트가 됐다
+  $rd->prepare("update accounts set google_sub = ? where id = ?")->execute(array("sub-R2", $A["id"]));
+  $r2 = app_acct_resolve($rd, $dir, "rs-B", false);
+  ok($r2["acct"]["id"] === $A["id"] && $r2["linked"] === true && $r2["sub"] === "sub-R2", "resolve: sub 가 바뀌어도 A 를 따라간다");
+  // A 로그아웃 상태 — 빈 기기 계정(게스트)으로. 탈퇴한 계정 잔액을 흡수 기기가 쓰면 안 된다(재발행 없음).
+  // 재로그인하면 w_merge 가 A 를 되찾는다(wallet.test '흡수된 기기 재로그인').
+  $rd->prepare("update accounts set google_sub = null where id = ?")->execute(array($A["id"]));
+  $r3 = app_acct_resolve($rd, $dir, "rs-B", false);
+  $B = w_get_account($rd, "rs-B");
+  ok($r3["acct"]["id"] === $B["id"] && $r3["linked"] === false, "resolve: 대상 미연결이면 빈 기기 계정·게스트");
+}
+
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
 exit($FAIL ? 1 : 0);
