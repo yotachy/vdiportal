@@ -205,6 +205,19 @@ try {
     al_out(array("ok" => true, "pending" => false, "linked" => true, "nick" => $r["nick"],
       "state" => $r["state"], "discarded" => $m["discarded"], "wallet" => $stt));
   }
+  // 로그아웃 — 이 기기의 구글 연결만 끊는다(동기화 데이터·원장·잔액은 보존, 재로그인이면 복구).
+  // 서버에 알리지 않으면 부팅 때 wallet_state 가 linked:1 을 돌려줘 로그아웃이 되살아난다
+  // (2026-08-28 사용자 제보: '로그아웃 후 새로고침하면 계속 로그인 상태').
+  // ⚠ 다기기: 해석된 계정의 google_sub 을 지우므로 같은 구글 계정을 쓰던 다른 기기도 게스트가
+  // 된다. 데이터는 남고 재로그인으로 복구된다(탈퇴와 달리 sync_delete 를 하지 않는다).
+  if ($op === "auth_logout") {
+    $wdb = w_db($AL_DIR);
+    $res = app_acct_resolve($wdb, $AL_DIR, $device, false);
+    if (!$res["linked"]) al_out(array("ok" => true, "linked" => false));   // 이미 게스트 — 멱등
+    $wdb->prepare("update accounts set google_sub = null where id = ?")->execute(array($res["acct"]["id"]));
+    al_out(array("ok" => true, "linked" => false));
+  }
+
   if ($op === "sync_push" || $op === "sync_pull" || $op === "withdraw") {
     $wdb = w_db($AL_DIR);
     $res = app_acct_resolve($wdb, $AL_DIR, $device, false);   // 동기화는 계정을 만들지 않는다(게스트 403)

@@ -138,6 +138,14 @@
     stopPoll(); clearPending();
     MS.store.set({ gLinked: 0, nick: null, gBusy: 0 });
     MS.ui.flash("로그아웃했어요. 기록은 이 기기에만 남습니다", "");
+    // 서버에도 알린다 — 안 그러면 부팅 때 wallet_state 가 linked:1 을 돌려줘 되살아난다.
+    // 응답을 기다려 상태를 다시 맞춘다(실패하면 다음 부팅에서 서버 정본이 이긴다 — 정직하게).
+    if (isFixture) return;
+    MS.data.api("auth_logout", {}).then(function () {
+      if (MS.wallet) MS.wallet.state();
+    }).catch(function () {
+      MS.ui.flash("서버에 로그아웃을 알리지 못했어요 — 연결되면 다시 시도해 주세요", "");
+    });
   }
 
   function withdraw() {
