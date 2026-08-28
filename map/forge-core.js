@@ -1194,28 +1194,38 @@
   function analyzeFib(price, opts) {
     opts = opts || {};
     const len = opts.len || 120, swing = opts.swing != null ? opts.swing : 0.05, srPct = opts.srPct != null ? opts.srPct : 0.01;
-    const P = price.length;
+    const Pfull = price.length;
     const EMPTY = { dir: null, swing: null, levels: [], zone: { nearest: null, inGolden: false, lower: null, upper: null, goldenLo: null, goldenHi: null }, bias: 0, degrees: [] };
-    if (P < 2) return EMPTY;
+    if (Pfull < 2) return EMPTY;
+    // 검증 영역 정합 + 다중스케일 작도(2026-08-28 · cycle·trend·elliott·structure 600봉 창과 동형).
+    // 스윙 탐색을 최근 FIB_WIN 봉으로 씌운다. ≤FIB_WIN 이면 off=0 → 기존과 완전히 동일(no-op).
+    // 반환 인덱스는 전체 배열 좌표로 되돌린다 — 작도가 그 좌표로 스윙선을 긋는다.
+    const FIB_WIN = opts.win || 600;
+    const off = Pfull > FIB_WIN ? Pfull - FIB_WIN : 0;
+    const wp = off > 0 ? price.slice(off) : price;
+    const P = wp.length;
     // 단기: 최근 피벗 스윙(없으면 len 창 폴백)
-    const sw = detectSwings(price, swing);
+    const sw = detectSwings(wp, swing);
     let shortSw;
     if (sw.length >= 2) { const a = sw[sw.length - 2], b = sw[sw.length - 1]; shortSw = { fromIdx: a.idx, fromPrice: a.price, toIdx: b.idx, toPrice: b.price, dir: b.price >= a.price ? "up" : "down" }; }
-    else shortSw = _domSwing(price, Math.max(0, P - len)) || _domSwing(price, 0);
+    else shortSw = _domSwing(wp, Math.max(0, P - len)) || _domSwing(wp, 0);
     if (!shortSw) return EMPTY;
-    const shortDeg = _fibDegree(price, shortSw, len, srPct); shortDeg.name = "단기";
+    const shortDeg = _fibDegree(wp, shortSw, len, srPct); shortDeg.name = "단기";
     const degrees = [shortDeg];
     const dup = (deg, s) => deg.swing.fromIdx === s.fromIdx && deg.swing.toIdx === s.toIdx;
     // 중기: 최근 len(기본 120)봉 지배 스윙 — 시계열이 len보다 길 때만(짧으면 장기와 동일 스윙이라 오라벨 방지)
-    const midSw = (P > len) ? _domSwing(price, P - len) : null;
-    if (midSw && !dup(shortDeg, midSw)) { const m = _fibDegree(price, midSw, len, srPct); m.name = "중기"; degrees.push(m); }
-    // 장기: 전체 시계열 지배 스윙
-    const longSw = _domSwing(price, 0);
-    if (longSw && !degrees.some(d => dup(d, longSw))) { const l = _fibDegree(price, longSw, len, srPct); l.name = "장기"; degrees.push(l); }
+    const midSw = (P > len) ? _domSwing(wp, P - len) : null;
+    if (midSw && !dup(shortDeg, midSw)) { const m = _fibDegree(wp, midSw, len, srPct); m.name = "중기"; degrees.push(m); }
+    // 장기: (창 안의) 전체 시계열 지배 스윙
+    const longSw = _domSwing(wp, 0);
+    if (longSw && !degrees.some(d => dup(d, longSw))) { const l = _fibDegree(wp, longSw, len, srPct); l.name = "장기"; degrees.push(l); }
     // bias 블렌드(존재 degree만 가중 재정규화: 단.5/중.3/장.2)
     const W = { "단기": 0.5, "중기": 0.3, "장기": 0.2 };
     let bw = 0, bs = 0; for (const d of degrees) { bw += W[d.name]; bs += W[d.name] * d.bias; }
     const bias = bw ? Math.max(-1, Math.min(1, bs / bw)) : shortDeg.bias;
+    if (off > 0) {   // 창 좌표 → 전체 배열 좌표(작도 정합). shortDeg.swing 은 degrees[0].swing 과 같은 객체다.
+      degrees.forEach(function (d) { if (d && d.swing) { d.swing.fromIdx += off; d.swing.toIdx += off; } });
+    }
     return { dir: shortDeg.dir, swing: shortDeg.swing, levels: shortDeg.levels, zone: shortDeg.zone, bias: bias, degrees: degrees };
   }
 

@@ -2788,3 +2788,40 @@ test("analyzeStructure: 작도 다중스케일 티어는 전 이력을 그대로
   assert.ok(all.length > 0, "티어 스윙이 있어야 한다");
   assert.ok(all.some(function (s) { return s.idx < p.length - 600; }), "창 밖 구조도 작도에는 남아야 한다");
 });
+
+// ── analyzeFib 창 옵션(2026-08-28) — trend·elliott·structure 와 동형 ─────────────
+// 다중스케일 작도가 스케일마다 fib 를 다시 계산한다(좁게 120 · 중간 600 · 넓게 전량).
+// 창을 씌워도 인덱스는 전체 좌표로 돌아와야 작도가 정합한다.
+test("analyzeFib: win 이 전체 길이 이상이면 기존과 동일(no-op)", () => {
+  const p = [];
+  for (let i = 0; i < 500; i++) p.push(100 * Math.exp(0.0012 * i) + 9 * Math.sin(i / 21));
+  assert.deepEqual(ForgeCore.analyzeFib(p, { len: 120, swing: 0.05 }),
+    ForgeCore.analyzeFib(p, { len: 120, swing: 0.05, win: 1e9 }));
+});
+
+test("analyzeFib: 창을 씌우면 그 구간 계산 + 인덱스는 전체 좌표", () => {
+  const p = [];
+  for (let i = 0; i < 1500; i++) p.push(100 * Math.exp(0.0012 * i) + 9 * Math.sin(i / 21));
+  const off = p.length - 600;
+  const full = ForgeCore.analyzeFib(p, { len: 120, swing: 0.05, win: 600 });
+  const win = ForgeCore.analyzeFib(p.slice(off), { len: 120, swing: 0.05, win: 1e9 });
+  assert.equal(full.bias, win.bias);
+  assert.equal(full.swing.fromIdx, win.swing.fromIdx + off);
+  assert.equal(full.swing.toIdx, win.swing.toIdx + off);
+  assert.equal(full.swing.fromPrice, win.swing.fromPrice);
+  assert.equal(full.degrees.length, win.degrees.length);
+  full.degrees.forEach(function (d, i) {
+    assert.equal(d.swing.fromIdx, win.degrees[i].swing.fromIdx + off, d.name + " degree fromIdx");
+    assert.equal(d.swing.toIdx, win.degrees[i].swing.toIdx + off, d.name + " degree toIdx");
+  });
+  assert.ok(Math.abs(p[full.swing.fromIdx] - full.swing.fromPrice) < 1e-9);
+  assert.ok(Math.abs(p[full.swing.toIdx] - full.swing.toPrice) < 1e-9);
+});
+
+test("analyzeFib: 기본 창은 600(검증 영역)", () => {
+  const p = [];
+  for (let i = 0; i < 2000; i++) p.push(100 + 20 * Math.sin(i / 37) + i * 0.03);
+  const def = ForgeCore.analyzeFib(p, { len: 120, swing: 0.05 });
+  const w600 = ForgeCore.analyzeFib(p, { len: 120, swing: 0.05, win: 600 });
+  assert.deepEqual(def, w600);
+});
