@@ -193,7 +193,10 @@ try {
     $m = w_merge($wdb, $device, $row["google_sub"]);
     if (!$m["ok"]) {
       if ($m["reason"] === "device-claimed") { w_nonce_burn($wdb, $nonce); al_out(array("ok" => false, "error" => "device-claimed"), 409); }
-      al_out(array("ok" => false, "error" => "server"), 500);
+      // busy = SQLite 경합. w_merge 가 논스를 안 태우고 물러난 것이므로 **재시도가 정답**이다
+      // (그렇게 설계돼 있는데 클라가 500 을 종료로 읽어 로그인이 통째로 죽었다 — 2026-08-28).
+      if ($m["reason"] === "busy") al_out(array("ok" => true, "pending" => true, "retry" => "busy"));
+      al_out(array("ok" => false, "error" => "server", "reason" => $m["reason"]), 500);
     }
     w_nonce_burn($wdb, $nonce);
     require_once __DIR__ . "/app-sync-lib.php";

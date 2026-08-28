@@ -73,9 +73,16 @@
   }
 
   // 폴 1회. 끝났으면 true 를 반환해 루프를 멈춘다.
+  let lastPollErr = null;
   function pollOnce(nonce) {
     return MS.data.api("auth_poll", { nonce: nonce, state: syncState() }).then(function (p) {
       if (p && p.ok && p.pending) return false;
+      // 종료로 볼 수 있는 답만 종료한다. 서버 오류·네트워크 실패는 **일시적일 수 있으므로 계속 문는다**
+      // — 서버는 이 경우 논스를 태우지 않고 물러난다(재시도가 정답). 예산이 다하면 그때 알린다.
+      if (!p || (p.ok !== true && p.error !== "unauthorized" && p.error !== "device-claimed")) {
+        lastPollErr = (p && (p.reason || p.error)) || "network";
+        return false;
+      }
       stopPoll(); clearPending(); busy = false;
       if (p && p.ok && p.linked) {
         finishLink(p.nick, p.state, p.wallet ? p.wallet.balance : null);
@@ -86,13 +93,15 @@
       } else {
         MS.store.set({ gBusy: 0 });
         MS.ui.flash(p && p.error === "device-claimed"
-          ? "이 기기는 이미 다른 구글 계정과 연결돼 있어요" : "로그인이 완료되지 않았어요 — 다시 시도해 주세요", "");
+          ? "이 기기는 이미 다른 구글 계정과 연결돼 있어요"
+          : "로그인이 완료되지 않았어요 — 다시 시도해 주세요" + (p && p.reason ? " (" + p.reason + ")" : ""), "");
       }
       return true;
     }).catch(function () { return false; });
   }
 
   function beginPoll(nonce) {
+    lastPollErr = null;
     savePending(nonce);
     busy = true;
     MS.store.set({ gBusy: 1 });
@@ -100,7 +109,11 @@
     stopPoll();
     polling = setInterval(function () {
       tries++;
-      if (tries > 120) { stopPoll(); clearPending(); busy = false; MS.store.set({ gBusy: 0 }); return; }
+      if (tries > 120) {
+        stopPoll(); clearPending(); busy = false; MS.store.set({ gBusy: 0 });
+        MS.ui.flash("로그인이 완료되지 않았어요 — 다시 시도해 주세요" + (lastPollErr ? " (" + lastPollErr + ")" : ""), "");
+        return;
+      }
       pollOnce(nonce);
     }, 2500);
     pollOnce(nonce);   // 즉시 1회 — 돌아왔을 때 2.5초를 더 기다리지 않는다
