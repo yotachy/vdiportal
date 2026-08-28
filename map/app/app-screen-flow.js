@@ -470,7 +470,7 @@
         syms.forEach(function (sym) {
           if (quotes[sym]) return;
           MS.data.ohlc.fetch(sym, "일", { lite: true }).then(function (r) {   // 종목 시트 시세 — 경량
-            if (r.ok) { quotes[sym] = MS.data.quote(r.candles); paintSheet(); }
+            if (r.ok) { quotes[sym] = MS.data.quote(r.candles); repaint(); }
           }).catch(function () {});
         });
       }
@@ -506,39 +506,97 @@
         qTimer = setTimeout(function () {
           qTimer = null;
           const store = MS.data.search;
-          if (!store) { searching = false; searchErr = true; paintSheet(); return; }
+          if (!store) { searching = false; searchErr = true; repaint(); return; }
           store.find(key).then(function (items) {
             if (my !== seq) return;                     // 더 최근 질의가 있다 — 늦게 온 응답 버림
             results = items; searching = false; searchErr = false;   // 빈 결과는 오류가 아니다(아래 "결과 없음" 분기)
-            paintSheet();
+            repaint();
           }).catch(function () {
             if (my !== seq) return;
-            results = []; searching = false; searchErr = true; paintSheet();
+            results = []; searching = false; searchErr = true; repaint();
           });
         }, 250);
+      }
+
+      function bindList() {
+        body.querySelectorAll("[data-add]").forEach(function (el) {
+          el.addEventListener("click", function () { addSym(el.getAttribute("data-add"), false); });
+        });
+        body.querySelectorAll("[data-goadd]").forEach(function (el) {
+          el.addEventListener("click", function () { addSym(el.getAttribute("data-goadd"), true); });
+        });
+      }
+      // 결과 영역만 교체 — 입력창 DOM 은 그대로 두어 IME 조합·캐럿이 살아있게 한다.
+      function paintList() {
+        const host = body.querySelector("[data-results]");
+        if (!host) { paintSheet(); return; }
+        host.innerHTML = resultsHtml();
+        bindList();
+        const qq = q.trim().toLowerCase();
+        fetchQuotes(qq ? [] : candList(MS.store.get().picks, "").slice(0, 6).map(function (t) { return t.sym; }));
+      }
+      // 비동기 콜백(시세·검색)이 부르는 자리. 사용자가 입력 중이면 목록만 갱신한다.
+      function repaint() {
+        const el = body.querySelector("[data-q]");
+        if (el && typeof document !== "undefined" && document.activeElement === el) paintList();
+        else paintSheet();
+      }
+
+      // 검색어가 없으면 인기 목록(MASTER). 있으면 **MASTER 한글 매칭을 먼저**, 서버 결과를 뒤에.
+      // (2026-08-28 회귀 수정: 서버 결과로 갈아끼웠더니 '테슬라'·'비트코인' 한글 검색이 죽었다 —
+      //  Yahoo 는 한글을 못 한다. 서버에도 별칭 사전을 넣었지만 MASTER 매칭은 오프라인에서도 산다.)
+      function candList(picks, qq) {
+        const out = [], seen = {};
+        const push = function (t) {
+          if (!t || !t.sym || seen[t.sym] || picks.indexOf(t.sym) >= 0) return;
+          seen[t.sym] = 1; out.push(t);
+        };
+        MS.data.MASTER.forEach(function (t) {
+          if (!qq || t.sym.toLowerCase().indexOf(qq) >= 0 || t.name.indexOf(q.trim()) >= 0) {
+            push({ sym: t.sym, name: t.name, kind: t.crypto ? "coin" : "stock" });
+          }
+        });
+        if (qq) (results || []).forEach(function (r) { push({ sym: r.s, name: r.n || "", kind: r.t }); });
+        return out;
+      }
+
+      // 결과 영역만 따로 그린다 — 입력창을 파괴하지 않기 위해서다.
+      // (2026-08-28: 키 입력마다 시트 전체를 innerHTML 로 갈아끼우던 탓에 한글 IME 조합이
+      //  매 글자 끊겼다. 조합 중인 input 이 사라지면 브라우저가 조합 상태를 잃는다.)
+      function resultsHtml() {
+        const s = MS.store.get();
+        const picks = s.picks;
+        const qq = q.trim().toLowerCase();
+        const full = picks.length >= P().limits.stocksMax;
+        const cands = candList(picks, qq);
+        return (
+          (full ? '<div style="margin-top:4px;font-size:12.5px;color:var(--am)">내 관심 종목이 가득 찼어요(' + picks.length + "/" + P().limits.stocksMax + "). 하나를 빼면 추가할 수 있습니다</div>" : "") +
+          (qq && searching ?
+            '<div style="margin-top:8px;padding:14px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 중…</div>' : "") +
+          (qq && !searching && searchErr ?
+            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">지금은 검색이 안 돼요 · 잠시 뒤 다시 시도해 주세요</div>' : "") +
+          (qq && !searching && !searchErr && !cands.length ?
+            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 결과가 없어요 · 티커(예: NVDA)나 영문 이름으로 찾아보세요</div>' : "") +
+          (!qq ? '<div style="padding:12px 0 4px;display:flex;align-items:baseline;gap:7px;font-size:12px"><span style="font-weight:600;color:var(--t2)">요즘 많이 담는 종목</span><span style="color:var(--m2)">맛보기예요 — 검색하면 모든 종목이 나옵니다</span></div>' : "") +
+          cands.map(function (t) {
+            const qt = quotes[t.sym];
+            return '<div style="display:flex;align-items:center;gap:8px;min-height:50px;padding:8px 0;border-bottom:1px solid var(--ln0)">' +
+              '<div style="min-width:96px;max-width:190px"><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600;font-size:13.5px;color:var(--t2)">' + esc(t.sym) + "</span>" +
+              (t.kind && t.kind !== "stock" ? '<span style="font-size:9.5px;font-weight:700;color:var(--m1);border:1px solid var(--ln1);border-radius:4px;padding:1px 4px">' + (t.kind === "coin" ? "코인" : "ETF") + "</span>" : "") + "</div>" +
+              '<div style="font-size:12.5px;color:var(--m2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.name) + "</div></div>" +
+              '<div style="margin-left:auto;display:flex;align-items:center;gap:8px">' +
+              '<span class="mono" style="font-size:13px;color:' + (qt ? (qt.up ? "var(--up)" : "var(--dn)") : "var(--m2)") + '">' + (qt ? (qt.up ? "▲" : "▼") + Math.abs(qt.chg).toFixed(2) + "%" : "—") + "</span>" +
+              '<button data-add="' + esc(t.sym) + '" style="font-size:12.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:7px;padding:8px 12px;background:none;cursor:pointer;font-family:inherit">추가만</button>' +
+              '<button data-goadd="' + esc(t.sym) + '" style="font-size:12.5px;color:var(--ac);border:1px solid rgba(123,108,255,0.45);border-radius:7px;padding:8px 12px;background:none;cursor:pointer;font-family:inherit">바로 분석 →</button></div></div>';
+          }).join("")
+        );
       }
 
       function paintSheet() {
         const s = MS.store.get();
         const picks = s.picks;
         const qq = q.trim().toLowerCase();
-        // 검색어가 없으면 인기 목록(MASTER). 있으면 **MASTER 한글 매칭을 먼저**, 서버 결과를 뒤에.
-        // (2026-08-28 회귀 수정: 서버 결과로 갈아끼웠더니 '테슬라'·'비트코인' 한글 검색이 죽었다 —
-        //  Yahoo 는 한글을 못 한다. 서버에도 별칭 사전을 넣었지만 MASTER 매칭은 오프라인에서도 산다.)
-        const cands = (function () {
-          const out = [], seen = {};
-          const push = function (t) {
-            if (!t || !t.sym || seen[t.sym] || picks.indexOf(t.sym) >= 0) return;
-            seen[t.sym] = 1; out.push(t);
-          };
-          MS.data.MASTER.forEach(function (t) {
-            if (!qq || t.sym.toLowerCase().indexOf(qq) >= 0 || t.name.indexOf(q.trim()) >= 0) {
-              push({ sym: t.sym, name: t.name, kind: t.crypto ? "coin" : "stock" });
-            }
-          });
-          if (qq) (results || []).forEach(function (r) { push({ sym: r.s, name: r.n || "", kind: r.t }); });
-          return out;
-        })();
+        const cands = candList(picks, qq);
         const full = picks.length >= P().limits.stocksMax;
         body.innerHTML =
           '<div style="display:flex;align-items:baseline;gap:8px;padding:4px 0 12px;border-bottom:1px solid var(--sf3)">' +
@@ -566,25 +624,7 @@
           '<div style="display:flex;align-items:center;gap:8px;height:46px;border:1.5px solid rgba(123,108,255,0.45);border-radius:12px;background:var(--sf2);padding:0 12px">' +
           '<svg viewBox="0 0 24 24" width="15" height="15" style="flex:none;color:var(--ac)"><circle cx="11" cy="11" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"></circle><path d="M15.8 15.8 20 20" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"></path></svg>' +
           '<input data-q placeholder="티커·영문 이름으로 검색 · 예: NVDA, bitcoin" value="' + esc(q) + '" style="flex:1;background:transparent;border:none;outline:none;color:var(--t1);font-size:13.5px;font-family:inherit"></div>' +
-          (full ? '<div style="margin-top:4px;font-size:12.5px;color:var(--am)">내 관심 종목이 가득 찼어요(' + picks.length + "/" + P().limits.stocksMax + "). 하나를 빼면 추가할 수 있습니다</div>" : "") +
-          (qq && searching ?
-            '<div style="margin-top:8px;padding:14px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 중…</div>' : "") +
-          (qq && !searching && searchErr ?
-            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">지금은 검색이 안 돼요 · 잠시 뒤 다시 시도해 주세요</div>' : "") +
-          (qq && !searching && !searchErr && !cands.length ?
-            '<div style="margin-top:8px;border:1px dashed var(--ln2);border-radius:9px;padding:16px 12px;text-align:center;font-size:13px;color:var(--m1)">검색 결과가 없어요 · 티커(예: NVDA)나 영문 이름으로 찾아보세요</div>' : "") +
-          (!qq ? '<div style="padding:12px 0 4px;display:flex;align-items:baseline;gap:7px;font-size:12px"><span style="font-weight:600;color:var(--t2)">요즘 많이 담는 종목</span><span style="color:var(--m2)">맛보기예요 — 검색하면 모든 종목이 나옵니다</span></div>' : "") +
-          cands.map(function (t) {
-            const qt = quotes[t.sym];
-            return '<div style="display:flex;align-items:center;gap:8px;min-height:50px;padding:8px 0;border-bottom:1px solid var(--ln0)">' +
-              '<div style="min-width:96px;max-width:190px"><div style="display:flex;align-items:center;gap:5px"><span style="font-weight:600;font-size:13.5px;color:var(--t2)">' + esc(t.sym) + "</span>" +
-              (t.kind && t.kind !== "stock" ? '<span style="font-size:9.5px;font-weight:700;color:var(--m1);border:1px solid var(--ln1);border-radius:4px;padding:1px 4px">' + (t.kind === "coin" ? "코인" : "ETF") + "</span>" : "") + "</div>" +
-              '<div style="font-size:12.5px;color:var(--m2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(t.name) + "</div></div>" +
-              '<div style="margin-left:auto;display:flex;align-items:center;gap:8px">' +
-              '<span class="mono" style="font-size:13px;color:' + (qt ? (qt.up ? "var(--up)" : "var(--dn)") : "var(--m2)") + '">' + (qt ? (qt.up ? "▲" : "▼") + Math.abs(qt.chg).toFixed(2) + "%" : "—") + "</span>" +
-              '<button data-add="' + esc(t.sym) + '" style="font-size:12.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:7px;padding:8px 12px;background:none;cursor:pointer;font-family:inherit">추가만</button>' +
-              '<button data-goadd="' + esc(t.sym) + '" style="font-size:12.5px;color:var(--ac);border:1px solid rgba(123,108,255,0.45);border-radius:7px;padding:8px 12px;background:none;cursor:pointer;font-family:inherit">바로 분석 →</button></div></div>';
-          }).join("");
+          '<div data-results>' + resultsHtml() + "</div>";
 
         body.querySelectorAll("[data-go]").forEach(function (el) {
           el.addEventListener("click", function (e) {
@@ -605,21 +645,12 @@
             paintSheet();
           });
         });
-        body.querySelectorAll("[data-add]").forEach(function (el) {
-          el.addEventListener("click", function () { addSym(el.getAttribute("data-add"), false); });
-        });
-        body.querySelectorAll("[data-goadd]").forEach(function (el) {
-          el.addEventListener("click", function () { addSym(el.getAttribute("data-goadd"), true); });
-        });
+        bindList();
         const inp = body.querySelector("[data-q]");
         inp.addEventListener("input", function () {
           q = inp.value;
-          const pos = inp.selectionStart;
           runSearch(q);          // 디바운스 250ms — 타자마다 서버를 부르지 않는다
-          paintSheet();
-          const inp2 = body.querySelector("[data-q]");
-          inp2.focus();
-          try { inp2.setSelectionRange(pos, pos); } catch (e) {}
+          paintList();           // **입력창은 건드리지 않는다** — 한글 IME 조합이 끊긴다
         });
         // 시세는 **담긴 종목과 인기 목록에만** 붙인다. 검색 결과 10건마다 OHLC 를 부르면 비용이 폭증한다.
         fetchQuotes(picks.concat(qq ? [] : cands.slice(0, 6).map(function (t) { return t.sym; })));
