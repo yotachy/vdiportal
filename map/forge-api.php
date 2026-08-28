@@ -72,6 +72,12 @@ if ($method === "GET") {
     require_once __DIR__ . "/forge-search-lib.php";
     $q = fs_clean_query($_GET["search"]);
     if ($q === "") { echo json_encode(["ok"=>true,"q"=>"","items"=>[]], JSON_UNESCAPED_UNICODE); exit; }
+    // 한글 질의는 Yahoo 가 어차피 0건이다 — 별칭으로 답이 나오면 외부 호출 없이 즉답한다.
+    $aliasOnly = fs_alias_items($q, 10);
+    if (count($aliasOnly) && !preg_match('/[A-Za-z0-9]/', $q)) {
+      header("Cache-Control: private, max-age=86400");
+      echo json_encode(["ok"=>true,"q"=>$q,"items"=>$aliasOnly], JSON_UNESCAPED_UNICODE); exit;
+    }
     if (!function_exists("curl_init")) {   // 로컬 개발 PHP 엔 curl 이 없다 — 흰 화면 대신 정직한 오류
       http_response_code(503);
       echo json_encode(["ok"=>false,"error"=>"no-curl","q"=>$q], JSON_UNESCAPED_UNICODE); exit;
@@ -91,7 +97,8 @@ if ($method === "GET") {
       echo json_encode(["ok"=>false,"error"=>"upstream","q"=>$q], JSON_UNESCAPED_UNICODE); exit;
     }
     $j = json_decode($raw, true);
-    $items = fs_build_items(isset($j["quotes"]) ? $j["quotes"] : null, 10);
+    // 한글 별칭을 앞에(Yahoo 는 한글을 못 한다 — 실측 '테슬라'·'비트코인' 0건), Yahoo 결과를 뒤에.
+    $items = fs_merge_items(fs_alias_items($q, 10), fs_build_items(isset($j["quotes"]) ? $j["quotes"] : null, 10), 10);
     $payload = json_encode(["ok"=>true,"q"=>$q,"items"=>$items], JSON_UNESCAPED_UNICODE);
     @file_put_contents($cf, $payload, LOCK_EX);
     echo $payload; exit;

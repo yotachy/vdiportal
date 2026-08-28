@@ -63,6 +63,32 @@ ok(fs_clean_query("ap") === "ap", "질의: 2글자 허용");
 ok(fs_clean_query("a") === "", "질의: 1글자는 거절(노이즈·비용)");
 ok(fs_clean_query(str_repeat("x", 40)) === str_repeat("x", 32), "질의: 32자 상한");
 
+// ── 한글 별칭(2026-08-28) — Yahoo 가 한글을 못 하므로 사전이 필요하다 ──
+$a = fs_alias_items("테슬라", 10);
+ok(count($a) === 1 && $a[0]["s"] === "TSLA" && $a[0]["t"] === "stock", "별칭: 테슬라 → TSLA");
+ok(fs_alias_items("비트코인", 10)[0]["s"] === "BTC/USD", "별칭: 비트코인 → BTC/USD");
+ok(fs_alias_items("도지", 10)[0]["s"] === "DOGE/USD", "별칭: 도지 → DOGE/USD(부분 일치)");
+ok(fs_alias_items("나스닥", 10)[0]["t"] === "etf", "별칭: 나스닥 → QQQ(ETF 유형)");
+ok(fs_alias_items("삼성전자", 10) === array(), "별칭: 한국주식은 범위 밖 — 지어내지 않는다");
+ok(fs_alias_items("", 10) === array(), "별칭: 빈 질의는 빈 결과");
+ok(count(fs_alias_items("코인", 10)) <= 10, "별칭: 상한 준수");
+// 모든 항목의 유형이 정상값이어야 한다(오타 방지 — 실제로 ' stock' 오타가 있었다)
+$bad = array();
+foreach (array_keys($GLOBALS["FS_ALIAS"]) as $k) {
+  $v = $GLOBALS["FS_ALIAS"][$k];
+  if (!in_array($v[2], array("stock", "etf", "coin"), true)) $bad[] = $k . ":" . $v[2];
+  if (trim($v[0]) !== $v[0] || $v[0] === "") $bad[] = $k . ":sym";
+}
+ok(count($bad) === 0, "별칭: 유형·심볼 표기 정상 (" . implode(" ", $bad) . ")");
+
+// ── 병합 ──
+$al = array(array("s"=>"TSLA","n"=>"Tesla, Inc.","t"=>"stock"));
+$ya = array(array("s"=>"TSLA","n"=>"Tesla dup","t"=>"stock"), array("s"=>"TSLZ","n"=>"Inverse","t"=>"etf"));
+$m = fs_merge_items($al, $ya, 10);
+ok(count($m) === 2 && $m[0]["n"] === "Tesla, Inc." && $m[1]["s"] === "TSLZ", "병합: 별칭 우선·중복 제거");
+ok(count(fs_merge_items($al, $ya, 1)) === 1, "병합: 상한 준수");
+ok(fs_merge_items(null, null, 10) === array(), "병합: 입력 없음이면 빈 배열");
+
 echo "ℹ pass ", $PASS, "\n";
 echo "ℹ fail ", $FAIL, "\n";
 exit($FAIL ? 1 : 0);

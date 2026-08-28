@@ -522,11 +522,23 @@
         const s = MS.store.get();
         const picks = s.picks;
         const qq = q.trim().toLowerCase();
-        // 검색어가 없으면 인기 목록(MASTER), 있으면 서버 검색 결과. 담긴 종목은 후보에서 뺀다.
-        const cands = (!qq
-          ? MS.data.MASTER.filter(function (t) { return picks.indexOf(t.sym) < 0; })
-          : (results || []).map(function (r) { return { sym: r.s, name: r.n || "", kind: r.t }; })
-              .filter(function (t) { return picks.indexOf(t.sym) < 0; }));
+        // 검색어가 없으면 인기 목록(MASTER). 있으면 **MASTER 한글 매칭을 먼저**, 서버 결과를 뒤에.
+        // (2026-08-28 회귀 수정: 서버 결과로 갈아끼웠더니 '테슬라'·'비트코인' 한글 검색이 죽었다 —
+        //  Yahoo 는 한글을 못 한다. 서버에도 별칭 사전을 넣었지만 MASTER 매칭은 오프라인에서도 산다.)
+        const cands = (function () {
+          const out = [], seen = {};
+          const push = function (t) {
+            if (!t || !t.sym || seen[t.sym] || picks.indexOf(t.sym) >= 0) return;
+            seen[t.sym] = 1; out.push(t);
+          };
+          MS.data.MASTER.forEach(function (t) {
+            if (!qq || t.sym.toLowerCase().indexOf(qq) >= 0 || t.name.indexOf(q.trim()) >= 0) {
+              push({ sym: t.sym, name: t.name, kind: t.crypto ? "coin" : "stock" });
+            }
+          });
+          if (qq) (results || []).forEach(function (r) { push({ sym: r.s, name: r.n || "", kind: r.t }); });
+          return out;
+        })();
         const full = picks.length >= P().limits.stocksMax;
         body.innerHTML =
           '<div style="display:flex;align-items:baseline;gap:8px;padding:4px 0 12px;border-bottom:1px solid var(--sf3)">' +
