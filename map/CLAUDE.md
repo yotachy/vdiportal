@@ -55,7 +55,10 @@
 2. **`./tests/run.sh` 통과.**
 3. 지표를 추가·제거하면 **`forge-core.indicatorRegistry`(PC·모바일 공용 단일 출처) 하나만 고친다.** `indicatorCount`·등급표(`indicatorTiers()`)·`forge-state.IND_TIERS`·`backtest/ind-tiers.TIERS` 는 **전부 레지스트리 파생**이다(2026-08-28 — 예전엔 사본 4곳이 따로 놀았고, 실측에서 앱은 33으로 늘었는데 PC 레일만 32에 멈췄다). **목록을 다시 적지 말 것** — `app/registry-sync.test.js` 가 사본 재발을 소스에서 잡는다. 지표 수 기대값은 그 테스트 한 곳(`reg.length===32`)에만 있고, 추가 시 의도적으로 갱신한다.
    - **모바일은 추가 작업 0** — 개수·이름·그룹·분석·해설이 전부 라이브 파생(실측: 소스에 33번째를 넣자 앱 deep 분석이 33개로, 33번째가 bias·해설까지 생성).
-   - **PC 는 지표를 만드는 곳이라 셋이 더 필요하다**: `forge-state.BLOCK_DEFS`(노드 라벨·파라미터) · `forge-draw.EV_COLORS`(+ 작도 루틴) · 필요 시 `INDICATOR_INFO`. 레일은 `EV_COLORS` 가 있는 것만 띄운다(`_indTypes`). 레지스트리 항목 = {id·label·tier·group·input·analyze}. **머니스쿱 앱은 이 레지스트리에서 지표 세트·개수·이름·그룹을 라이브 파생하므로, 지표를 엔진에 추가하면 모바일은 별도 구현 없이 자동으로 N+1개로 분석·표시된다**(열린 엔진 원칙 — 사용자 확정). 3자 동기(레지스트리↔indicatorCount↔ind-tiers 사본) 드리프트 가드는 `app/registry-sync.test.js`(run.sh app 스위트, 가짜 33번째 지표 자동 확장 증명 포함). node 등급표는 `backtest/ind-tiers.js`(UMD 사본).
+   - **PC 는 지표를 만드는 곳이라 셋이 더 필요하다**: `forge-state.BLOCK_DEFS`(노드 라벨·파라미터) · `forge-draw.EV_COLORS`(+ 작도 루틴) · 필요 시 `INDICATOR_INFO`. 레일은 `EV_COLORS` 가 있는 것만 띄운다(`_indTypes`).
+   - **작도는 앱이 자동 상속** — 앱 분석·실행 화면은 `forge.html?embed=app` 을 iframe 으로 실행해 `forge-draw.js` 를 그대로 돌린다. PC 에 작도를 추가하고 **forge 세트를 배포+캐시버스터** 하면 앱에 그대로 나온다(앱 코드 0줄). 예외였던 앱 오실레이터 배지는 `kind` 파생으로 해소됨(2026-08-28).
+   - **레지스트리 필드 `kind: "osc"|"overlay"`** — 별도 축(서브패널·배지)에서 읽는 지표인가. `app-chart.OSC`·`forge-ui.GAUGE_TYPES` 가 여기서 파생된다. 새 지표엔 반드시 채울 것(가드 있음).
+   - **큐레이션 목록은 자동 확장 대상이 아니다**(의도): `NEW_INDICATORS`(레일 배지) · `PATTERN_NATURE`(성격 태그) · 프리셋(`forge-ui._PRESET_DEF` · `backtest/ind-tiers` PRESETS — 백테스트로 k 를 정한 집합). 새 지표를 넣을지는 사람이 정한다. 레지스트리 항목 = {id·label·tier·group·input·analyze}. **머니스쿱 앱은 이 레지스트리에서 지표 세트·개수·이름·그룹을 라이브 파생하므로, 지표를 엔진에 추가하면 모바일은 별도 구현 없이 자동으로 N+1개로 분석·표시된다**(열린 엔진 원칙 — 사용자 확정). 3자 동기(레지스트리↔indicatorCount↔ind-tiers 사본) 드리프트 가드는 `app/registry-sync.test.js`(run.sh app 스위트, 가짜 33번째 지표 자동 확장 증명 포함). node 등급표는 `backtest/ind-tiers.js`(UMD 사본).
 
 ## ③ 브랜치 · 배포
 

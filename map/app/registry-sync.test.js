@@ -80,23 +80,45 @@ const fs = require("node:fs");
 const path = require("node:path");
 function srcOf(rel) { return fs.readFileSync(path.join(__dirname, "..", rel), "utf8"); }
 
-test("사본 금지: forge-state·ind-tiers 는 등급표를 엔진에서 파생한다", () => {
+test("레지스트리 kind: 모든 항목이 osc/overlay 로 분류돼 있다", () => {
+  // 앱 배지(app-chart OSC)·PC 게이지 판정이 이 필드에서 파생된다 — 누락되면 조용히 빠진다.
+  const reg = core.indicatorRegistry;
+  reg.forEach((e) => assert.ok(e.kind === "osc" || e.kind === "overlay", e.id + " kind 누락/이상: " + e.kind));
+  assert.equal(reg.filter((e) => e.kind === "osc").length, 15, "오실레이터 종수(밖에서 고정한 기대값)");
+  const chart = require("./app-chart.js");
+  assert.deepEqual(chart.OSC.slice().sort(), reg.filter((e) => e.kind === "osc").map((e) => e.id).sort(),
+    "앱 배지 OSC 는 레지스트리 kind 파생이어야 한다");
+});
+
+test("사본 금지: forge-state·ind-tiers·app-chart·forge-ui 는 목록을 엔진에서 파생한다", () => {
   const st = srcOf("forge-state.js");
   assert.ok(/IND_TIERS\s*=\s*ForgeCore\.indicatorTiers\(\)/.test(st),
     "forge-state 의 IND_TIERS 가 레지스트리 파생이 아니다");
   const it = srcOf("backtest/ind-tiers.js");
   assert.ok(/TIERS\s*=\s*core\.indicatorTiers\(\)/.test(it),
     "backtest/ind-tiers 의 TIERS 가 레지스트리 파생이 아니다");
+  assert.ok(/OSC\s*=\s*core\.indicatorRegistry\.filter/.test(srcOf("app/app-chart.js")),
+    "app-chart 의 OSC 가 레지스트리 파생이 아니다");
+  assert.ok(/GAUGE_TYPES\s*=\s*ForgeCore\.indicatorRegistry\.map/.test(srcOf("forge-ui.js")),
+    "forge-ui 의 GAUGE_TYPES 가 레지스트리 파생이 아니다");
   // 등급표 사본이 다시 생기는 것만 겨냥한다 — `lv:` 와 지표 id 나열이 한 줄에 같이 있으면 사본이다.
   // 겨냥에서 빼는 것 둘(자동 확장 대상이 아니다):
   //  · NEW_INDICATORS — 레일 'new' 배지용 편집 목록(사람이 올리고 내린다)
   //  · 프리셋(`key:`) — 백테스트로 k 를 정한 큐레이션 집합(새 지표가 조용히 끼면 안 된다)
-  [["forge-state.js", st], ["backtest/ind-tiers.js", it]].forEach(function (pair) {
+  [["forge-state.js", st], ["backtest/ind-tiers.js", it],
+   ["app/app-chart.js", srcOf("app/app-chart.js")], ["forge-ui.js", srcOf("forge-ui.js")]].forEach(function (pair) {
     const ids = core.indicatorRegistry.map((e) => e.id);
     pair[1].split("\n").forEach(function (ln, i) {
-      if (!/\blv\s*:/.test(ln)) return;
+      // 자동 확장 대상이 아닌 것들 — 배지 편집 목록·성격 태그·큐레이션 프리셋(PC _PRESET_DEF 는
+      // { name, t:[...] }, 백테스트 프리셋은 { key, types:[...] }). 새 지표가 조용히 끼면 안 된다.
+      if (/NEW_INDICATORS|PATTERN_NATURE|\bkey\s*:/.test(ln)) return;
+      if (/\bname\s*:/.test(ln) && /\bt\s*:\s*\[/.test(ln)) return;
       const hits = ids.filter((id) => new RegExp('"' + id + '"').test(ln)).length;
-      assert.ok(hits < 3, pair[0] + ":" + (i + 1) + " 에 등급표 사본으로 보이는 줄이 있다");
+      if (/\blv\s*:/.test(ln)) {
+        assert.ok(hits < 3, pair[0] + ":" + (i + 1) + " 에 등급표 사본으로 보이는 줄이 있다");
+      }
+      // 한 줄에 지표 id 를 8개 이상 나열 = 전체 목록 사본(GAUGE_TYPES·OSC 가 그랬다)
+      assert.ok(hits < 8, pair[0] + ":" + (i + 1) + " 에 지표 전체 목록 사본으로 보이는 줄이 있다");
     });
   });
 });

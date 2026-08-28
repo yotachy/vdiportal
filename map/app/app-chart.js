@@ -7,10 +7,10 @@
    (카메라는 CSS transform 이 아니라 viewBox 크롭 — 지침서 §4 준수).
    순수 함수(DOM 없음·node 테스트) + 화면 모듈이 svg() 문자열을 삽입한다. */
 (function (root, factory) {
-  const api = factory();
+  const api = (typeof module !== "undefined" && module.exports) ? factory(require("../forge-core.js")) : factory(root.ForgeCore);
   if (typeof module !== "undefined" && module.exports) module.exports = api;
   else { root.MS = root.MS || {}; root.MS.chart = api; }
-})(typeof self !== "undefined" ? self : this, function () {
+})(typeof self !== "undefined" ? self : this, function (core) {
   "use strict";
 
   const W = 411, H = 411, PL = 8, PR = 46, PT = 14, PB = 26;
@@ -442,8 +442,9 @@
     return s || null;
   }
 
-  const OSC = ["rsi", "macd", "stochastic", "cci", "williams", "roc", "ao", "atr", "aroon",
-    "cycle", "phasefold", "mfi", "cmf", "volume", "pattern"];
+  // 오실레이터 판별은 엔진 레지스트리 kind 파생(2026-08-28) — 목록을 여기 다시 적으면
+  // 엔진에 지표가 늘어도 배지만 옛 세트로 남는다(사본 금지).
+  const OSC = core.indicatorRegistry.filter(function (e) { return e.kind === "osc"; }).map(function (e) { return e.id; });
   // 오실레이터 배지 칩(차트 아래 흐름 배치용 — 차트 위 오버레이 금지)
   function badgeHtml(report, off) {
     if (!report || !report.indicators) return "";
