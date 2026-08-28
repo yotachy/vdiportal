@@ -122,3 +122,53 @@ test("fetch: 재갱신은 since= 델타 · 응답을 캐시에 머지 · 경량�
   assert.deepEqual(d.candles.map((x) => x.c), [1, 2, 3.5, 4]);
   assert.equal(store._cache["NVDA|1day"].full, true, "델타 후에도 전량 표식 유지");
 });
+
+// ── 종목 검색(2026-08-28) — 서버 ?search= 를 감싼 세션 캐시 ─────────────────────
+// 왜 필요한가: 시트가 MASTER 11종만 걸러 보여주면서 카피는 "미국 전 종목"이라고 적고 있었다.
+test("createSearch: 2글자 미만은 서버를 부르지 않는다(노이즈·비용)", async () => {
+  let calls = 0;
+  const io = { now: () => 1000, fetchJson: async () => { calls++; return { ok: true, items: [] }; } };
+  const s = data.createSearch(io);
+  assert.deepEqual(await s.find("a"), []);
+  assert.deepEqual(await s.find(" "), []);
+  assert.equal(calls, 0);
+});
+
+test("createSearch: 같은 질의는 캐시 — 서버 1회", async () => {
+  let calls = 0;
+  const io = { now: () => 1000, fetchJson: async () => { calls++; return { ok: true, items: [{ s: "AAPL", n: "Apple Inc.", t: "stock" }] }; } };
+  const s = data.createSearch(io);
+  const a = await s.find("apple");
+  assert.equal(a.length, 1);
+  assert.equal(a[0].s, "AAPL");
+  await s.find("apple");
+  await s.find("APPLE");                     // 대소문자 무관 같은 질의
+  assert.equal(calls, 1);
+});
+
+test("createSearch: 서버 실패·형식 이상이면 빈 배열(화면이 죽지 않는다)", async () => {
+  const bad = data.createSearch({ now: () => 1, fetchJson: async () => ({ ok: false, error: "upstream" }) });
+  assert.deepEqual(await bad.find("apple"), []);
+  const junk = data.createSearch({ now: () => 1, fetchJson: async () => null });
+  assert.deepEqual(await junk.find("apple"), []);
+  const thrown = data.createSearch({ now: () => 1, fetchJson: async () => { throw new Error("net"); } });
+  assert.deepEqual(await thrown.find("apple"), []);
+});
+
+test("createSearch: 실패는 캐시하지 않는다(다시 시도할 수 있어야 한다)", async () => {
+  let calls = 0, fail = true;
+  const io = { now: () => 1, fetchJson: async () => { calls++; return fail ? { ok: false } : { ok: true, items: [{ s: "NVDA", n: "NVIDIA", t: "stock" }] }; } };
+  const s = data.createSearch(io);
+  assert.deepEqual(await s.find("nvda"), []);
+  fail = false;
+  const r = await s.find("nvda");
+  assert.equal(r.length, 1);
+  assert.equal(calls, 2);
+});
+
+test("createSearch: 질의는 소문자·URL 인코딩으로 나간다(캐시 적중률 — Yahoo 는 대소문자 무관)", async () => {
+  let url = null;
+  const io = { now: () => 1, fetchJson: async (u) => { url = u; return { ok: true, items: [] }; } };
+  await data.createSearch(io).find("BRK B");
+  assert.ok(url.indexOf("search=brk%20b") >= 0, url);
+});
