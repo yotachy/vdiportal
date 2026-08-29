@@ -117,6 +117,10 @@ a:hover{color:var(--ach)}
 /* ── 헤더 (프로토 L75~104) ── */
 .ms-header{height:58px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;
   border-bottom:1px solid var(--sf3);background:var(--sf0)}
+/* 글자 크기(설정 '가' 크게) — 2026-08-29 점검: 속성만 붙고 키우는 규칙이 없어 아무것도 안 커졌다.
+   화면이 전부 px 폰트라 루트 폰트로는 못 키운다 → 앱 루트에 zoom 1.12. vh 단위는 zoom 에 나눠지지
+   않아 세로가 12% 넘치므로 vh 를 쓰는 세 규칙만 /1.12 로 보정한다(아래 두 곳 + expanded 블록). */
+[data-fz="1"] #msApp{zoom:1.12;min-height:calc(100vh / 1.12);min-height:calc(100dvh / 1.12)}
 [data-fz="1"] .ms-header{gap:5px;padding:0 10px}
 .ms-header-brand{display:flex;align-items:center;gap:8px;cursor:pointer}
 .ms-header-title{font-weight:700;font-size:17.5px;letter-spacing:-0.02em;white-space:nowrap;flex:none}
@@ -303,6 +307,8 @@ a:hover{color:var(--ach)}
     padding:12px 6px;justify-content:flex-start;gap:6px;align-self:stretch}
   .ms-tab{flex:0 0 auto;padding:10px 0}
   #msMain{order:2;flex:1;min-width:0;height:calc(100vh - 58px);height:calc(100dvh - 58px)}
+  /* 헤더 58px 도 zoom 돼 65px 가 된다 — 뷰포트만 나누고 헤더는 css px 그대로 뺀다(실측: (100dvh−58)/1.12 는 7px 넘쳤다) */
+  [data-fz="1"] #msMain{height:calc(100vh / 1.12 - 58px);height:calc(100dvh / 1.12 - 58px)}
   .ms-chart-layout{grid-template-columns:62fr 38fr}
   /* 목록 화면 마스터-디테일(§16 expanded) — 좌 목록 | 우 상세(펼침 대신 우측 고정 표시).
      비율은 목록이 한 줄 요약·상세가 산문이라 상세를 넓게. 카드 최대 폭 규칙대로 안쪽은 560 캡. */
@@ -310,6 +316,7 @@ a:hover{color:var(--ach)}
   .ms-md-list,.ms-md-detail{min-width:0}   /* 그리드 아이템 기본 min-width:auto 가 말줄임을 깨뜨린다 */
   .ms-md-detail{position:sticky;top:0;border-left:1px solid var(--ln0);
     max-height:calc(100vh - 58px);max-height:calc(100dvh - 58px);overflow-y:auto;padding:16px 16px 32px}
+  [data-fz="1"] .ms-md-detail{max-height:calc(100vh / 1.12 - 58px);max-height:calc(100dvh / 1.12 - 58px)}
   .ms-md-inner{max-width:480px}   /* §16 불변: 카드 최대 폭 480 — 늘리지 말고 컬럼을 늘린다 */
   [data-home="grid"]{grid-template-columns:repeat(4,1fr)!important}
   .ms-screen>div{max-width:1100px;margin:0 auto}
