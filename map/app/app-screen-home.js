@@ -108,6 +108,9 @@
         [0, 1, 2, 3, 4, 5, 6].map(function (i) { return '<span style="width:6px;height:6px;border-radius:50%;background:' + (i < streak ? "var(--up)" : "var(--sf3)") + ';flex:none"></span>'; }).join("") + "</div>" +
         '<div style="margin-top:4px;font-size:10.5px;color:var(--m2);white-space:nowrap">7일 채우면 ◈+5</div></div></div>' +
 
+        // 분석가 레벨 카드(시안 홈 §4)
+        levelCardHtml(s) +
+
         // 내 관심 종목
         '<div style="margin:16px 16px 0;display:flex;align-items:baseline;gap:8px">' +
         '<span style="font-size:15px;font-weight:700;letter-spacing:-0.02em;white-space:nowrap;flex:none">내 관심 종목</span>' +
@@ -186,6 +189,105 @@
     }
 
     // ── 페르소나 카드(지침서 §9·03 §6 — 총량 표기 금지) ──
+    // 경험치 TIP 칩 — 값은 정책에서, 목적지는 각 화면. go 없는 항목은 정보만.
+    function xpTips() {
+      const x = MS.config.POLICY.xp, sc = MS.config.POLICY.scoop;
+      return [
+        { n: "시그널 +" + x.signalView, go: function () { MS.router.go("signal"); } },
+        { n: "채점 +" + x.scoreView, go: function () { MS.router.go("score"); } },
+        { n: "분석 +" + x.analysisFirst, go: function () { MS.router.go("chart"); setTimeout(function () { MS.flow.openTier(); }, 250); } },
+        { n: "페르소나 +" + x.personaAnswer, go: scrollPersona },
+        { n: "작도 조작 +" + x.drawToggle.xp, go: function () { MS.router.go("chart"); } },
+        { n: "광고 ◈" + sc.ad.scoop + "·+" + sc.ad.xp, go: function () { MS.router.go("wallet"); } },
+        { n: "첫 방문 +" + x.firstVisit, go: null },
+        { n: "메뉴 순회 +" + x.menuFirst, go: null },
+        { n: "종목 추가 +" + x.stockAdd.xp, go: function () { MS.flow.openStocks(); } }
+      ];
+    }
+    function scrollPersona() {
+      const el = host.querySelector("#msPersonaCard");
+      if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    // 분석가 레벨 카드 — 시안 홈 §4(프로토 L1425–1498): 궤도 장식 + 캐릭터/잠김 + 레벨·페르소나 게이지 + 경험치 TIP 마퀴.
+    // 값은 내 스쿱 화면과 같은 출처(MS.xp.gaugeOf·levelName·charSvg, MS.persona.stageOf) — 두 화면이 다른 숫자를 보이지 않는다.
+    function levelCardHtml(s) {
+      const P2 = MS.config.POLICY;
+      const g = !s.gLinked;
+      const xp = s.xp || 0;
+      const ga = MS.xp.gaugeOf(xp);
+      const lv = ga.lv;
+      const idx = s.personaIdx || 0;
+      const stage = MS.persona.stageOf(idx, P2.persona.stages, P2.persona.stageNames);
+      const hpPct = g ? Math.round(Math.min(idx, P2.limits.persona.guestMax) / P2.limits.persona.guestMax * 24) : stage.inPct;
+      const hpStage = g ? "맛보기" : (stage.idx + 1) + "단계 " + stage.name;
+      const C1 = 2 * Math.PI * 34, C2 = 2 * Math.PI * 24;
+      const ringD = ((ga.maxed ? 1 : ga.pct / 100) * C1).toFixed(1) + " " + C1.toFixed(1);
+      const ring2D = (0.62 * C2).toFixed(1) + " " + C2.toFixed(1);
+      const tips = xpTips();
+      const chip = function (t, i) {
+        return '<span data-tip="' + i + '" style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);border:1px solid var(--ln1);border-radius:99px;padding:4px 8px;cursor:' + (t.go ? "pointer" : "default") + ';white-space:nowrap;flex:none">' + esc(t.n) + "</span>";
+      };
+      return '<div style="margin:8px 16px 0;border-radius:14px;border:1px solid ' + (g ? "var(--ln1)" : "rgba(123,108,255,0.32)") + ";background:" + (g ? "var(--sf1)" : "linear-gradient(150deg,rgba(123,108,255,0.09),var(--sf1) 60%)") + ";box-shadow:" + (g ? "none" : "0 10px 34px -16px rgba(123,108,255,0.6)") + ';position:relative;overflow:hidden;animation:msRevealUp 0.55s cubic-bezier(0.2,0.8,0.25,1) 0.24s both">' +
+        '<div style="position:absolute;top:0;bottom:0;left:0;width:46%;background:linear-gradient(105deg,transparent,rgba(238,241,247,0.05),transparent);animation:msSweepX 5s ease-in-out infinite;pointer-events:none"></div>' +
+        '<svg viewBox="0 0 380 120" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;opacity:0.5" aria-hidden="true"><g fill="none" stroke-linecap="round">' +
+        '<circle cx="330" cy="60" r="34" stroke="rgba(123,108,255,0.35)" stroke-width="1" stroke-dasharray="' + ringD + '" transform="rotate(-90 330 60)"></circle>' +
+        '<circle cx="330" cy="60" r="24" stroke="rgba(210,165,22,0.3)" stroke-width="0.8" stroke-dasharray="' + ring2D + '" transform="rotate(-90 330 60)"></circle>' +
+        '<circle cx="330" cy="60" r="15" stroke="rgba(139,147,167,0.3)" stroke-width="0.7" stroke-dasharray="2 4"><animateTransform attributeName="transform" type="rotate" from="0 330 60" to="360 330 60" dur="26s" repeatCount="indefinite"></animateTransform></circle>' +
+        '<circle cx="330" cy="60" r="3" fill="rgba(123,108,255,0.6)" stroke="none"></circle></g></svg>' +
+        (g
+          ? '<div style="position:absolute;right:8px;top:12px;width:104px;display:flex;flex-direction:column;align-items:center;gap:2px;pointer-events:none">' +
+            '<svg viewBox="0 0 64 64" width="46" height="46" style="display:block;opacity:0.4" aria-hidden="true"><rect x="14" y="16" width="36" height="34" rx="11" fill="none" stroke="var(--m2)" stroke-width="2.4" stroke-dasharray="4 4"></rect><text x="32" y="39" text-anchor="middle" font-size="16" fill="var(--m2)">?</text></svg>' +
+            '<span style="font-size:10.5px;font-weight:700;color:var(--m2);white-space:nowrap">???</span>' +
+            '<span style="font-size:9.5px;color:var(--m2);white-space:nowrap">로그인하면 깨어나요</span></div>' +
+            '<div data-act="lvlogin" style="position:relative;padding:12px 116px 12px 12px;cursor:pointer">' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11.5px;color:var(--m1);white-space:nowrap">분석가 레벨</span>' +
+            '<span style="font-size:10px;color:var(--m2);border:1px dashed var(--m3);border-radius:99px;padding:1px 8px;white-space:nowrap;flex:none">잠김</span></div>' +
+            '<div style="margin-top:4px;font-size:14px;font-weight:700;letter-spacing:-0.02em;line-height:1.4">구글로 로그인하면<br>레벨과 캐릭터가 시작돼요</div>' +
+            '<div style="margin-top:8px;font-size:11px;color:var(--m1);line-height:1.6">분석 · 채점 · 시그널 · 페르소나가 전부 경험치로 쌓입니다</div>' +
+            '<div style="margin-top:8px;display:inline-flex;align-items:center;gap:8px;min-height:34px;border:1px solid rgba(123,108,255,0.5);border-radius:99px;padding:0 14px;font-size:12.5px;font-weight:600;color:var(--ac)"><span style="font-weight:800">G</span> 구글로 시작하기</div></div>'
+          : '<div style="position:absolute;right:8px;top:6px;width:110px;display:flex;flex-direction:column;align-items:center;pointer-events:none">' +
+            '<div style="position:relative;width:74px;height:74px;display:flex;align-items:center;justify-content:center">' +
+            '<div style="position:absolute;inset:8px;border-radius:50%;background:radial-gradient(closest-side,var(--ac),transparent 72%);opacity:0.42;animation:msAuraPulse 3.2s ease-in-out infinite"></div>' +
+            '<svg viewBox="0 0 86 86" width="74" height="74" style="position:absolute;inset:0" aria-hidden="true">' +
+            '<circle cx="43" cy="43" r="39" fill="none" stroke="var(--ac)" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="3 6"><animateTransform attributeName="transform" type="rotate" from="0 43 43" to="360 43 43" dur="22s" repeatCount="indefinite"></animateTransform></circle>' +
+            '<circle cx="43" cy="43" r="32" fill="none" stroke="var(--ac)" stroke-opacity="0.28" stroke-width="0.8" stroke-dasharray="1.5 7"><animateTransform attributeName="transform" type="rotate" from="360 43 43" to="0 43 43" dur="30s" repeatCount="indefinite"></animateTransform></circle></svg>' +
+            '<div style="position:relative;animation:msFloatY 3.6s ease-in-out infinite">' + MS.xp.charSvg(lv, 54) + "</div></div>" +
+            '<span style="font-size:10.5px;font-weight:800;color:var(--ac);white-space:nowrap">' + esc(MS.xp.levelName(lv)) + "</span>" +
+            '<span style="font-size:9.5px;color:var(--m2);white-space:nowrap">레벨 ' + lv + " 캐릭터</span></div>" +
+            '<div data-act="lv" style="position:relative;min-height:96px;padding:12px 122px 12px 12px;cursor:pointer;display:flex;flex-direction:column;justify-content:center">' +
+            '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11.5px;color:var(--m1);white-space:nowrap">분석가 레벨</span>' +
+            '<span style="font-size:11px;font-weight:700;color:var(--ac);white-space:nowrap;flex:none">레벨 <span class="mono">' + lv + "</span></span></div>" +
+            '<div style="margin-top:4px;font-size:16.5px;font-weight:800;letter-spacing:-0.02em;white-space:nowrap;background:linear-gradient(90deg,var(--t1) 25%,var(--ac));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block">' + esc(MS.xp.levelName(lv)) + "</div>" +
+            '<div style="margin-top:8px;display:flex;align-items:center;gap:8px">' +
+            '<div style="flex:1;height:4px;border-radius:2px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + ga.pct + '%;background:linear-gradient(90deg,var(--m1),var(--ac) 55%,var(--cu));border-radius:2px"></span></div>' +
+            '<span style="font-size:10.5px;color:var(--m2);white-space:nowrap;flex:none">' + (ga.maxed ? "최고 레벨" : "다음 레벨까지 경험치 " + (ga.max - ga.cur)) + "</span></div>" +
+            '<div data-act="lvpersona" style="margin-top:7px;display:flex;align-items:center;gap:8px;cursor:pointer">' +
+            '<span style="font-size:10.5px;color:var(--cu);white-space:nowrap;flex:none">페르소나</span>' +
+            '<div style="flex:1;height:4px;border-radius:2px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + hpPct + '%;background:linear-gradient(90deg,var(--ac),var(--cu));border-radius:2px"></span></div>' +
+            '<span style="font-size:10.5px;font-weight:700;color:var(--cu);white-space:nowrap;flex:none">' + esc(hpStage) + "</span></div></div>") +
+        '<div style="position:relative;border-top:1px solid var(--ln0);display:flex;align-items:center;padding:8px 12px;gap:8px">' +
+        '<span style="font-size:11.5px;color:var(--m1);white-space:nowrap;flex:none">경험치 TIP</span>' +
+        '<div style="flex:1;min-width:0;overflow:hidden;position:relative">' +
+        '<div style="display:flex;gap:6px;width:max-content;animation:msTipScroll 22s linear infinite">' + tips.map(chip).join("") + tips.map(chip).join("") + "</div>" +
+        '<span style="position:absolute;right:0;top:0;bottom:0;width:22px;background:linear-gradient(90deg,transparent,var(--sf1));pointer-events:none"></span></div>' +
+        '<span style="font-size:11px;color:' + ((s.xpToday || 0) > 0 ? "var(--ac)" : "var(--m2)") + ';white-space:nowrap;flex:none">경험치 +' + (s.xpToday || 0) + "</span></div></div>";
+    }
+
+    function bindLevel() {
+      const lvB = host.querySelector('[data-act="lv"]');
+      if (lvB) lvB.addEventListener("click", function () { MS.router.go("wallet"); });
+      const lg = host.querySelector('[data-act="lvlogin"]');
+      if (lg) lg.addEventListener("click", function () { MS.auth.start(); });
+      const pr = host.querySelector('[data-act="lvpersona"]');
+      if (pr) pr.addEventListener("click", function (e) { e.stopPropagation(); scrollPersona(); });
+      const tips = xpTips();
+      host.querySelectorAll("[data-tip]").forEach(function (el) {
+        const t = tips[parseInt(el.getAttribute("data-tip"), 10)];
+        if (t && t.go) el.addEventListener("click", t.go);
+      });
+    }
+
     function personaCardHtml() {
       const s = MS.store.get();
       const P2 = MS.config.POLICY;
@@ -352,13 +454,15 @@
       const ch = host.querySelector('[data-act="chart"]');
       if (ch) ch.addEventListener("click", function () { MS.router.go("chart"); });
       bindPersona();
+      bindLevel();
     }
 
     render();
     // 관심종목이 바뀌면(시트·다른 화면에서 담거나 빼도) 홈이 즉시 반영 — 빈 홈에서 담으면 곧바로 채워지고,
     // 마지막 종목을 빼면 관심종목 안내 카드로 전환. 화면이 홈일 때만 렌더.
     homeUnsub = MS.store.subscribe(function (keys) {
-      if (keys.indexOf("picks") >= 0 && MS.store.get().screen === "home") render();
+      if (MS.store.get().screen !== "home") return;
+      if (["picks", "xp", "xpToday", "gLinked", "personaIdx"].some(function (k) { return keys.indexOf(k) >= 0; })) render();
     });
     // 채점 요약(서버) — 배지·히어로 실값
     MS.data.api("list", { limit: 200 }).then(function (r) {

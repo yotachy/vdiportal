@@ -118,6 +118,9 @@
   }
 
   // 레벨 게이지 수치 — 헤더·연출·지갑 화면이 같은 계산을 쓴다
+  const LV_NAMES = ["스쿱 견습생", "스쿱 서기", "스쿱 분석가", "스쿱 장인", "스쿱 오라클"];
+  function levelName(lv) { return LV_NAMES[Math.max(0, Math.min(LV_NAMES.length - 1, lv - 1))]; }
+
   function gaugeOf(xp) {
     const L = P().xp.levels, lv = MS.config.levelOf(xp);
     const lo = lv <= 1 ? 0 : L[lv - 2];
@@ -180,7 +183,7 @@
     const app = document.getElementById("msApp");
     if (!app) return;
     MS.ui.hap("done");
-    const names = ["스쿱 견습생", "스쿱 서기", "스쿱 분석가", "스쿱 장인", "스쿱 오라클"];
+    const names = LV_NAMES;
     const el = document.createElement("div");
     el.style.cssText = "position:absolute;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:rgba(4,5,9,0.78);backdrop-filter:blur(6px);animation:msLvDim 0.4s ease both;cursor:pointer";
     el.innerHTML =
@@ -210,5 +213,5 @@
   }
 
   MS.wallet = { state: walletState, spend: spend, refund: refund, checkin: checkin, nextSlotTxt: nextSlotTxt };
-  MS.xp = { add: addXp, visit: visitXp, charSvg: charSvg, levelUpOverlay: levelUpOverlay, gaugeOf: gaugeOf };
+  MS.xp = { add: addXp, visit: visitXp, charSvg: charSvg, levelUpOverlay: levelUpOverlay, gaugeOf: gaugeOf, levelName: levelName };
 })();

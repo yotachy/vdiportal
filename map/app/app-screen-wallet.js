@@ -44,7 +44,7 @@
           '<div style="margin:12px 16px 0;border-radius:14px;background:var(--sf1);padding:16px">' +
           '<div style="display:flex;align-items:center;gap:14px">' +
           '<div style="animation:msFloatY 3s ease-in-out infinite">' + MS.xp.charSvg(lv, 64) + "</div>" +
-          '<div style="min-width:0;flex:1"><div style="font-size:15px;font-weight:700">Lv.' + lv + " " + ["스쿱 견습생", "스쿱 서기", "스쿱 분석가", "스쿱 장인", "스쿱 오라클"][Math.min(4, lv - 1)] + "</div>" +
+          '<div style="min-width:0;flex:1"><div style="font-size:15px;font-weight:700">Lv.' + lv + " " + MS.xp.levelName(lv) + "</div>" +
           '<div style="margin-top:4px;font-size:11.5px;color:var(--m1)">오늘 경험치 +' + (s.xpToday || 0) + "</div>" +
           '<div style="margin-top:8px;height:5px;border-radius:3px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + lvPct(s.xp) + '%;background:linear-gradient(90deg,var(--up),var(--ac))"></span></div></div></div>' +
           '<div style="margin-top:12px;border-top:1px solid var(--ln0);padding-top:10px">' +
