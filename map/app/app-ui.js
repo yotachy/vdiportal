@@ -27,18 +27,20 @@
     if (!app) return;
     const old = app.querySelector(".ms-bartip");
     if (old && old.parentNode) old.parentNode.removeChild(old);
+    // getBoundingClientRect 는 시각 px, style 은 #msApp 안의 CSS px — 글자 확대(zoom 1.12)면 12% 어긋난다.
+    const z = zoomOf();
     const r = barEl.getBoundingClientRect(), a = app.getBoundingClientRect();
     const tip = document.createElement("div");
     tip.className = "ms-bartip";
     tip.textContent = text;
-    tip.style.left = (r.left - a.left + r.width / 2) + "px";
-    tip.style.top = (r.top - a.top) + "px";
+    tip.style.left = ((r.left - a.left + r.width / 2) / z) + "px";
+    tip.style.top = ((r.top - a.top) / z) + "px";
     app.appendChild(tip);
     // 화면 밖으로 나가면 가로 위치 보정(막대가 가장자리일 때)
     const tr = tip.getBoundingClientRect();
-    const half = tr.width / 2, cx = r.left - a.left + r.width / 2;
+    const half = tr.width / 2 / z, cx = (r.left - a.left + r.width / 2) / z, aw = a.width / z;
     if (cx - half < 6) tip.style.left = (6 + half) + "px";
-    else if (cx + half > a.width - 6) tip.style.left = (a.width - 6 - half) + "px";
+    else if (cx + half > aw - 6) tip.style.left = (aw - 6 - half) + "px";
     setTimeout(function () { if (tip.parentNode) tip.parentNode.removeChild(tip); }, 1600);
   }
 
@@ -540,6 +542,14 @@
 
   // ── 반응형 expanded 감지(지침서 §16) — 840px+ 는 목록 화면이 마스터-디테일이 된다.
   // 폭 값은 app.css 의 @media (min-width:840px) 와 한 쌍이다(둘을 같이 고친다).
+  // #msApp 의 유효 zoom(글자 확대 시 1.12). 시각 px(getBoundingClientRect) → CSS px(style) 변환에 나눈다.
+  // 이걸 안 나누면 확대 상태에서 포지 iframe·툴팁이 12% 크게·아래로 그려져 하단이 탭바 밑으로 들어간다(2026-08-29).
+  function zoomOf() {
+    const app = appEl || document.getElementById("msApp");
+    if (!app) return 1;
+    const v = parseFloat(getComputedStyle(app).zoom);
+    return (isFinite(v) && v > 0) ? v : 1;
+  }
   const EXPANDED_MQ = "(min-width:840px)";
   function mq() { try { return window.matchMedia(EXPANDED_MQ); } catch (e) { return null; } }
   function isExpanded() { const m = mq(); return !!(m && m.matches); }
@@ -558,5 +568,5 @@
 
   MS.ui = { init: init, flash: flash, reward: reward, openSheet: openSheet, closeSheet: closeSheet,
     openAbout: openAbout, skeleton: skeleton, hap: hap, TAB_SCREENS: TAB_SCREENS,
-    isExpanded: isExpanded, onExpandedChange: onExpandedChange };
+    isExpanded: isExpanded, onExpandedChange: onExpandedChange, zoomOf: zoomOf };
 })();

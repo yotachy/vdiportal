@@ -27,7 +27,7 @@
     iframe.setAttribute("allow", "fullscreen");
     iframe.style.cssText = "display:block;width:100%;height:100%;border:0;background:var(--sf0)";
     const th = (MS.store && MS.store.get().theme === "light") ? "daylight" : "midnight";
-    iframe.src = base() + "/forge.html?embed=app&th=" + th + "&v=20260829c";
+    iframe.src = base() + "/forge.html?embed=app&th=" + th + "&v=20260829d";
     window.addEventListener("message", onMessage);
     return iframe;
   }
@@ -75,11 +75,14 @@
     rafT = null;
     if (!iframe || !ph || !ph.isConnected) { if (iframe) iframe.style.display = "none"; return; }
     const a = appEl().getBoundingClientRect(), r = ph.getBoundingClientRect();
+    // rect 는 시각 px, style 은 #msApp(zoom 1.12 일 수 있음) 안의 CSS px — 나누지 않으면 확대 상태에서
+    // 프레임이 12% 크게·아래로 놓여 차트 하단이 탭바 밑으로 들어간다(2026-08-29 사용자 제보).
+    const z = (MS.ui && MS.ui.zoomOf) ? MS.ui.zoomOf() : 1;
     iframe.style.display = "block";
-    iframe.style.left = (r.left - a.left) + "px";
-    iframe.style.top = (r.top - a.top) + "px";
-    iframe.style.width = r.width + "px";
-    iframe.style.height = r.height + "px";
+    iframe.style.left = ((r.left - a.left) / z) + "px";
+    iframe.style.top = ((r.top - a.top) / z) + "px";
+    iframe.style.width = (r.width / z) + "px";
+    iframe.style.height = (r.height / z) + "px";
   }
   function schedule() { if (!rafT) rafT = requestAnimationFrame(sync); }
   function attach(placeholder) {
