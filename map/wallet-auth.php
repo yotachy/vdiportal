@@ -92,4 +92,14 @@ if (!$sub) a_fail(400, "Sign-in failed. Please try again from the app.");
 // 한쪽만 통과시킨다. 패자가 반환값을 무시하면 "로그인됨"을 보여주지만 실제로
 // 기록된 sub 은 승자의 것이라 화면이 거짓말을 한다.
 if (!w_nonce_complete($db, $row["nonce"], $sub, $gname)) a_fail(400, "Sign-in failed. Please try again from the app.");
+// 병합을 여기서 바로 한다(2026-08-29). 원장 실측: 구글 인증이 끝난 논스가 앱의 폴링을 못 받아
+// 미병합으로 남는 일이 반복됐다(탭 수명·팝업 차단·새 기기 id). 앱 폴링에 링크를 걸어 두면 그
+// 경로가 끊길 때마다 "로그인했는데 로그인이 안 됨"이 된다. 서버가 여기서 연결을 끝내 두면 앱은
+// 부팅의 wallet_state 만으로 linked 를 본다. 논스는 태우지 않는다 — 폴링이 오면 w_merge 가
+// 멱등으로 통과하고 sync_put(닉네임·게스트 상태 병합)까지 마저 한다. 실패(busy·device-claimed)는
+// 조용히 넘긴다 — 폴링이 같은 사유를 사용자에게 보여준다.
+try {
+  $mm = w_merge($db, $row["device_id"], $sub);
+  if ($mm["ok"] && $gname !== null) w_set_google_name($db, $mm["acct"]["id"], $gname);
+} catch (Throwable $e) { /* 폴링 경로가 재시도한다 */ }
 a_html("로그인됐어요 · 앱으로 돌아가면 연결이 끝납니다", true);

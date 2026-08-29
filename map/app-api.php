@@ -217,7 +217,9 @@ try {
     // 게스트 로컬 상태를 즉시 병합 저장(최초 닉네임 생성 포함) — 클라 왕복을 아낀다
     $push = isset($in["state"]) && is_array($in["state"]) ? $in["state"] : array();
     $r = sync_put($db, $row["google_sub"], $push, time());
-    $stt = w_state($wdb, $m["acct"]);
+    // 이름은 방금 적었으므로 계정 행을 다시 읽는다 — w_merge 가 돌려준 행은 이름 저장 전 스냅샷이라 gname 이 비었다.
+    $acctFresh = $wdb->prepare("select * from accounts where id = ?"); $acctFresh->execute(array($m["acct"]["id"])); $acctFresh = $acctFresh->fetch() ?: $m["acct"];
+    $stt = w_state($wdb, $acctFresh);
     al_out(array("ok" => true, "pending" => false, "linked" => true, "nick" => $r["nick"], "gname" => $stt["gname"],
       "state" => $r["state"], "discarded" => $m["discarded"], "wallet" => $stt));
   }
