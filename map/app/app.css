@@ -147,6 +147,12 @@ a:hover{color:var(--ach)}
   transition:width 0.7s cubic-bezier(0.2,0.8,0.25,1)}
 .ms-header-lv.bump .bar{animation:msLvBump 0.9s ease-out}
 .ms-header-lv.bump .fill{animation:msLvGlow 0.9s ease-out}
+.ms-header-lv.near .fill{animation:msNearPulse 1.5s ease-in-out infinite}
+@keyframes msNearPulse{0%,100%{filter:brightness(1)}50%{filter:brightness(1.9) drop-shadow(0 0 5px var(--up))}}
+@keyframes msNearChar{0%,100%{filter:drop-shadow(0 0 0 transparent)}50%{filter:drop-shadow(0 0 9px var(--up))}}
+@keyframes msGiftBob{0%,100%{transform:translateY(0) rotate(-4deg)}50%{transform:translateY(-7px) rotate(4deg)}}
+@keyframes msLvShatter{0%{opacity:1;transform:scale(1);filter:brightness(1)}40%{opacity:1;transform:scale(1.15);filter:brightness(2.2)}100%{opacity:0;transform:scale(1.7);filter:brightness(3) blur(4px)}}
+@keyframes msShard{0%{opacity:1;transform:translate(0,0) rotate(0)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) rotate(220deg)}}
 @keyframes msLvBump{0%{transform:scaleY(1)}30%{transform:scaleY(1.7)}100%{transform:scaleY(1)}}
 @keyframes msLvGlow{0%{filter:brightness(1)}30%{filter:brightness(1.9) drop-shadow(0 0 6px var(--up))}100%{filter:brightness(1)}}
 /* 획득 연출 안 게이지 */

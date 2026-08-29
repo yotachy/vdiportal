@@ -144,12 +144,11 @@
     el("lvWrap").style.display = s.gLinked ? "flex" : "none";
     if (s.gLinked) {
       el("lvNo").textContent = "LV" + lv;
-      const L = POLICY.xp.levels;
-      const lo = lv <= 1 ? 0 : L[lv - 2];
-      const hi = lv > L.length ? lo + 1 : L[lv - 1];
-      const pct = lv > L.length ? 100 : Math.max(0, Math.min(100, Math.round((s.xp - lo) / (hi - lo) * 100)));
+      const g = MS.config.levelGauge(s.xp);
+      const pct = g.pct;
       const xpEl = el("lvXp");
-      if (xpEl) xpEl.textContent = lv > L.length ? "MAX" : (s.xp - lo) + "/" + (hi - lo);
+      if (xpEl) xpEl.textContent = g.maxed ? "MAX" : g.cur + "/" + g.max;
+      el("lvWrap").classList.toggle("near", g.near);   // 레벨업 임박 — 게이지가 숨쉰다
       const fill = el("lvFill");
       const prevW = parseFloat(fill.style.width) || 0;
       fill.style.width = pct + "%";
