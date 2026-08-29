@@ -149,7 +149,7 @@
       });
       on("ad", function () { MS.ads.watch().then(function (r) { if (r && r.rewarded) render(); }); });
       on("login", function () { MS.auth.start(); });
-      on("acct", function () { if (MS.store.get().gLinked) MS.auth.logout(); else MS.auth.start(); });
+      on("acct", function () { if (MS.store.get().gLinked) MS.auth.logoutConfirm(); else MS.auth.start(); });   // 로그아웃은 한 번 묻는다
       on("noti", function () {
         const s = MS.store.get();
         MS.store.set({ notiOff: s.notiOff ? 0 : 1 });

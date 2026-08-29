@@ -185,6 +185,51 @@
     });
   }
 
+  // 로그아웃은 한 번 묻는다(2026-08-29 사용자 지시). 같은 구글 계정을 쓰는 다른 기기도 함께
+  // 풀리는 현 모델(BACKLOG 계정 모델 과제)이라 그 사실도 여기서 정직하게 적는다.
+  function btn(act, label, primary) {
+    return '<button data-act="' + act + '" style="flex:1;min-height:46px;border-radius:10px;font-size:13.5px;font-weight:700;cursor:pointer;font-family:inherit;' +
+      (primary ? 'border:0;background:var(--dn);color:#fff' : 'border:1px solid var(--ln2);background:var(--sf1);color:var(--t1)') + '">' + label + "</button>";
+  }
+  function logoutConfirm() {
+    const s = MS.store.get();
+    if (!s.gLinked) return;
+    MS.ui.openSheet("logout", function (body) {
+      body.innerHTML =
+        '<div style="font-size:16px;font-weight:700">로그아웃할까요?</div>' +
+        '<div style="margin-top:8px;font-size:12.5px;color:var(--t2);line-height:1.7">' +
+        (s.nick ? '<b style="color:var(--t1)">' + String(s.nick).replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</b> 계정 연결을 끊어요. ' : "") +
+        '기록은 서버에 남고, 다시 로그인하면 그대로 돌아와요.<br>' +
+        '<span style="color:var(--m1)">같은 구글 계정을 쓰는 다른 기기도 함께 로그아웃돼요.</span></div>' +
+        '<div style="margin-top:16px;display:flex;gap:8px">' + btn("cancel", "취소", false) + btn("logout", "로그아웃", true) + "</div>";
+      body.querySelector('[data-act="cancel"]').addEventListener("click", function () { MS.ui.closeSheet(); });
+      body.querySelector('[data-act="logout"]').addEventListener("click", function () { MS.ui.closeSheet(); logout(); });
+    });
+  }
+  // 헤더 계정 버튼 — 연결 상태면 메뉴(내 계정 · 로그아웃), 게스트면 로그인 시작
+  function accountMenu() {
+    const s = MS.store.get();
+    if (!s.gLinked) { start(); return; }
+    const esc = function (v) { return String(v == null ? "" : v).replace(/&/g, "&amp;").replace(/</g, "&lt;"); };
+    const item = function (act, title, sub, danger) {
+      return '<button data-act="' + act + '" style="width:100%;text-align:left;min-height:54px;border:1px solid var(--ln0);border-radius:12px;background:var(--sf1);padding:10px 14px;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:12px">' +
+        '<span style="min-width:0;flex:1"><span style="display:block;font-size:14px;font-weight:700;color:' + (danger ? "var(--dn)" : "var(--t1)") + '">' + title + "</span>" +
+        (sub ? '<span style="display:block;margin-top:2px;font-size:11.5px;color:var(--m1)">' + sub + "</span>" : "") + "</span>" +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="var(--m2)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"></path></svg></button>';
+    };
+    MS.ui.openSheet("account", function (body) {
+      body.innerHTML =
+        '<div style="display:flex;align-items:center;gap:10px">' +
+        '<span style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">' + esc(s.nick ? String(s.nick).charAt(0) : "M") + "</span>" +
+        '<span><span style="display:block;font-size:15px;font-weight:700">' + esc(s.nick || "내 계정") + '</span><span style="display:block;font-size:11.5px;color:var(--m1)">구글 계정 연결됨</span></span></div>' +
+        '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
+        item("wallet", "내 계정 · 내 스쿱", "레벨 · 스쿱 · 출석 · 설정", false) +
+        item("logout", "로그아웃", "확인 후 진행돼요", true) + "</div>";
+      body.querySelector('[data-act="wallet"]').addEventListener("click", function () { MS.ui.closeSheet(); MS.router.go("wallet"); });
+      body.querySelector('[data-act="logout"]').addEventListener("click", function () { MS.ui.closeSheet(); setTimeout(logoutConfirm, 260); });
+    });
+  }
+
   function logout() {
     stopPoll(); clearPending();
     MS.store.set({ gLinked: 0, nick: null, gBusy: 0 });
@@ -254,6 +299,6 @@
     }
   }
 
-  MS.auth = { start: start, logout: logout, withdraw: withdraw, syncSoon: syncSoon, init: init, stub: isFixture,
-    trace: readTrace };
+  MS.auth = { start: start, logout: logout, logoutConfirm: logoutConfirm, accountMenu: accountMenu,
+    withdraw: withdraw, syncSoon: syncSoon, init: init, stub: isFixture, trace: readTrace };
 })();

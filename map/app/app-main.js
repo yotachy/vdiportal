@@ -48,8 +48,8 @@
     } else if (act === "stocks") {
       MS.flow.openStocks();   // 전역 종목 진입점(실행·조절 화면에선 내부에서 무시)
     } else if (act === "acct") {
-      // 프로토 acctTap: 연결됨 → 내 스쿱, 게스트 → 구글 로그인 시작
-      if (store.get().gLinked) go("wallet"); else if (MS.auth) MS.auth.start();
+      // 연결됨 → 계정 메뉴(내 계정 · 로그아웃, 2026-08-29 사용자 지시), 게스트 → 구글 로그인 시작
+      if (MS.auth) MS.auth.accountMenu(); else if (store.get().gLinked) go("wallet");
     } else if (act === "scoop") {
       go("wallet");
     } else if (act === "about") {
