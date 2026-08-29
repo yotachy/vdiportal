@@ -306,7 +306,7 @@
       const pl = host.querySelector('[data-act="plogin"]');
       if (pl) pl.addEventListener("click", function () { MS.auth.start(); });
       const pe = host.querySelector('[data-act="peers"]');
-      if (pe) pe.addEventListener("click", function () { MS.ui.flash(str("toast.comingSoon"), ""); });
+      if (pe) pe.addEventListener("click", function () { MS.router.go("stats"); });
     }
 
     function heroStub(title, dotC, tintBg, numHtml, line1, line2, act) {
@@ -345,9 +345,9 @@
           MS.router.go("chart");
         });
       });
-      ["sig", "score"].forEach(function (a) {
+      ["signal", "score"].forEach(function (a) {
         const el = host.querySelector('[data-act="' + a + '"]');
-        if (el) el.addEventListener("click", function () { MS.ui.flash(str("toast.comingSoon"), ""); });
+        if (el) el.addEventListener("click", function () { MS.router.go(a); });
       });
       const addB = host.querySelector('[data-act="add"]');
       if (addB) addB.addEventListener("click", function () { MS.flow.openStocks(); });

@@ -27,7 +27,7 @@
   }
   function bindMani(host) {
     const b = host.querySelector('[data-act="mani"]');
-    if (b) b.addEventListener("click", function () { MS.ui.flash(str("toast.comingSoon"), ""); });
+    if (b) b.addEventListener("click", function () { MS.ui.openAbout(); });
   }
 
   // ── boot: 인트로 영상(1회) — Skip 우상단, 종료 시 landing ──

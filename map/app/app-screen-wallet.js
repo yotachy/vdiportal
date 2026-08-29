@@ -11,14 +11,7 @@
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
 
   function mount(host) {
-    // 다음 정시 표기 — "14:00 (23분)". 서버 nextSlotAt(ISO) 기준, 없으면 로컬 시계로 다음 정시.
-    function nextSlotTxt(iso) {
-      let t = iso ? Date.parse(iso) : NaN;
-      if (!isFinite(t)) { const d = new Date(); t = (Math.floor(d.getTime() / 3600000) + 1) * 3600000; }
-      const d2 = new Date(t), hh = String(d2.getHours()).padStart(2, "0");
-      const min = Math.max(0, Math.ceil((t - Date.now()) / 60000));
-      return hh + ":00 (" + (min >= 1 ? min + "분" : "곧") + ")";
-    }
+    const nextSlotTxt = MS.wallet.nextSlotTxt;
     function render() {
       const s = MS.store.get();
       const pol = P();

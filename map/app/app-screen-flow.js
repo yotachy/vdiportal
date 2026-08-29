@@ -273,11 +273,20 @@
         '<div style="margin-top:8px;font-size:13.5px;color:var(--t1);line-height:1.8">· 확신도<br>· 세 시점 · 내일 · 1주 · 1개월<br>· 반대 의견 · 어떤 지표가 반대하는지<br>· 지표 해설 ' + MS.engine.indicatorCount() + '개</div>' +
         '<div style="margin-top:16px;display:flex;flex-direction:column;gap:8px">' +
         '<button data-act="ad" style="min-height:54px;border-radius:12px;border:1px solid rgba(123,108,255,0.45);background:rgba(123,108,255,0.1);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-family:inherit;letter-spacing:inherit"><span style="font-size:15px;font-weight:600;color:var(--ac)">광고 1편 보기</span><span style="font-size:13px;color:var(--ac)">+' + P().scoop.ad.scoop + '스쿱</span><span style="font-size:13px;color:var(--up)">+' + P().scoop.ad.xp + "XP</span></button>" +
-        '<div style="min-height:54px;border-radius:12px;border:1px solid var(--ln2);background:var(--sf2);display:flex;align-items:center;justify-content:center;gap:8px"><span style="font-size:15px;font-weight:600">다음 출석까지</span><span class="mono" style="font-size:13.5px;color:var(--ac)">—</span><span class="mono" style="font-size:13px;color:var(--t2)">+1</span></div>' +
+        (s.canCheckin
+          ? '<button data-act="checkin" style="position:relative;overflow:hidden;min-height:54px;border-radius:12px;border:1px solid var(--updeep);background:var(--sf2);display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;font-family:inherit;letter-spacing:inherit;color:inherit"><span style="position:absolute;inset:0;background:var(--up);opacity:0.12"></span><span style="position:relative;font-size:15px;font-weight:600;color:var(--up)">정시 보상 도착 — 받기</span><span class="mono" style="position:relative;font-size:13px;color:var(--up)">+' + P().scoop.checkin.amount + '</span></button>'
+          : '<div style="min-height:54px;border-radius:12px;border:1px solid var(--ln2);background:var(--sf2);display:flex;align-items:center;justify-content:center;gap:8px"><span style="font-size:15px;font-weight:600">다음 보상</span><span class="mono" style="font-size:13.5px;color:var(--ac)">' + MS.wallet.nextSlotTxt(s.nextSlotAt) + '</span><span class="mono" style="font-size:13px;color:var(--t2)">+' + P().scoop.checkin.amount + '</span></div>') +
         '<button data-act="basic" style="min-height:54px;border-radius:12px;border:1px solid var(--ln2);background:var(--sf2);display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;letter-spacing:inherit;color:inherit">기본 분석으로 계속</button></div>' +
         '<div style="margin:12px 0 4px;font-size:12.5px;color:var(--m1);text-align:center">보상은 확인 후 바로 적립됩니다</div>';
+      // 광고는 app-ads.js 가 판단한다(네이티브만 실광고, 웹은 안내). 보상이 들어오면 시트를 닫아
+      // 잔액이 바뀐 화면이 보이게 한다.
       body.querySelector('[data-act="ad"]').addEventListener("click", function () {
-        MS.ui.flash("광고 보상은 다음 단계에서 열려요", "");   // P5: AdMob 연동으로 교체
+        if (!MS.ads) return;
+        MS.ads.watch().then(function (r) { if (r && r.landed) MS.ui.closeSheet(); });
+      });
+      const ck = body.querySelector('[data-act="checkin"]');
+      if (ck) ck.addEventListener("click", function () {
+        MS.wallet.checkin().then(function (r) { if (r) MS.ui.closeSheet(); });   // 잔액이 바뀐 화면을 보여준다
       });
       body.querySelector('[data-act="basic"]').addEventListener("click", function () {
         if (guardRun()) return;
