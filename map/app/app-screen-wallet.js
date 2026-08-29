@@ -100,7 +100,7 @@
 
         // 계정 · 설정
         '<div style="margin:12px 16px 0;border-radius:14px;background:var(--sf1);overflow:hidden">' +
-        row("acct", "구글 계정", s.gLinked ? ("연결됨" + (s.nick ? " · " + esc(s.nick) : "")) : "게스트 — 로그인하면 기록이 계정에 안전하게 보관돼요", s.gLinked ? "로그아웃" : "로그인") +
+        row("acct", "구글 계정", s.gLinked ? ("연결됨" + ((s.gName || s.nick) ? " · " + esc(s.gName || s.nick) : "") + (s.gName && s.nick ? " (리더보드 " + esc(s.nick) + ")" : "")) : "게스트 — 로그인하면 기록이 계정에 안전하게 보관돼요", s.gLinked ? "로그아웃" : "로그인") +
         rowToggle("noti", "알림", !s.notiOff) +
         row("theme", "테마", s.theme === "dark" ? "다크" : "라이트", "전환") +
         rowSeg("fz", "글자 크기", s.fontZoom) +

@@ -198,6 +198,26 @@ function w_migrate($db) {
       throw $e;
     }
   }
+  if (w_schema_version($db) < 5) {
+    // v5(2026-08-29): 구글 계정 표시 이름. 사용자 지시 — 앱에 보이는 이름은 내부 닉네임(리더보드용)이
+    // 아니라 구글(유튜브) 계정 이름이어야 한다. 콜백이 id_token 의 name 을 논스에 적고, 병합 때
+    // 계정으로 옮긴다. ALTER 는 재실행 시 실패하므로 컬럼 유무를 먼저 본다.
+    $db->exec("begin immediate");
+    try {
+      $has = function ($table, $col) use ($db) {
+        foreach ($db->query("pragma table_info(" . $table . ")")->fetchAll() as $c) if ($c["name"] === $col) return true;
+        return false;
+      };
+      if (!$has("auth_nonce", "google_name")) $db->exec("alter table auth_nonce add column google_name TEXT");
+      if (!$has("accounts", "google_name")) $db->exec("alter table accounts add column google_name TEXT");
+      $db->exec("delete from schema_version");
+      $db->exec("insert into schema_version (v) values (5)");
+      $db->exec("commit");
+    } catch (Throwable $e) {
+      try { $db->exec("rollback"); } catch (Throwable $e2) {}
+      throw $e;
+    }
+  }
 }
 
 function w_account_id($deviceId) { return substr(sha1($deviceId), 0, 16); }
@@ -311,10 +331,16 @@ function w_nonce_read($db, $nonce) {
 
 // 브라우저 콜백이 부른다. 이미 채워진 논스는 다시 채우지 않는다 —
 // where google_sub is null 이 그 방어이며, 경합에서도 한 번만 성립한다.
-function w_nonce_complete($db, $nonce, $googleSub) {
-  $st = $db->prepare("update auth_nonce set google_sub = ? where nonce = ? and google_sub is null");
-  $st->execute(array($googleSub, $nonce));
+function w_nonce_complete($db, $nonce, $googleSub, $googleName = null) {
+  $name = ($googleName === null || trim((string)$googleName) === "") ? null : substr(trim((string)$googleName), 0, 80);
+  $st = $db->prepare("update auth_nonce set google_sub = ?, google_name = ? where nonce = ? and google_sub is null");
+  $st->execute(array($googleSub, $name, $nonce));
   return $st->rowCount() === 1;
+}
+// 병합이 끝난 계정에 구글 표시 이름을 적는다(없으면 건드리지 않는다 — 옛 로그인 유지).
+function w_set_google_name($db, $acctId, $name) {
+  if ($name === null || trim((string)$name) === "") return;
+  $db->prepare("update accounts set google_name = ? where id = ?")->execute(array(substr(trim((string)$name), 0, 80), $acctId));
 }
 
 // 병합까지 끝난 논스는 태운다. 단회용의 실체가 이 줄이다.
@@ -408,6 +434,7 @@ function w_state($db, $acct) {
     "balance"    => $true,
     "cap"        => W_CAP,
     "streakDays" => (int)$acct["streak_days"],
+    "gname"      => (isset($acct["google_name"]) && $acct["google_sub"] !== null) ? $acct["google_name"] : null,   // 구글 표시 이름(연결 시에만)
     // 병합으로 넘어간 기기 계정은 출석 버튼 자체를 못 본다. 여기서 true 를 주면 화면은
     // 버튼을 그리는데 w_checkin 은 거절하는 상태가 되어, 사용자가 눌러도 아무 일도 안 난다.
     "canCheckin" => (w_slot_norm($acct["last_checkin"]) !== w_slot() && !w_is_merged_away($db, $acct["id"])),

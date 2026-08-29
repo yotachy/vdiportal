@@ -49,7 +49,7 @@ if ($hasNonce) {
   if (!$row) a_fail(400, "This sign-in link has expired. Please try again from the app.");
   $q = http_build_query(array(
     "client_id" => $conf["client_id"], "redirect_uri" => $SELF, "response_type" => "code",
-    "scope" => "openid email", "state" => $row["nonce"], "prompt" => "select_account"));
+    "scope" => "openid email profile", "state" => $row["nonce"], "prompt" => "select_account"));
   header("Location: https://accounts.google.com/o/oauth2/v2/auth?" . $q);
   exit;
 }
@@ -78,12 +78,12 @@ curl_close($ch);
 
 // id_token 페이로드를 그대로 읽는다 — 구글 토큰 엔드포인트에서 TLS 로 직접 받았으므로
 // 서명 재검증이 필요 없다(forge-auth.php 와 같은 판단).
-$sub = null;
+$sub = null; $gname = null;   // gname: id_token 의 name(profile 스코프) — 앱에 보이는 계정 이름
 if (is_array($tok) && !empty($tok["id_token"])) {
   $seg = explode(".", $tok["id_token"]);
   if (count($seg) === 3) {
     $p = json_decode((string)base64_decode(strtr($seg[1], "-_", "+/")), true);
-    if (is_array($p) && !empty($p["sub"])) $sub = (string)$p["sub"];
+    if (is_array($p) && !empty($p["sub"])) { $sub = (string)$p["sub"]; $gname = !empty($p["name"]) ? (string)$p["name"] : (!empty($p["given_name"]) ? (string)$p["given_name"] : null); }
   }
 }
 if (!$sub) a_fail(400, "Sign-in failed. Please try again from the app.");
@@ -91,5 +91,5 @@ if (!$sub) a_fail(400, "Sign-in failed. Please try again from the app.");
 // 반환값을 본다 — 두 탭이 동시에 이 자리에 들어오면 where google_sub is null 이
 // 한쪽만 통과시킨다. 패자가 반환값을 무시하면 "로그인됨"을 보여주지만 실제로
 // 기록된 sub 은 승자의 것이라 화면이 거짓말을 한다.
-if (!w_nonce_complete($db, $row["nonce"], $sub)) a_fail(400, "Sign-in failed. Please try again from the app.");
+if (!w_nonce_complete($db, $row["nonce"], $sub, $gname)) a_fail(400, "Sign-in failed. Please try again from the app.");
 a_html("로그인됐어요 · 앱으로 돌아가면 연결이 끝납니다", true);

@@ -17,7 +17,7 @@
   // 영속 대상(이 목록이 곧 저장 스키마 v1)
   const persistKeys = [
     "picks", "analyzed", "analyzedAt", "scoops", "theme", "gLinked",
-    "personaIdx", "personaAns", "personaApply", "xp", "xpToday", "fontZoom", "nick",
+    "personaIdx", "personaAns", "personaApply", "xp", "xpToday", "fontZoom", "nick", "gName",
     "dayVisit", "weights", "checks", "indOff", "dayCounters", "sigRead", "xpSeen", "notiOff",
     "analysisMeta"   // 'SYM|TF' → {tier,preset,weights,personaApply} — 리포트 재구성(재계산 무료·결정적)용
   ];
@@ -29,7 +29,7 @@
       // 데이터
       picks: [], analyzed: {}, analyzedAt: {},
       // 경제·성장
-      scoops: 15, xp: 0, xpToday: 0, gLinked: 0,
+      scoops: 15, xp: 0, xpToday: 0, gLinked: 0, gName: null,   // gName: 구글 계정 표시 이름(앱에 보이는 이름 — 닉네임은 리더보드용)
       // 페르소나
       personaIdx: 0, personaAns: [], personaApply: 0,
       // 커스텀 조합·작도 (Q8: 영속)

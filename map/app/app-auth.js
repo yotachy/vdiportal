@@ -40,14 +40,17 @@
     return Object.keys(s.analyzed || {}).length + (s.personaAns || []).length;
   }
 
-  function finishLink(nick, state, walletBal) {
+  // 앱에 보이는 이름 = 구글 계정 이름(사용자 지시 2026-08-29). 닉네임은 리더보드 공개용으로만 남긴다.
+  function displayName() { const s = MS.store.get(); return s.gName || s.nick || null; }
+  function finishLink(nick, state, walletBal, gname) {
     const patch = { gLinked: 1, gBusy: 0 };
+    if (gname) patch.gName = gname;
     if (typeof walletBal === "number") patch.scoops = walletBal;
     MS.store.set(patch);
     applyState(state, nick);
     MS.ui.hap("done");
     const mv = movedCount();
-    const who = nick ? nick + " 님, " : "";
+    const who = (gname || nick) ? (gname || nick) + " 님, " : "";
     MS.ui.flash(mv > 0 ? (who + "연결됐어요. 게스트 기록 " + mv + "건을 계정으로 옮겼어요")
       : (who + "구글 계정과 연결됐어요. 기록이 백업됩니다"), "");
     if (MS.wallet && !isFixture) MS.wallet.state();   // 병합 후 잔액·환급 재동기화(스텁은 서버 무관)
@@ -98,7 +101,7 @@
       }
       stopPoll(); clearPending(); busy = false;
       if (p && p.ok && p.linked) {
-        finishLink(p.nick, p.state, p.wallet ? p.wallet.balance : null);
+        finishLink(p.nick, p.state, p.wallet ? p.wallet.balance : null, p.gname || null);
       } else if (p && p.error === "unauthorized") {
         // 논스가 이미 소각됨 = 대개 다른 탭이 먼저 병합했다는 뜻이다. 조용히 접고 서버 상태를 따른다.
         MS.store.set({ gBusy: 0 });
@@ -198,7 +201,7 @@
       body.innerHTML =
         '<div style="font-size:16px;font-weight:700">로그아웃할까요?</div>' +
         '<div style="margin-top:8px;font-size:12.5px;color:var(--t2);line-height:1.7">' +
-        (s.nick ? '<b style="color:var(--t1)">' + String(s.nick).replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</b> 계정 연결을 끊어요. ' : "") +
+        (displayName() ? '<b style="color:var(--t1)">' + String(displayName()).replace(/&/g, "&amp;").replace(/</g, "&lt;") + '</b> 계정 연결을 끊어요. ' : "") +
         '기록은 서버에 남고, 다시 로그인하면 그대로 돌아와요.<br>' +
         '<span style="color:var(--m1)">같은 구글 계정을 쓰는 다른 기기도 함께 로그아웃돼요.</span></div>' +
         '<div style="margin-top:16px;display:flex;gap:8px">' + btn("cancel", "취소", false) + btn("logout", "로그아웃", true) + "</div>";
@@ -220,8 +223,8 @@
     MS.ui.openSheet("account", function (body) {
       body.innerHTML =
         '<div style="display:flex;align-items:center;gap:10px">' +
-        '<span style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">' + esc(s.nick ? String(s.nick).charAt(0) : "M") + "</span>" +
-        '<span><span style="display:block;font-size:15px;font-weight:700">' + esc(s.nick || "내 계정") + '</span><span style="display:block;font-size:11.5px;color:var(--m1)">구글 계정 연결됨</span></span></div>' +
+        '<span style="width:36px;height:36px;border-radius:50%;background:var(--ac);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800">' + esc(displayName() ? String(displayName()).charAt(0) : "M") + "</span>" +
+        '<span><span style="display:block;font-size:15px;font-weight:700">' + esc(displayName() || "내 계정") + '</span><span style="display:block;font-size:11.5px;color:var(--m1)">구글 계정 연결됨' + (s.nick && s.gName ? ' · 리더보드 이름 ' + esc(s.nick) : "") + '</span></span></div>' +
         '<div style="margin-top:14px;display:flex;flex-direction:column;gap:8px">' +
         item("wallet", "내 계정 · 내 스쿱", "레벨 · 스쿱 · 출석 · 설정", false) +
         item("logout", "로그아웃", "확인 후 진행돼요", true) + "</div>";
@@ -232,7 +235,7 @@
 
   function logout() {
     stopPoll(); clearPending();
-    MS.store.set({ gLinked: 0, nick: null, gBusy: 0 });
+    MS.store.set({ gLinked: 0, nick: null, gName: null, gBusy: 0 });
     MS.ui.flash("로그아웃했어요. 기록은 이 기기에만 남습니다", "");
     // 서버에도 알린다 — 안 그러면 부팅 때 wallet_state 가 linked:1 을 돌려줘 되살아난다.
     // 응답을 기다려 상태를 다시 맞춘다(실패하면 다음 부팅에서 서버 정본이 이긴다 — 정직하게).
@@ -299,6 +302,6 @@
     }
   }
 
-  MS.auth = { start: start, logout: logout, logoutConfirm: logoutConfirm, accountMenu: accountMenu,
+  MS.auth = { start: start, logout: logout, logoutConfirm: logoutConfirm, accountMenu: accountMenu, displayName: displayName,
     withdraw: withdraw, syncSoon: syncSoon, init: init, stub: isFixture, trace: readTrace };
 })();

@@ -28,7 +28,8 @@
         if (typeof r.linked === "number" && !(MS.auth && MS.auth.stub)) {   // 스텁 링크(dev)는 서버가 모른다
           patch.gLinked = r.linked ? 1 : 0;
           if (r.linked && r.nick) patch.nick = r.nick;
-          if (!r.linked) patch.nick = null;
+          if (r.linked && r.gname) patch.gName = r.gname;
+          if (!r.linked) { patch.nick = null; patch.gName = null; }
         }
         MS.store.set(patch);
         MS.store.persistSoon();

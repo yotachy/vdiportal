@@ -211,13 +211,14 @@ try {
       al_out(array("ok" => false, "error" => "server", "reason" => $m["reason"]), 500);
     }
     w_nonce_burn($wdb, $nonce);
+    if (isset($row["google_name"])) w_set_google_name($wdb, $m["acct"]["id"], $row["google_name"]);   // 구글 표시 이름(v4)
     require_once __DIR__ . "/app-sync-lib.php";
     sync_migrate($db);
     // 게스트 로컬 상태를 즉시 병합 저장(최초 닉네임 생성 포함) — 클라 왕복을 아낀다
     $push = isset($in["state"]) && is_array($in["state"]) ? $in["state"] : array();
     $r = sync_put($db, $row["google_sub"], $push, time());
     $stt = w_state($wdb, $m["acct"]);
-    al_out(array("ok" => true, "pending" => false, "linked" => true, "nick" => $r["nick"],
+    al_out(array("ok" => true, "pending" => false, "linked" => true, "nick" => $r["nick"], "gname" => $stt["gname"],
       "state" => $r["state"], "discarded" => $m["discarded"], "wallet" => $stt));
   }
   // 로그아웃 — 이 기기의 구글 연결만 끊는다(동기화 데이터·원장·잔액은 보존, 재로그인이면 복구).

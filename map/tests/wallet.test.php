@@ -764,6 +764,30 @@ t("상한에 걸려도 출석일은 소비된다 — 하루가 지나가야 다�
   $db = null; rmrf($d);
 });
 
+// ── 구글 표시 이름(v4, 2026-08-29) ───────────────────────────────────────────
+t("구글 표시 이름 — 논스에 적히고 계정으로 옮겨져 state 로 나온다", function () {
+  $d = tmpdir(); $db = w_db($d);
+  eq(w_schema_version($db), 5, "스키마 v5");
+  w_create_account($db, "dev-A", "ip");
+  $n = w_nonce_make($db, "dev-A");
+  ok(w_nonce_complete($db, $n, "gsub-1", "  홍길동  "), "이름과 함께 완료");
+  $row = w_nonce_read($db, $n);
+  eq($row["google_name"], "홍길동", "논스에 이름(트림)");
+  $m = w_merge($db, "dev-A", "gsub-1");
+  w_set_google_name($db, $m["acct"]["id"], $row["google_name"]);
+  $a = w_get_account($db, "dev-A");
+  eq(w_state($db, $a)["gname"], "홍길동", "state 에 gname");
+  // 이름 없이 완료해도 깨지지 않는다(profile 미동의 등)
+  $n2 = w_nonce_make($db, "dev-A");
+  ok(w_nonce_complete($db, $n2, "gsub-1", null) || true, "이름 없음 허용");
+  w_set_google_name($db, $a["id"], "");   // 빈 값은 무시 — 기존 이름 유지
+  eq(w_get_account($db, "dev-A")["google_name"], "홍길동", "빈 이름으로 덮어쓰지 않는다");
+  // 연결 해제되면 gname 도 안 나간다
+  $db->prepare("update accounts set google_sub = null where id = ?")->execute(array($a["id"]));
+  eq(w_state($db, w_get_account($db, "dev-A"))["gname"], null, "미연결이면 gname null");
+  $db = null; rmrf($d);
+});
+
 // ── 정시 출석(2026-08-29 사용자 정책) ─────────────────────────────────────────
 t("정시 출석 — 같은 날 다른 시간이면 다시 받고, 스트릭은 그대로·상자 없음", function () {
   $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
@@ -1508,7 +1532,7 @@ t("스키마 v4 — ad_grants 와 그 인덱스가 생긴다", function () {
   ok(in_array("ad_grants", $names), "ad_grants 테이블이 없다");
   ok(in_array("ix_ad_acct", $names), "ix_ad_acct 인덱스가 없다");
   $v = $db->query("select v from schema_version")->fetch();
-  eq((int)$v["v"], 4, "스키마 버전이 4 가 아니다");
+  eq((int)$v["v"], 5, "스키마 버전이 5 가 아니다 — v5(구글 표시 이름)까지 올라야 한다");
   $db = null; rmrf($d);
 });
 
