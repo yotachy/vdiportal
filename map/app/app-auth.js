@@ -25,14 +25,13 @@
   }
 
   // 서버 병합 결과(정본)를 로컬에 적용
+  // 바뀐 키만 set 한다 — 병합 결과가 로컬과 같은데도 set 하면 SYNC_KEYS 구독이 다시 push 하고
+  // 서버가 다시 돌려줘 3초마다 영원히 도는 루프가 된다(모든 연결 사용자, 2026-08-29 홈 재렌더로 드러남).
   function applyState(st, nick) {
-    const patch = {};
-    if (!st) { if (nick) MS.store.set({ nick: nick }); return; }
-    ["xp", "personaIdx", "personaAns", "sigRead", "picks"].forEach(function (k) {
-      if (st[k] !== undefined) patch[k] = st[k];
-    });
-    if (nick) patch.nick = nick;
-    MS.store.set(patch);
+    const cur = MS.store.get();
+    const patch = MS.state.changedPatch(cur, st, ["xp", "personaIdx", "personaAns", "sigRead", "picks"]);
+    if (nick && nick !== cur.nick) patch.nick = nick;
+    if (Object.keys(patch).length) MS.store.set(patch);
   }
 
   function movedCount() {   // 프로토 gLogin 문구의 N — 분석 + 페르소나 답

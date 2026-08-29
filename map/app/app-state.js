@@ -71,6 +71,19 @@
     return n;
   }
 
+  // 값이 실제로 바뀐 키만 골라낸 패치(JSON 동등 비교). 서버 병합 결과를 되돌려 적용할 때 쓴다 —
+  // 같은 값을 다시 set 하면 구독자가 또 push 하고 서버가 또 돌려주는 3초 무한 루프가 된다(2026-08-29 실측).
+  function changedPatch(cur, incoming, keys) {
+    const out = {};
+    if (!incoming) return out;
+    keys.forEach(function (k) {
+      if (incoming[k] === undefined) return;
+      const a = JSON.stringify(cur ? cur[k] : undefined), b = JSON.stringify(incoming[k]);
+      if (a !== b) out[k] = incoming[k];
+    });
+    return out;
+  }
+
   function serialize(s) {
     const out = { v: 1 };
     persistKeys.forEach(function (k) { out[k] = s[k]; });
@@ -173,5 +186,5 @@
   }
 
   return { STORE_KEY: STORE_KEY, persistKeys: persistKeys, initialState: initialState,
-    dayKey: dayKey, personaToday: personaToday, serialize: serialize, restore: restore, create: create, browserIO: browserIO };
+    dayKey: dayKey, personaToday: personaToday, changedPatch: changedPatch, serialize: serialize, restore: restore, create: create, browserIO: browserIO };
 });

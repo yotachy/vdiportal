@@ -131,3 +131,13 @@ test("personaToday: 오늘(KST) 답만·진행 인덱스 앞까지만 센다 —
   assert.equal(state.personaToday({}, now), 0);
   assert.equal(state.personaToday({ personaIdx: 9, personaAns: [] }, now), 0);   // idx > 답 수(동기화 병합) 방어
 });
+
+test("changedPatch: 값이 바뀐 키만 — 같은 상태를 되돌려 받으면 빈 패치(동기화 루프 차단)", () => {
+  const cur = { xp: 55, personaIdx: 12, personaAns: [{ j: 1, d: 0 }], picks: ["NVDA"], sigRead: {} };
+  const same = JSON.parse(JSON.stringify(cur));
+  assert.deepEqual(state.changedPatch(cur, same, ["xp", "personaIdx", "personaAns", "sigRead", "picks"]), {});
+  const merged = Object.assign({}, same, { xp: 60, picks: ["NVDA", "AAPL"] });
+  assert.deepEqual(state.changedPatch(cur, merged, ["xp", "personaIdx", "personaAns", "sigRead", "picks"]), { xp: 60, picks: ["NVDA", "AAPL"] });
+  assert.deepEqual(state.changedPatch(cur, { xp: undefined, theme: "light" }, ["xp", "theme"]), { theme: "light" });   // undefined 는 '없음'
+  assert.deepEqual(state.changedPatch(cur, null, ["xp"]), {});
+});
