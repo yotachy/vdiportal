@@ -117,3 +117,17 @@ test("io 주입: save/load 가 주어진 io 를 쓴다(localStorage 없는 node 
   const r = state.restore(mem.raw, 1756000000000);
   assert.equal(r.scoops, 11);
 });
+
+test("personaToday: 오늘(KST) 답만·진행 인덱스 앞까지만 센다 — 카운터 없이 답 자체에서", () => {
+  const now = Date.UTC(2026, 7, 29, 3, 0, 0);   // 12:00 KST
+  const yest = now - 86400000;
+  const s = state.initialState();
+  s.personaAns = [{ j: 0, d: 0, t: yest }, { j: 1, d: 1, t: now - 1000 }, { j: 1, d: 2 }, { j: 0, d: 3, t: now - 500 }, { j: 2, d: 4, t: now - 100 }];
+  s.personaIdx = 4;   // 마지막 답은 '이전 답 고치기'로 되돌린 상태 → 세지 않는다
+  assert.equal(state.personaToday(s, now), 2);
+  s.personaIdx = 5;
+  assert.equal(state.personaToday(s, now), 3);   // t 없는 옛 답은 오늘로 안 센다
+  assert.equal(state.personaToday(s, now + 86400000), 0);   // 자정을 넘기면 리로드 없이 0
+  assert.equal(state.personaToday({}, now), 0);
+  assert.equal(state.personaToday({ personaIdx: 9, personaAns: [] }, now), 0);   // idx > 답 수(동기화 병합) 방어
+});

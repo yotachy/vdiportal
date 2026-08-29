@@ -57,6 +57,20 @@
     return y + "-" + (m.length < 2 ? "0" + m : m) + "-" + (d.length < 2 ? "0" + d : d);
   }
 
+  // 오늘(KST) 페르소나 답 수 — 답 항목의 시각(t)에서 센다. 별도 일일 카운터를 두면 서버 동기화·
+  // 이전 답 고치기·자정을 넘긴 탭에서 진행도와 어긋난다(2026-08-29 "미진행인데 끝났다고 나옴").
+  function personaToday(s, now) {
+    const today = dayKey(now);
+    const ans = (s && s.personaAns) || [];
+    const idx = (s && s.personaIdx) || 0;
+    let n = 0;
+    for (let i = 0; i < Math.min(idx, ans.length); i++) {
+      const t = ans[i] && ans[i].t;
+      if (typeof t === "number" && dayKey(t) === today) n++;
+    }
+    return n;
+  }
+
   function serialize(s) {
     const out = { v: 1 };
     persistKeys.forEach(function (k) { out[k] = s[k]; });
@@ -159,5 +173,5 @@
   }
 
   return { STORE_KEY: STORE_KEY, persistKeys: persistKeys, initialState: initialState,
-    dayKey: dayKey, serialize: serialize, restore: restore, create: create, browserIO: browserIO };
+    dayKey: dayKey, personaToday: personaToday, serialize: serialize, restore: restore, create: create, browserIO: browserIO };
 });

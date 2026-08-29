@@ -193,7 +193,7 @@
       const answers = (s.personaAns || []).slice(0, idx);
       const guest = !s.gLinked;
       const gLock = guest && idx >= P2.limits.persona.guestMax;
-      const dayN = (s.dayCounters && s.dayCounters.personaToday) || 0;
+      const dayN = MS.state.personaToday(s);
       const dayFull = !guest && dayN >= P2.limits.persona.perDay;
       const stage = MS.persona.stageOf(idx, P2.persona.stages, P2.persona.stageNames);
       const chips = MS.persona.chips(answers);
@@ -272,18 +272,16 @@
           const q = st._pq;
           if (!q || !q.opts[j]) return;
           const ans = (st.personaAns || []).slice();
-          ans[st.personaIdx || 0] = { j: j, d: q.opts[j].d, l: q.opts[j].l };
-          const dc = {};
-          Object.keys(st.dayCounters).forEach(function (k) { dc[k] = st.dayCounters[k]; });
-          dc.personaToday = (dc.personaToday || 0) + 1;
+          const fresh = !ans[st.personaIdx || 0];   // 이전 답 고치기(←)로 돌아온 재답변은 새 답이 아니다
+          ans[st.personaIdx || 0] = { j: j, d: q.opts[j].d, l: q.opts[j].l, t: Date.now() };
           MS.ui.hap("tick");
           const newIdx = (st.personaIdx || 0) + 1;
           // 프리페치된 다음 질문이 있으면 바로 붙인다 — 로딩·화면 튐·재묻기 없이 즉시 이어짐
           const next = (pqNext && pqNext.i === newIdx && pqNext.q) ? pqNext : null;
           pqNext = null;
-          MS.store.set({ personaAns: ans, personaIdx: newIdx, dayCounters: dc, _pq: next, _pqPull: 0 });
+          MS.store.set({ personaAns: ans, personaIdx: newIdx, _pq: next, _pqPull: 0 });
           MS.store.persistSoon();
-          MS.xp.add(MS.config.POLICY.xp.personaAnswer, "페르소나");
+          if (fresh) MS.xp.add(MS.config.POLICY.xp.personaAnswer, "페르소나");
           if (!q.more) MS.ui.flash("답변 저장 · 커스텀 분석이 나에게 맞춰집니다", "");
           render();
           loadPersonaQ();   // next 없었으면 fetch, 있었으면 다음 것 프리페치만
