@@ -41,7 +41,8 @@
       scoreView: 5,                // 오늘 채점건 첫 열람, 항목당 1회
       personaAnswer: 1,
       drawToggle: { xp: 1, perDay: 3 },
-      stockAdd: { xp: 1, perDay: 3 }
+      stockAdd: { xp: 1, perDay: 3 },
+      nearPct: 85                  // 레벨업 임박 — 게이지 85%↑이면 헤더·홈 카드가 '곧'을 알린다
     },
     limits: {
       stocksMax: 12,
@@ -82,7 +83,8 @@
       haptics: {
         deduct: [30, 40, 30], done: [15, 30, 60], earn: [15, 35, 20],
         reward: [15, 40, 25, 60], rewardBig: [22, 45, 30, 55, 40, 80],
-        warn: [60, 50, 60], stop: [25], tick: [12]
+        warn: [60, 50, 60], stop: [25], tick: [12],
+        levelup: [30, 40, 30, 40, 90, 60, 140]   // 선물 개봉 → 진화 — 3단 상승 패턴
       }
     }
   };
@@ -118,5 +120,17 @@
     if (obj && typeof obj === "object") mergeKnown(POLICY, obj);
   }
 
-  return { POLICY: POLICY, scoopCap: scoopCap, levelOf: levelOf, applyRemote: applyRemote };
+  // 레벨 게이지 — 헤더·홈 카드·내 스쿱·레벨업 연출이 전부 이 하나를 쓴다(계산 사본 금지).
+  // remain = 다음 레벨까지 경험치, near = 임박(nearPct↑, 최고 레벨 제외)
+  function levelGauge(xp) {
+    const x = Number(xp) || 0;
+    const L = POLICY.xp.levels, lv = levelOf(x);
+    const lo = lv <= 1 ? 0 : L[lv - 2];
+    const maxed = lv > L.length;
+    const hi = maxed ? lo + 1 : L[lv - 1];
+    const pct = maxed ? 100 : Math.max(0, Math.min(100, Math.round((x - lo) / (hi - lo) * 100)));
+    return { lv: lv, cur: x - lo, max: hi - lo, pct: pct, maxed: maxed, remain: maxed ? 0 : hi - x, near: !maxed && pct >= POLICY.xp.nearPct };
+  }
+
+  return { POLICY: POLICY, scoopCap: scoopCap, levelOf: levelOf, levelGauge: levelGauge, applyRemote: applyRemote };
 });

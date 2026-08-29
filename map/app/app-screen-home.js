@@ -231,6 +231,15 @@
       const ringD = ((ga.maxed ? 1 : ga.pct / 100) * C1).toFixed(1) + " " + C1.toFixed(1);
       const ring2D = (0.62 * C2).toFixed(1) + " " + C2.toFixed(1);
       const tips = xpTips();
+      const isNew = !!(s.lvUpAt && (Date.now() - s.lvUpAt) < 86400000);   // 레벨업 후 24시간 NEW
+      // 임박 제안 — 남은 경험치를 가장 싸게 채우는 행동을 콕 집는다(TIP 값과 같은 정책 수치)
+      const suggest = function (rem) {
+        const x = P2.xp;
+        if (rem <= x.personaAnswer * 3) return "페르소나 " + rem + "답이면 레벨업";
+        if (rem <= x.signalView) return "시그널 1건 열람이면 레벨업";
+        if (rem <= x.signalView + x.scoreView) return "시그널 열람 + 채점 확인이면 레벨업";
+        return "심화 분석 1회 + 시그널·채점 열람이면 레벨업";
+      };
       const chip = function (t, i) {
         return '<span data-tip="' + i + '" style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--t2);border:1px solid var(--ln1);border-radius:99px;padding:4px 8px;cursor:' + (t.go ? "pointer" : "default") + ';white-space:nowrap;flex:none">' + esc(t.n) + "</span>";
       };
@@ -258,12 +267,13 @@
             '<svg viewBox="0 0 86 86" width="74" height="74" style="position:absolute;inset:0" aria-hidden="true">' +
             '<circle cx="43" cy="43" r="39" fill="none" stroke="var(--ac)" stroke-opacity="0.5" stroke-width="1" stroke-dasharray="3 6"><animateTransform attributeName="transform" type="rotate" from="0 43 43" to="360 43 43" dur="22s" repeatCount="indefinite"></animateTransform></circle>' +
             '<circle cx="43" cy="43" r="32" fill="none" stroke="var(--ac)" stroke-opacity="0.28" stroke-width="0.8" stroke-dasharray="1.5 7"><animateTransform attributeName="transform" type="rotate" from="360 43 43" to="0 43 43" dur="30s" repeatCount="indefinite"></animateTransform></circle></svg>' +
-            '<div style="position:relative;animation:msFloatY 3.6s ease-in-out infinite">' + MS.xp.charSvg(lv, 54) + "</div></div>" +
+            '<div style="position:relative;animation:msFloatY 3.6s ease-in-out infinite' + (ga.near ? ",msNearChar 1.4s ease-in-out infinite" : "") + '">' + MS.xp.charSvg(lv, 54) + "</div></div>" +
             '<span style="font-size:10.5px;font-weight:800;color:var(--ac);white-space:nowrap">' + esc(MS.xp.levelName(lv)) + "</span>" +
             '<span style="font-size:9.5px;color:var(--m2);white-space:nowrap">레벨 ' + lv + " 캐릭터</span></div>" +
             '<div data-act="lv" style="position:relative;min-height:112px;padding:12px 122px 10px 12px;cursor:pointer;display:flex;flex-direction:column;justify-content:center">' +
             '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11.5px;color:var(--m1);white-space:nowrap">분석가 레벨</span>' +
-            '<span style="font-size:11px;font-weight:700;color:var(--ac);white-space:nowrap;flex:none">레벨 <span class="mono">' + lv + "</span></span></div>" +
+            '<span style="font-size:11px;font-weight:700;color:var(--ac);white-space:nowrap;flex:none">레벨 <span class="mono">' + lv + "</span></span>" +
+            (isNew ? '<span style="font-size:9.5px;font-weight:800;letter-spacing:0.08em;color:#06231a;background:var(--up);border-radius:99px;padding:1px 6px;flex:none;animation:msAuraPulse 1.8s ease-in-out infinite">NEW</span>' : "") + "</div>" +
             '<div style="margin-top:4px;font-size:17px;font-weight:800;letter-spacing:-0.02em;white-space:nowrap;background:linear-gradient(90deg,var(--t1) 25%,var(--ac));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block">' + esc(MS.xp.levelName(lv)) + "</div>" +
             '<div style="margin-top:4px;font-size:10.5px;color:var(--m2);white-space:nowrap">오늘 경험치 <span class="mono" style="color:' + ((s.xpToday || 0) > 0 ? "var(--ac)" : "var(--m2)") + '">+' + (s.xpToday || 0) + "</span> · 누적 <span class=\"mono\">" + xp + "</span></div></div>" +
             // 스탯 스트립 — 경험치(막대)와 페르소나(링)를 나란히, 서로 다른 시각 언어로
@@ -272,7 +282,7 @@
             '<div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:10.5px;color:var(--m1)">경험치</span>' +
             '<span class="mono" style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--ac)">' + ga.cur + '<span style="color:var(--m2);font-weight:400"> / ' + ga.max + "</span></span></div>" +
             '<div style="margin-top:6px;height:4px;border-radius:2px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + ga.pct + '%;background:linear-gradient(90deg,var(--m1),var(--ac) 55%,var(--cu));border-radius:2px"></span></div>' +
-            '<div style="margin-top:5px;font-size:10.5px;color:var(--m2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (ga.maxed ? "최고 레벨" : "다음 레벨까지 " + (ga.max - ga.cur)) + "</div></div>" +
+            '<div style="margin-top:5px;font-size:10.5px;line-height:1.35;' + (ga.near ? "color:var(--up);font-weight:700" : "color:var(--m2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis") + '">' + (ga.maxed ? "최고 레벨" : ga.near ? ga.remain + " 남음 — " + suggest(ga.remain) : "다음 레벨까지 " + ga.remain) + "</div></div>" +
             '<div style="width:1px;background:var(--ln0);margin:8px 0"></div>' +
             '<div data-act="lvpersona" style="flex:1;min-width:0;padding:9px 12px 9px;cursor:pointer;display:flex;align-items:center;gap:9px">' + ringSvg +
             '<div style="min-width:0;flex:1"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:10.5px;color:var(--m1)">페르소나</span>' +

@@ -114,32 +114,34 @@
     const g1 = gaugeOf(s.xp + n);
     // 게이지가 차는 장면을 같이 보여준다(2026-08-29 사용자: "채워지는 느낌이 부족") — 레벨업이면 100%까지
     MS.ui.reward("xp", n, { label: label || "", gauge: { from: g0.pct, to: now > was ? 100 : g1.pct, lv: was, cur: g1.cur, max: g1.max, up: now > was } });
-    if (now > was) setTimeout(function () { levelUpOverlay(was, now); levelUpFill(now); }, 900);
+    if (now > was) {
+      MS.store.set({ lvUpAt: Date.now() });   // 홈 카드 NEW 리본·내 스쿱 연혁
+      MS.store.persistSoon();
+      const before = s.scoops;
+      const fill = levelUpFill(now);          // 풀충전은 바로 청구하고, 연출이 '보상' 장면에서 결과를 받아 보여준다
+      setTimeout(function () { levelUpOverlay(was, now, { before: before, fill: fill }); }, 900);
+    }
   }
 
   // 레벨 게이지 수치 — 헤더·연출·지갑 화면이 같은 계산을 쓴다
   const LV_NAMES = ["스쿱 견습생", "스쿱 서기", "스쿱 분석가", "스쿱 장인", "스쿱 오라클"];
   function levelName(lv) { return LV_NAMES[Math.max(0, Math.min(LV_NAMES.length - 1, lv - 1))]; }
 
-  function gaugeOf(xp) {
-    const L = P().xp.levels, lv = MS.config.levelOf(xp);
-    const lo = lv <= 1 ? 0 : L[lv - 2];
-    const hi = lv > L.length ? lo + 1 : L[lv - 1];
-    const pct = lv > L.length ? 100 : Math.max(0, Math.min(100, Math.round((xp - lo) / (hi - lo) * 100)));
-    return { lv: lv, cur: xp - lo, max: hi - lo, pct: pct, maxed: lv > L.length };
-  }
+  function gaugeOf(xp) { return MS.config.levelGauge(xp); }   // 계산은 config 한 곳(헤더·홈·연출 공용)
 
   // 레벨업 풀충전(2026-08-29 정책) — 서버가 상한까지 채우고 레벨당 1회를 보장한다
+  // 결과 {granted, balance, cap} 를 돌려준다(레벨업 연출의 '보상' 장면이 카운트업에 쓴다). 실패·오프라인 = null.
   async function levelUpFill(level) {
-    if (!P().scoop.levelupFill || isFixture) return;
+    if (!P().scoop.levelupFill || isFixture) return null;
     try {
       const r = await MS.data.api("wallet_levelup", { level: level });
       if (r && r.ok) {
         MS.store.set({ scoops: r.balance, walletCap: r.cap || MS.store.get().walletCap });
         MS.store.persistSoon();
-        if (r.granted > 0) setTimeout(function () { MS.ui.reward("scoop", r.granted, { label: "레벨업 풀충전" }); }, 1400);
+        return r;
       }
     } catch (e) { /* 오프라인 — 다음 부팅 wallet_state 가 잔액을 맞춘다(서버가 이미 채웠을 수 있다) */ }
+    return null;
   }
 
   // 일일 훅(dayVisit) — 오늘 첫 방문 +5 · 메뉴 첫 방문 +3(탭당 1회)
@@ -165,40 +167,150 @@
   // ── 저폴리 캐릭터 5종(아트 교체 지점 — §15) — 레벨 색: 실버→그린→틸→바이올렛→골드 ──
   const LV_COLORS = [["#c3c9d6", "#8b93a7"], ["#7fe0bb", "#2ea679"], ["#7fd8e8", "#1d99b0"], ["#b9a9ff", "#7b6cff"], ["#f0d27a", "#c1901a"]];
   function charSvg(lv, size) {
-    const c = LV_COLORS[Math.max(0, Math.min(4, lv - 1))];
-    const deco = lv >= 2 ? '<circle cx="32" cy="10" r="3.4" fill="' + c[1] + '"/>' : "";
-    const deco2 = lv >= 3 ? '<path d="M14 20l-5-4M50 20l5-4" stroke="' + c[1] + '" stroke-width="2.4" stroke-linecap="round"/>' : "";
-    const deco3 = lv >= 4 ? '<path d="M20 8l4-5 4 4 4-4 4 5" fill="none" stroke="' + c[1] + '" stroke-width="2" stroke-linejoin="round"/>' : "";
-    const aura = lv >= 5 ? '<circle cx="32" cy="30" r="27" fill="none" stroke="' + c[0] + '" stroke-width="1.4" stroke-dasharray="3 5" opacity="0.7"><animateTransform attributeName="transform" type="rotate" from="0 32 30" to="360 32 30" dur="9s" repeatCount="indefinite"/></circle>' : "";
-    return '<svg viewBox="0 0 64 60" width="' + (size || 58) + '" height="' + (size || 54) + '" style="display:block" aria-hidden="true">' +
-      aura + deco3 +
-      '<polygon points="32,12 44,22 40,38 24,38 20,22" fill="' + c[0] + '"/>' +
-      '<polygon points="32,12 44,22 32,26" fill="' + c[1] + '" opacity="0.75"/>' +
-      '<polygon points="24,38 40,38 42,52 22,52" fill="' + c[1] + '"/>' +
-      '<circle cx="28" cy="24" r="1.8" fill="#0a0c12"/><circle cx="37" cy="24" r="1.8" fill="#0a0c12"/>' +
-      deco + deco2 + "</svg>";
+    const i = Math.max(0, Math.min(4, lv - 1));
+    const c = LV_COLORS[i];
+    const W = size || 58, H = Math.round(W * 60 / 64);
+    const eyes = '<circle cx="28" cy="27" r="1.9" fill="#0a0c12"/><circle cx="37" cy="27" r="1.9" fill="#0a0c12"/>';
+    let body;
+    if (i === 0) {          // Lv1 원석 — 거친 덩어리, 움직이지 않는다
+      body = '<polygon points="22,16 38,13 46,24 43,42 27,46 17,34" fill="' + c[0] + '"/>' +
+        '<polygon points="22,16 38,13 34,25 24,24" fill="' + c[1] + '" opacity="0.55"/>' +
+        '<polygon points="27,46 43,42 41,52 25,52" fill="' + c[1] + '"/>' + eyes;
+    } else if (i === 1) {   // Lv2 결정 — 깎인 면이 생기고 둥실거린다
+      body = '<g><animateTransform attributeName="transform" type="translate" values="0 0;0 -2.5;0 0" dur="3.4s" repeatCount="indefinite"/>' +
+        '<polygon points="32,8 46,20 42,40 22,40 18,20" fill="' + c[0] + '"/>' +
+        '<polygon points="32,8 46,20 32,25 18,20" fill="' + c[1] + '" opacity="0.7"/>' +
+        '<polygon points="22,40 42,40 44,52 20,52" fill="' + c[1] + '"/>' + eyes + "</g>";
+    } else if (i === 2) {   // Lv3 다면체 — 궤도 링이 돈다
+      body = '<ellipse cx="32" cy="31" rx="27" ry="7" fill="none" stroke="' + c[1] + '" stroke-width="1.6" opacity="0.8">' +
+        '<animateTransform attributeName="transform" type="rotate" values="-14 32 31;14 32 31;-14 32 31" dur="5s" repeatCount="indefinite"/></ellipse>' +
+        '<g><animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="3s" repeatCount="indefinite"/>' +
+        '<polygon points="32,7 47,18 44,40 20,40 17,18" fill="' + c[0] + '"/>' +
+        '<polygon points="32,7 47,18 32,24" fill="' + c[1] + '" opacity="0.7"/><polygon points="32,7 17,18 32,24" fill="#ffffff" opacity="0.18"/>' +
+        '<polygon points="20,40 44,40 45,52 19,52" fill="' + c[1] + '"/>' + eyes + "</g>";
+    } else if (i === 3) {   // Lv4 왕관 — 위성 둘이 공전한다
+      body = '<g><animateTransform attributeName="transform" type="translate" values="0 0;0 -2;0 0" dur="3s" repeatCount="indefinite"/>' +
+        '<path d="M20 12l4-7 4 5 4-6 4 6 4-5 4 7z" fill="' + c[1] + '"/>' +
+        '<polygon points="32,10 48,20 44,41 20,41 16,20" fill="' + c[0] + '"/>' +
+        '<polygon points="32,10 48,20 32,26" fill="' + c[1] + '" opacity="0.7"/><polygon points="32,10 16,20 32,26" fill="#ffffff" opacity="0.2"/>' +
+        '<polygon points="20,41 44,41 46,53 18,53" fill="' + c[1] + '"/>' + eyes + "</g>" +
+        '<circle cx="58" cy="30" r="2.6" fill="' + c[0] + '"><animateTransform attributeName="transform" type="rotate" from="0 32 30" to="360 32 30" dur="4.2s" repeatCount="indefinite"/></circle>' +
+        '<circle cx="6" cy="30" r="1.8" fill="' + c[1] + '"><animateTransform attributeName="transform" type="rotate" from="0 32 30" to="360 32 30" dur="4.2s" repeatCount="indefinite"/></circle>';
+    } else {                // Lv5 오라 — 빛줄기가 숨쉬고 오라가 돈다
+      body = '<circle cx="32" cy="30" r="28" fill="none" stroke="' + c[0] + '" stroke-width="1.4" stroke-dasharray="3 5" opacity="0.75">' +
+        '<animateTransform attributeName="transform" type="rotate" from="0 32 30" to="360 32 30" dur="14s" repeatCount="indefinite"/></circle>' +
+        '<g stroke="' + c[0] + '" stroke-width="1.4" stroke-linecap="round" opacity="0.6"><animate attributeName="opacity" values="0.25;0.85;0.25" dur="2.2s" repeatCount="indefinite"/>' +
+        '<path d="M32 1v5M32 54v5M3 30h5M56 30h5M11 9l3 3M50 9l-3 3M11 51l3-3M50 51l-3-3"/></g>' +
+        '<g><animateTransform attributeName="transform" type="translate" values="0 0;0 -2.5;0 0" dur="2.8s" repeatCount="indefinite"/>' +
+        '<path d="M20 12l4-7 4 5 4-6 4 6 4-5 4 7z" fill="' + c[1] + '"/>' +
+        '<polygon points="32,10 48,20 44,41 20,41 16,20" fill="' + c[0] + '"/>' +
+        '<polygon points="32,10 48,20 32,26" fill="' + c[1] + '" opacity="0.7"/><polygon points="32,10 16,20 32,26" fill="#ffffff" opacity="0.25"/>' +
+        '<polygon points="20,41 44,41 46,53 18,53" fill="' + c[1] + '"/>' + eyes + "</g>";
+    }
+    return '<svg viewBox="0 0 64 60" width="' + W + '" height="' + H + '" style="display:block;overflow:visible" aria-hidden="true">' + body + "</svg>";
   }
 
-  function levelUpOverlay(from, to) {
+  // 숫자 카운트업(보상 장면) — rAF, easeOut
+  function countUp(el, from, to, ms) {
+    const t0 = performance.now();
+    function tick(t) {
+      const k = Math.min(1, (t - t0) / ms), e = 1 - Math.pow(1 - k, 3);
+      el.textContent = String(Math.round(from + (to - from) * e));
+      if (k < 1) requestAnimationFrame(tick);
+    }
+    requestAnimationFrame(tick);
+  }
+
+  // 레벨업 연출 — 선물 개봉(탭) → 진화(구 캐릭터 파편 → 새 캐릭터) → 보상 공개(스쿱 카운트업 · 상한 확장) → 닫기.
+  // opts.before = 레벨업 직전 잔액, opts.fill = levelUpFill 프라미스({granted,balance,cap} | null)
+  function levelUpOverlay(from, to, opts) {
     const app = document.getElementById("msApp");
     if (!app) return;
-    MS.ui.hap("done");
-    const names = LV_NAMES;
+    opts = opts || {};
+    const c = LV_COLORS[Math.max(0, Math.min(4, to - 1))];
     const el = document.createElement("div");
-    el.style.cssText = "position:absolute;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:rgba(4,5,9,0.78);backdrop-filter:blur(6px);animation:msLvDim 0.4s ease both;cursor:pointer";
-    el.innerHTML =
-      '<div style="position:relative;width:300px;border-radius:18px;background:linear-gradient(165deg,var(--sf2),var(--sf1));border:1px solid rgba(46,217,160,0.4);box-shadow:0 30px 80px -20px rgba(0,0,0,0.8);padding:26px 22px 20px;text-align:center;animation:msLvCard 0.6s cubic-bezier(0.2,0.9,0.25,1.2) 0.1s both;overflow:hidden">' +
-      '<div style="position:absolute;left:50%;top:86px;width:190px;height:190px;transform:translate(-50%,-50%);border:1px solid rgba(46,217,160,0.5);border-radius:50%;animation:msLvBurst 1.1s ease-out 0.45s both;pointer-events:none"></div>' +
+    el.style.cssText = "position:absolute;inset:0;z-index:90;display:flex;align-items:center;justify-content:center;background:rgba(4,5,9,0.78);backdrop-filter:blur(6px);animation:msLvDim 0.4s ease both";
+    const card = document.createElement("div");
+    card.style.cssText = "position:relative;width:300px;border-radius:18px;background:linear-gradient(165deg,var(--sf2),var(--sf1));border:1px solid rgba(46,217,160,0.4);box-shadow:0 30px 80px -20px rgba(0,0,0,0.8);padding:22px 20px 18px;text-align:center;overflow:hidden;animation:msLvCard 0.6s cubic-bezier(0.2,0.9,0.3,1.2) both;transition:border-color 0.6s,box-shadow 0.6s;cursor:pointer";
+    el.appendChild(card);
+    let phase = "gift";
+
+    // 1) 선물 — 탭해야 열린다('받는다'는 행위)
+    card.innerHTML =
       '<div class="mono" style="font-size:11px;letter-spacing:0.22em;color:var(--up)">LEVEL UP</div>' +
-      '<div style="margin-top:14px;display:flex;align-items:center;justify-content:center;gap:16px">' +
-      '<div style="animation:msLvOld 0.8s ease 0.5s both"><div style="filter:grayscale(0.4)">' + charSvg(from) + '</div><div style="margin-top:4px;font-size:10.5px;color:var(--m2)">Lv.' + from + "</div></div>" +
-      '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--up)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>' +
-      '<div style="animation:msLvNew 0.9s cubic-bezier(0.2,0.9,0.3,1.3) 0.75s both">' + charSvg(to) + '<div style="margin-top:4px;font-size:11px;font-weight:700;color:var(--up)">Lv.' + to + "</div></div></div>" +
-      '<div style="margin-top:12px;font-size:18px;font-weight:800;letter-spacing:-0.02em">' + names[Math.min(4, to - 1)] + "</div>" +
-      '<div style="margin-top:7px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--cu);border:1px solid rgba(210,165,22,0.4);border-radius:99px;padding:5px 12px"><span class="mono">◈ 스쿱 풀충전 · 상한 +' + P().scoop.capPerLevel + '</span>지갑 상한 +' + P().scoop.capPerLevel + "</div>" +
-      '<div style="margin-top:16px;min-height:44px;border-radius:10px;background:var(--up);color:#06231a;font-size:13.5px;font-weight:700;display:flex;align-items:center;justify-content:center">좋아요, 계속하기</div>' +
-      '<div style="margin-top:8px;font-size:10.5px;color:var(--m2)">화면을 탭해도 닫혀요</div></div>';
-    el.addEventListener("click", function () { if (el.parentNode) el.parentNode.removeChild(el); });
+      '<div style="position:relative;height:120px;display:flex;align-items:center;justify-content:center;margin-top:8px">' +
+      '<div style="position:absolute;width:110px;height:110px;border-radius:50%;background:radial-gradient(closest-side,var(--up),transparent 70%);opacity:0.35;animation:msAuraPulse 1.6s ease-in-out infinite"></div>' +
+      '<svg viewBox="0 0 64 64" width="84" height="84" style="position:relative;animation:msGiftBob 1.4s ease-in-out infinite" aria-hidden="true">' +
+      '<rect x="8" y="26" width="48" height="32" rx="5" fill="' + c[1] + '"/><rect x="6" y="18" width="52" height="12" rx="4" fill="' + c[0] + '"/>' +
+      '<rect x="28" y="18" width="8" height="40" fill="var(--cu)" opacity="0.9"/><rect x="6" y="18" width="52" height="12" rx="4" fill="none"/>' +
+      '<path d="M32 18c-6-10-16-8-14-2 2 4 9 4 14 2zm0 0c6-10 16-8 14-2-2 4-9 4-14 2z" fill="var(--cu)"/></svg></div>' +
+      '<div style="margin-top:6px;font-size:16px;font-weight:800;letter-spacing:-0.02em">레벨 ' + to + " 선물이 도착했어요</div>" +
+      '<div style="margin-top:6px;font-size:12px;color:var(--m1)">탭해서 열기</div>';
+
+    // 2) 진화 — 구 캐릭터가 빛나며 깨지고 그 자리에서 새 캐릭터가 자란다
+    function evolve() {
+      phase = "evolve";
+      MS.ui.hap("levelup");
+      card.style.borderColor = c[1]; card.style.boxShadow = "0 30px 80px -20px rgba(0,0,0,0.8), 0 0 60px -18px " + c[1];
+      let shards = "";
+      for (let k = 0; k < 10; k++) {
+        const a = (k / 10) * Math.PI * 2, d = 62 + (k % 3) * 14;
+        shards += '<span style="position:absolute;left:50%;top:50%;width:6px;height:6px;margin:-3px 0 0 -3px;border-radius:1.5px;background:' + (k % 2 ? c[0] : c[1]) + ';--dx:' + Math.round(Math.cos(a) * d) + "px;--dy:" + Math.round(Math.sin(a) * d) + 'px;animation:msShard 0.8s cubic-bezier(0.2,0.7,0.3,1) both"></span>';
+      }
+      card.innerHTML =
+        '<div class="mono" style="font-size:11px;letter-spacing:0.22em;color:var(--up)">LEVEL UP</div>' +
+        '<div style="position:relative;height:150px;display:flex;align-items:center;justify-content:center">' +
+        '<div style="position:absolute;left:50%;top:50%;width:150px;height:150px;transform:translate(-50%,-50%);border:1px solid ' + c[0] + ';border-radius:50%;animation:msLvBurst 1s ease-out both"></div>' + shards +
+        '<div style="position:absolute;animation:msLvShatter 0.6s ease-in both">' + charSvg(from, 88) + "</div>" +
+        '<div style="position:relative;animation:msLvNew 0.9s cubic-bezier(0.2,0.9,0.3,1.3) 0.45s both">' + charSvg(to, 96) + "</div></div>" +
+        '<div style="display:flex;align-items:center;justify-content:center;gap:8px;animation:msRevealUp 0.5s ease 0.9s both">' +
+        '<span style="font-size:12px;color:var(--m2)">Lv.' + from + " " + levelName(from) + "</span>" +
+        '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="' + c[1] + '" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>' +
+        '<span style="font-size:14px;font-weight:800;color:' + c[0] + '">Lv.' + to + " " + levelName(to) + "</span></div>" +
+        '<div data-rw style="margin-top:14px;display:flex;flex-direction:column;gap:8px"></div>';
+      setTimeout(rewards, 1500);
+    }
+
+    // 3) 보상 — 스쿱 풀충전 카운트업 · 지갑 상한 확장 · 닫기
+    function rewards() {
+      phase = "reward";
+      const box = card.querySelector("[data-rw]");
+      const capB = MS.config.scoopCap(from), capA0 = MS.config.scoopCap(to);
+      const timeout = new Promise(function (res) { setTimeout(function () { res(null); }, 2500); });
+      Promise.race([Promise.resolve(opts.fill || null), timeout]).then(function (r) {
+        const capA = (r && r.cap) || capA0;
+        const before = typeof opts.before === "number" ? opts.before : MS.store.get().scoops;
+        const after = r ? r.balance : null;
+        const row = function (delay, inner) {
+          return '<div style="display:flex;align-items:center;gap:10px;border-radius:12px;background:var(--sf2);padding:10px 12px;text-align:left;animation:msRevealUp 0.5s ease ' + delay + 's both">' + inner + "</div>";
+        };
+        box.innerHTML =
+          row(0,
+            '<span style="font-size:18px;color:var(--ac);flex:none">◈</span><div style="min-width:0;flex:1"><div style="font-size:12.5px;font-weight:700">스쿱 풀충전</div>' +
+            (after !== null && after > before
+              ? '<div style="font-size:11px;color:var(--m1)">지갑을 상한까지 채웠어요</div></div><span class="mono" style="font-size:16px;font-weight:700;color:var(--ac);white-space:nowrap"><span data-cnt>' + before + "</span></span>"
+              : after !== null
+                ? '<div style="font-size:11px;color:var(--m1)">지갑이 이미 가득 — 상한만 늘어요</div></div><span class="mono" style="font-size:16px;font-weight:700;color:var(--m2)">' + before + "</span>"
+                : '<div style="font-size:11px;color:var(--m1)">다음 접속 때 잔액이 맞춰져요</div></div>')) +
+          row(0.35,
+            '<span style="font-size:16px;color:var(--cu);flex:none">▮</span><div style="min-width:0;flex:1"><div style="font-size:12.5px;font-weight:700">지갑 상한 확장</div>' +
+            '<div style="margin-top:5px;height:5px;border-radius:3px;background:var(--sf3);overflow:hidden"><span data-capbar style="display:block;height:100%;width:' + Math.round(capB / capA * 100) + '%;background:linear-gradient(90deg,var(--ac),var(--cu));transition:width 0.8s cubic-bezier(0.2,0.8,0.25,1)"></span></div></div>' +
+            '<span class="mono" style="font-size:13px;color:var(--cu);white-space:nowrap">' + capB + ' <span style="color:var(--m2)">→</span> ' + capA + "</span>") +
+          '<div data-close style="margin-top:6px;min-height:44px;border-radius:10px;background:var(--up);color:#06231a;font-size:13.5px;font-weight:700;display:flex;align-items:center;justify-content:center;animation:msRevealUp 0.5s ease 0.75s both">좋아요</div>';
+        MS.ui.hap("rewardBig");
+        const cnt = box.querySelector("[data-cnt]");
+        if (cnt) setTimeout(function () { countUp(cnt, before, after, 900); }, 250);
+        const bar = box.querySelector("[data-capbar]");
+        if (bar) setTimeout(function () { bar.style.width = "100%"; }, 650);
+      });
+    }
+
+    card.addEventListener("click", function (e) {
+      if (phase === "gift") { evolve(); return; }
+      if (phase === "reward" && e.target.closest("[data-close]")) close();
+    });
+    el.addEventListener("click", function (e) { if (e.target === el && phase === "reward") close(); });
+    function close() { if (el.parentNode) el.parentNode.removeChild(el); }
     app.appendChild(el);
   }
 

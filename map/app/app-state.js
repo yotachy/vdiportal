@@ -19,7 +19,8 @@
     "picks", "analyzed", "analyzedAt", "scoops", "theme", "gLinked",
     "personaIdx", "personaAns", "personaApply", "xp", "xpToday", "fontZoom", "nick", "gName",
     "dayVisit", "weights", "checks", "indOff", "dayCounters", "sigRead", "xpSeen", "notiOff",
-    "analysisMeta"   // 'SYM|TF' → {tier,preset,weights,personaApply} — 리포트 재구성(재계산 무료·결정적)용
+    "analysisMeta",  // 'SYM|TF' → {tier,preset,weights,personaApply} — 리포트 재구성(재계산 무료·결정적)용
+    "lvUpAt"         // 마지막 레벨업 시각(ms) — 홈 카드 NEW 리본(24h)·내 스쿱 연혁
   ];
 
   function initialState() {
@@ -31,7 +32,7 @@
       // 경제·성장
       scoops: 15, xp: 0, xpToday: 0, gLinked: 0, gName: null,   // gName: 구글 계정 표시 이름(앱에 보이는 이름 — 닉네임은 리더보드용)
       // 페르소나
-      personaIdx: 0, personaAns: [], personaApply: 0,
+      personaIdx: 0, personaAns: [], personaApply: 0, lvUpAt: null,
       // 커스텀 조합·작도 (Q8: 영속)
       weights: {}, checks: {}, indOff: {}, drawOff: {}, analysisMeta: {},
       // 시그널·XP·페르소나(휘발 _pq*)

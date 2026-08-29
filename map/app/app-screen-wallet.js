@@ -45,7 +45,7 @@
           '<div style="display:flex;align-items:center;gap:14px">' +
           '<div style="animation:msFloatY 3s ease-in-out infinite">' + MS.xp.charSvg(lv, 64) + "</div>" +
           '<div style="min-width:0;flex:1"><div style="font-size:15px;font-weight:700">Lv.' + lv + " " + MS.xp.levelName(lv) + "</div>" +
-          '<div style="margin-top:4px;font-size:11.5px;color:var(--m1)">오늘 경험치 +' + (s.xpToday || 0) + "</div>" +
+          '<div style="margin-top:4px;font-size:11.5px;color:var(--m1)">오늘 경험치 +' + (s.xpToday || 0) + (s.lvUpAt ? ' <span style="color:var(--m2)">· Lv.' + lv + " 달성 " + (function (t) { const d = new Date(t); return (d.getMonth() + 1) + "." + String(d.getDate()).padStart(2, "0"); })(s.lvUpAt) + "</span>" : "") + "</div>" +
           '<div style="margin-top:8px;height:5px;border-radius:3px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + lvPct(s.xp) + '%;background:linear-gradient(90deg,var(--up),var(--ac))"></span></div></div></div>' +
           '<div style="margin-top:12px;border-top:1px solid var(--ln0);padding-top:10px">' +
           '<div style="font-size:12.5px;font-weight:700">오늘의 미션</div>' +
@@ -106,13 +106,7 @@
       bind();
     }
 
-    function lvPct(xp) {
-      const L = P().xp.levels;
-      const lv = MS.config.levelOf(xp);
-      const lo = lv <= 1 ? 0 : L[lv - 2];
-      const hi = lv > L.length ? lo + 1 : L[lv - 1];
-      return Math.max(0, Math.min(100, Math.round((xp - lo) / (hi - lo) * 100)));
-    }
+    function lvPct(xp) { return MS.xp.gaugeOf(xp).pct; }   // 계산은 config 한 곳
     function row(act, title, sub, btn) {
       return '<div data-act="' + act + '" style="display:flex;align-items:center;gap:8px;padding:13px 14px;border-bottom:1px solid var(--ln0);cursor:pointer">' +
         '<div style="min-width:0;flex:1"><div style="font-size:13px;font-weight:600">' + title + "</div>" +

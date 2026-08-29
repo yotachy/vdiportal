@@ -88,3 +88,14 @@ test("정책 기준선 스모크 — 지침서 §8·§10 수치", () => {
   assert.deepEqual(P.ui.haptics.done, [15, 30, 60]);
   assert.deepEqual(P.ui.haptics.warn, [60, 50, 60]);
 });
+
+test("levelGauge: 구간 진행·남은 경험치·임박(85%↑)·최고 레벨", () => {
+  assert.deepEqual(config.levelGauge(0), { lv: 1, cur: 0, max: 40, pct: 0, maxed: false, remain: 40, near: false });
+  const g = config.levelGauge(35);   // Lv1 구간 40 중 35 = 88%
+  assert.equal(g.pct, 88); assert.equal(g.remain, 5); assert.equal(g.near, true);
+  assert.equal(config.levelGauge(33).near, false);   // 83%
+  const g2 = config.levelGauge(75);   // Lv3 구간 70~110
+  assert.equal(g2.lv, 3); assert.equal(g2.cur, 5); assert.equal(g2.max, 40); assert.equal(g2.remain, 35);
+  const m = config.levelGauge(160);
+  assert.equal(m.lv, 5); assert.equal(m.maxed, true); assert.equal(m.pct, 100); assert.equal(m.remain, 0); assert.equal(m.near, false);
+});
