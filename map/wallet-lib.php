@@ -45,6 +45,11 @@ function w_entitled_types() {
 function w_now() { return gmdate("c"); }
 function w_today() { return gmdate("Y-m-d"); }
 function w_day_add($ymd, $n) { return gmdate("Y-m-d", strtotime($ymd . " UTC") + $n * 86400); }
+// 출석 슬롯(2026-08-29 정책: 매시간 정시). UTC 정시 = KST 정시(정수 시간대 오프셋)라 tz 변환 없이
+// 경계가 같다. 연속일은 종전대로 슬롯의 날짜 부분(UTC)으로 센다.
+function w_slot($ts = null) { return gmdate("Y-m-d\TH", $ts === null ? time() : $ts); }
+// w_checkin 의 3번째 인자·저장값 정규화: "Y-m-d"(옛 일 단위·테스트) → 그날 T00 슬롯, "Y-m-dTH" 는 그대로.
+function w_slot_norm($v) { return ($v === null) ? null : (strlen($v) === 10 ? $v . "T00" : $v); }
 
 function w_db($dir) {
   // mkdir 은 "이미 있어서 실패"와 "정말 못 만들어서 실패"를 구분하지 않는다 — 첫 부팅에
@@ -405,7 +410,8 @@ function w_state($db, $acct) {
     "streakDays" => (int)$acct["streak_days"],
     // 병합으로 넘어간 기기 계정은 출석 버튼 자체를 못 본다. 여기서 true 를 주면 화면은
     // 버튼을 그리는데 w_checkin 은 거절하는 상태가 되어, 사용자가 눌러도 아무 일도 안 난다.
-    "canCheckin" => ($acct["last_checkin"] !== w_today() && !w_is_merged_away($db, $acct["id"]))
+    "canCheckin" => (w_slot_norm($acct["last_checkin"]) !== w_slot() && !w_is_merged_away($db, $acct["id"])),
+    "nextSlotAt" => gmdate("c", (floor(time() / 3600) + 1) * 3600)   // 다음 정시(ISO) — 화면 카운트다운용
   );
 }
 
@@ -613,8 +619,39 @@ function w_refund($db, $acctId, $idem) {
 // 서버 UTC 기준이다. $today 는 테스트에서만 넘긴다 — 프로덕션은 null 을 넘겨 서버 시간을 쓴다.
 // 기기 시계를 바꿔서 얻는 것이 없어야 한다(SPEC-economy §3).
 // reason ∈ already|merged|busy
+// 레벨업 풀충전(2026-08-29 사용자 정책): 레벨이 오르면 상한까지 채운다. 레벨당 1회(멱등키),
+// 로그인 사용자만(게스트는 XP 자체가 없다). 레벨은 클라 신고를 믿는다 — 레벨 수 × 상한이 남용의
+// 천장이라 작고, 'XP 서버 검증'과 같은 §15 과제로 남긴다. 지급 0 이어도 행을 남겨 레벨을 소비한다
+// (안 남기면 다 쓴 뒤 같은 레벨로 다시 채울 수 있다).
+function w_levelup_fill($db, $acct, $level) {
+  $lv = (int)$level;
+  if ($lv < 2 || $lv > 9) return array("ok" => false, "granted" => 0, "reason" => "level");
+  if ($acct["google_sub"] === null) return array("ok" => false, "granted" => 0, "reason" => "guest");
+  $acctId = $acct["id"];
+  try { $db->exec("begin immediate"); }
+  catch (Throwable $e) { return array("ok" => false, "granted" => 0, "reason" => "busy"); }
+  try {
+    if (w_is_merged_away($db, $acctId)) { $db->exec("rollback"); return array("ok" => false, "granted" => 0, "reason" => "merged"); }
+    $idem = "levelup:" . $acctId . ":" . $lv;
+    if (w_ledger_by_idem_any($db, $idem)) { $db->exec("rollback"); return array("ok" => false, "granted" => 0, "reason" => "already"); }
+    $bal = w_true_balance($db, $acctId);
+    $give = W_CAP - $bal; if ($give < 0) $give = 0;
+    $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at) values (?, ?, 'levelup', ?, ?, ?)");
+    $st->execute(array($acctId, $give, "lv" . $lv, $idem, w_now()));
+    $db->prepare("update accounts set balance = ? where id = ?")->execute(array($bal + $give, $acctId));
+    $db->exec("commit");
+    return array("ok" => true, "granted" => $give, "reason" => null);
+  } catch (Throwable $e) {
+    try { $db->exec("rollback"); } catch (Throwable $e2) {}
+    throw $e;
+  }
+}
+
 function w_checkin($db, $acct, $today) {
-  $day = ($today === null) ? w_today() : $today;
+  // 매시간 정시 1회(2026-08-29 사용자 확정). 연속일은 일 단위 유지 — 하루에 한 번이라도 받으면 그날 출석,
+  // 7일 연속의 그날 첫 보상에 상자. 상한(W_CAP)이 시간당 +1 의 자연 제한이다.
+  $slot = ($today === null) ? w_slot() : w_slot_norm($today);
+  $day = substr($slot, 0, 10);
   $acctId = $acct["id"];
   try {
     $db->exec("begin immediate");
@@ -632,13 +669,18 @@ function w_checkin($db, $acct, $today) {
       $db->exec("rollback");
       return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "merged");
     }
-    if ($a["last_checkin"] === $day) {
+    $lastSlot = w_slot_norm($a["last_checkin"]);
+    $lastDay = ($lastSlot === null) ? null : substr($lastSlot, 0, 10);
+    if ($lastSlot === $slot) {
       $db->exec("rollback");
       return array("ok" => false, "granted" => 0, "capped" => false, "reason" => "already");
     }
-    $streak = ($a["last_checkin"] !== null && $a["last_checkin"] === w_day_add($day, -1))
-      ? ((int)$a["streak_days"] + 1) : 1;
-    $want = W_CHECKIN + (($streak % W_CHEST_EVERY === 0) ? W_CHEST : 0);
+    // 같은 날 두 번째 이후 시간 슬롯: 스트릭 유지·상자 없음. 어제였으면 +1, 끊겼으면 1.
+    $sameDay = ($lastDay === $day);
+    $streak = $sameDay ? (int)$a["streak_days"]
+            : (($lastDay !== null && $lastDay === w_day_add($day, -1)) ? ((int)$a["streak_days"] + 1) : 1);
+    if ($streak < 1) $streak = 1;
+    $want = W_CHECKIN + ((!$sameDay && $streak % W_CHEST_EVERY === 0) ? W_CHEST : 0);
 
     $bal = w_true_balance($db, $acctId);
     $room = W_CAP - $bal;
@@ -650,12 +692,12 @@ function w_checkin($db, $acct, $today) {
       $st = $db->prepare("insert into ledger (account_id, delta, reason, ref, idem, created_at)
                           values (?, ?, ?, NULL, ?, ?)");
       $st->execute(array($acctId, $give, ($want > W_CHECKIN ? "chest" : "checkin"),
-                         "checkin:" . $acctId . ":" . $day, w_now()));
+                         "checkin:" . $acctId . ":" . $slot, w_now()));
     }
-    // capped 여도 출석일은 소비한다 — 지갑이 찼을 뿐 출석은 했다. 소비 안 하면
-    // 기기 시계를 안 바꿔도 같은 날 재시도로 상한 해소를 노려볼 여지가 생긴다.
+    // capped 여도 슬롯은 소비한다 — 지갑이 찼을 뿐 출석은 했다. 소비 안 하면
+    // 같은 시간에 재시도로 상한 해소를 노려볼 여지가 생긴다.
     $db->prepare("update accounts set balance = ?, streak_days = ?, last_checkin = ? where id = ?")
-       ->execute(array($bal + $give, $streak, $day, $acctId));
+       ->execute(array($bal + $give, $streak, $slot, $acctId));
     $db->exec("commit");
     return array("ok" => true, "granted" => $give, "capped" => $capped, "reason" => null);
   } catch (Throwable $e) {

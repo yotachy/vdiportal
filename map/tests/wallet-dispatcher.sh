@@ -150,6 +150,7 @@ ACCT_A=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_A")
 ACCT_B=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_B")
 ACCT_C=$(php -r 'echo substr(sha1($argv[1]), 0, 16);' "$DEV_C")
 TODAY=$(php -r 'echo gmdate("Y-m-d");')
+SLOT=$(php -r 'echo gmdate("Y-m-d\\TH");')   # 출석 슬롯(매시간 정시, 2026-08-29 정책) — last_checkin·서버 idem 이 이 값을 쓴다
 
 # ── ping — 인증 없이 열려 있으므로 스키마 버전 외에는 아무 것도 말하지 않는다 ──────────
 post '{"op":"ping"}'
@@ -226,7 +227,7 @@ chk "출석 지급 1" "$(jget "$BODY" granted)" "1"
 post '{"op":"checkin","today":"2035-01-01"}' "$TOK_A"
 chk "본문 today 로 하루를 다시 못 받는다" "$(jget "$BODY" reason)" "already"
 chk "본문 today 재출석이 지급되지 않았다" "$(jget "$BODY" granted)" "0"
-chk "last_checkin 이 본문 날짜로 움직이지 않았다" "$(dbq "select last_checkin from accounts where id='$ACCT_A'")" "$TODAY"
+chk "last_checkin 이 본문 날짜로 움직이지 않았다" "$(dbq "select last_checkin from accounts where id='$ACCT_A'")" "$SLOT"
 chk "출석 뒤 잔량은 3 이다(2+1)" "$(jget2 "$BODY" state balance)" "3"
 
 # ── 문자열 필드 가드 — 타입·길이. 통과하면 원장에 그대로 박힌다 ─────────────────────
@@ -257,7 +258,7 @@ chk "출석이 정상 지급됐다" "$(jget "$BODY" granted)" "1"
 chk "호출자 idem 은 c: 이름공간에 저장된다" \
     "$(dbq "select count(*) from ledger where account_id='$ACCT_B' and idem='c:checkin:$ACCT_B:$TODAY'")" "1"
 chk "서버 키는 접두 없이 그대로 있다" \
-    "$(dbq "select count(*) from ledger where account_id='$ACCT_B' and idem='checkin:$ACCT_B:$TODAY'")" "1"
+    "$(dbq "select count(*) from ledger where account_id='$ACCT_B' and idem='checkin:$ACCT_B:$SLOT'")" "1"
 
 # 접두는 spend·refund 양쪽에 똑같이 붙어야 한다 — 한쪽만 붙이면 모든 환급이 not-found 다.
 # scan 은 무료라 과금 자체가 없다 — 접두 대칭을 재려면 실제로 차감되는 등급이어야 한다.

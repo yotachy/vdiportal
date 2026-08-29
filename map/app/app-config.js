@@ -17,7 +17,8 @@
       capPerLevel: 2,
       costDeep: 2,               // 심화 ◈2
       costCustom: 3,             // 커스텀 ◈3
-      checkin: { amount: 1, intervalSec: 21600 },   // 출석 +1 / 6시간
+      checkin: { amount: 1, mode: "hourly" },       // 출석 +1 / 매시간 정시(12:00·13:00 …) — 2026-08-29 사용자 확정(6h 주기 폐기)
+      levelupFill: true,         // 레벨업 시 스쿱을 상한까지 채운다(서버 wallet_levelup · 레벨당 1회)
       streak: { days: 7, bonus: 5 },                // 연속 7일 +5
       ad: { scoop: 3, xp: 5 },                      // 광고 완주 ◈3 + XP5
       hitRefund: 1               // 적중 환급 +1 (Q1 확정 — 심화·커스텀 채점 확정 시)

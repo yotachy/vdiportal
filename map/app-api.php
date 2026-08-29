@@ -269,7 +269,7 @@ try {
   }
 
   // ── 지갑 ops(P5 — P8 부터 구글 연결 기기는 병합된 계정을 본다) ──
-  if ($op === "wallet_state" || $op === "wallet_spend" || $op === "wallet_refund" || $op === "wallet_checkin") {
+  if ($op === "wallet_state" || $op === "wallet_spend" || $op === "wallet_refund" || $op === "wallet_checkin" || $op === "wallet_levelup") {
     $wdb = w_db($AL_DIR);
     $res = app_acct_resolve($wdb, $AL_DIR, $device);
     $acct = $res["acct"];
@@ -299,6 +299,13 @@ try {
       $idem = isset($in["idem"]) ? (string)$in["idem"] : "";
       $r = w_refund($wdb, $acct["id"], $idem);
       $r["balance"] = w_true_balance($wdb, $acct["id"]);
+      al_out($r);
+    }
+    // 레벨업 풀충전(2026-08-29): 클라가 레벨업을 감지하면 부른다. 레벨당 1회·로그인만(w_levelup_fill).
+    if ($op === "wallet_levelup") {
+      $r = w_levelup_fill($wdb, $acct, isset($in["level"]) ? (int)$in["level"] : 0);
+      $r["balance"] = w_true_balance($wdb, $acct["id"]);
+      $r["cap"] = W_CAP;
       al_out($r);
     }
     if ($op === "wallet_checkin") {

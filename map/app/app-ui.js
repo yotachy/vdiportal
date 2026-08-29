@@ -108,7 +108,7 @@
         SVG_SEARCH + '<span class="lbl">' + str("header.stocks") + "</span></button>" +
       '<button class="ms-header-scoop" data-act="scoop">' +
         '<span class="gem">◈</span><span class="mono" data-bind="scoops"></span>' +
-        '<span class="ms-header-lv" data-bind="lvWrap"><span class="no" data-bind="lvNo"></span>' +
+        '<span class="ms-header-lv" data-bind="lvWrap"><span class="row"><span class="no" data-bind="lvNo"></span><span class="xp" data-bind="lvXp"></span></span>' +
         '<span class="bar"><span class="fill" data-bind="lvFill" style="width:0%"></span></span></span></button>' +
       '<button class="ms-header-acct" data-act="acct" aria-label="' + str("header.ariaAccount") + '">' +
         '<span data-bind="acct"></span></button>';
@@ -146,7 +146,16 @@
       const lo = lv <= 1 ? 0 : L[lv - 2];
       const hi = lv > L.length ? lo + 1 : L[lv - 1];
       const pct = lv > L.length ? 100 : Math.max(0, Math.min(100, Math.round((s.xp - lo) / (hi - lo) * 100)));
-      el("lvFill").style.width = pct + "%";
+      const xpEl = el("lvXp");
+      if (xpEl) xpEl.textContent = lv > L.length ? "MAX" : (s.xp - lo) + "/" + (hi - lo);
+      const fill = el("lvFill");
+      const prevW = parseFloat(fill.style.width) || 0;
+      fill.style.width = pct + "%";
+      // 차오르는 순간을 눈에 띄게 — 게이지가 늘면 글로우 펄스(2026-08-29 "채워지는 느낌 부족")
+      if (pct > prevW || (prevW === 100 && pct < prevW)) {
+        const wrap = el("lvWrap");
+        wrap.classList.remove("bump"); void wrap.offsetWidth; wrap.classList.add("bump");
+      }
     }
     el("acct").outerHTML = s.gLinked
       ? '<span class="ava" data-bind="acct">' + (s.nick ? String(s.nick).charAt(0) : "M") + "</span>"
@@ -266,6 +275,17 @@
       sub.className = "rw-sub";
       sub.textContent = opts.label;
       fx.appendChild(sub);
+    }
+    // 경험치 게이지 — 이전 % 에서 새 % 로 차오른다. 레벨업이면 100% 까지(오버레이가 뒤따른다).
+    if (!scoop && opts.gauge) {
+      const g = opts.gauge;
+      const gg = document.createElement("div");
+      gg.className = "rw-gauge";
+      gg.innerHTML = '<span class="rw-glv">LV' + g.lv + '</span><span class="rw-gbar"><span class="rw-gfill" style="width:' + g.from + '%"></span></span>' +
+        '<span class="rw-gtxt mono">' + (g.up ? "LEVEL UP" : (g.cur + "/" + g.max)) + "</span>";
+      fx.appendChild(gg);
+      const f = gg.querySelector(".rw-gfill");
+      setTimeout(function () { f.style.width = g.to + "%"; if (g.up) gg.classList.add("up"); }, 120);
     }
     app.appendChild(fx);
     setTimeout(function () { if (fx.parentNode) fx.parentNode.removeChild(fx); }, (POLICY.ui.rewardMs || 1500) + 200);

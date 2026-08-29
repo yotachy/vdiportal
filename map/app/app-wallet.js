@@ -12,6 +12,7 @@
   // ── 지갑 클라이언트 ──
   let serverOk = null;   // null=미확인, true/false
 
+  const isFixture = !!(MS.data && MS.data.devMode);
   function newIdem(tier) {
     return "sp_" + MS.data.deviceId().slice(0, 8) + "_" + Date.now().toString(36) + "_" + tier;
   }
@@ -21,7 +22,8 @@
       const r = await MS.data.api("wallet_state", {});
       if (r && r.ok) {
         serverOk = true;
-        const patch = { scoops: r.balance, walletCap: r.cap, canCheckin: !!r.canCheckin, streakDays: r.streakDays || 0 };
+        const patch = { scoops: r.balance, walletCap: r.cap, canCheckin: !!r.canCheckin, streakDays: r.streakDays || 0,
+          nextSlotAt: r.nextSlotAt || null };   // 다음 정시(ISO) — 출석 카운트다운
         // 서버가 연결 상태의 정본(P8) — 다른 기기에서 탈퇴했거나 병합됐으면 여기서 따라간다
         if (typeof r.linked === "number" && !(MS.auth && MS.auth.stub)) {   // 스텁 링크(dev)는 서버가 모른다
           patch.gLinked = r.linked ? 1 : 0;
@@ -81,13 +83,13 @@
     try {
       const r = await MS.data.api("wallet_checkin", {});
       if (r && r.ok) {
-        MS.store.set({ scoops: r.balance, canCheckin: false, streakDays: r.streakDays || 0 });
+        MS.store.set({ scoops: r.balance, canCheckin: false, streakDays: r.streakDays || 0, nextSlotAt: r.nextSlotAt || MS.store.get().nextSlotAt });
         MS.store.persistSoon();
         const chest = r.granted > P().scoop.checkin.amount;
         MS.ui.reward("scoop", r.granted, { label: chest ? ("연속 " + P().scoop.streak.days + "일 보너스!") : "출석 보상" });
         return r;
       }
-      if (r && r.reason === "already") { MS.ui.flash("오늘 출석은 이미 받았어요 — 내일 다시", ""); MS.store.set({ canCheckin: false }); }
+      if (r && r.reason === "already") { MS.ui.flash("이번 시간 출석은 받았어요 — 다음 정시에 다시", ""); MS.store.set({ canCheckin: false }); }
       else if (r && r.granted === 0 && r.capped) { MS.ui.flash("지갑이 가득 차서 적립을 못 했어요 — 쓰고 다시 받아요", ""); }
       return null;
     } catch (e) {
@@ -104,11 +106,36 @@
       return;
     }
     const was = MS.config.levelOf(s.xp);
+    const g0 = gaugeOf(s.xp);
     MS.store.set({ xp: s.xp + n, xpToday: (s.xpToday || 0) + n });
     MS.store.persistSoon();
-    MS.ui.reward("xp", n, { label: label || "" });   // 강한 손맛(버스트+비례 진동) — 진동은 reward 가 처리
     const now = MS.config.levelOf(s.xp + n);
-    if (now > was) setTimeout(function () { levelUpOverlay(was, now); }, 650);
+    const g1 = gaugeOf(s.xp + n);
+    // 게이지가 차는 장면을 같이 보여준다(2026-08-29 사용자: "채워지는 느낌이 부족") — 레벨업이면 100%까지
+    MS.ui.reward("xp", n, { label: label || "", gauge: { from: g0.pct, to: now > was ? 100 : g1.pct, lv: was, cur: g1.cur, max: g1.max, up: now > was } });
+    if (now > was) setTimeout(function () { levelUpOverlay(was, now); levelUpFill(now); }, 900);
+  }
+
+  // 레벨 게이지 수치 — 헤더·연출·지갑 화면이 같은 계산을 쓴다
+  function gaugeOf(xp) {
+    const L = P().xp.levels, lv = MS.config.levelOf(xp);
+    const lo = lv <= 1 ? 0 : L[lv - 2];
+    const hi = lv > L.length ? lo + 1 : L[lv - 1];
+    const pct = lv > L.length ? 100 : Math.max(0, Math.min(100, Math.round((xp - lo) / (hi - lo) * 100)));
+    return { lv: lv, cur: xp - lo, max: hi - lo, pct: pct, maxed: lv > L.length };
+  }
+
+  // 레벨업 풀충전(2026-08-29 정책) — 서버가 상한까지 채우고 레벨당 1회를 보장한다
+  async function levelUpFill(level) {
+    if (!P().scoop.levelupFill || isFixture) return;
+    try {
+      const r = await MS.data.api("wallet_levelup", { level: level });
+      if (r && r.ok) {
+        MS.store.set({ scoops: r.balance, walletCap: r.cap || MS.store.get().walletCap });
+        MS.store.persistSoon();
+        if (r.granted > 0) setTimeout(function () { MS.ui.reward("scoop", r.granted, { label: "레벨업 풀충전" }); }, 1400);
+      }
+    } catch (e) { /* 오프라인 — 다음 부팅 wallet_state 가 잔액을 맞춘다(서버가 이미 채웠을 수 있다) */ }
   }
 
   // 일일 훅(dayVisit) — 오늘 첫 방문 +5 · 메뉴 첫 방문 +3(탭당 1회)
@@ -164,7 +191,7 @@
       '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="var(--up)" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>' +
       '<div style="animation:msLvNew 0.9s cubic-bezier(0.2,0.9,0.3,1.3) 0.75s both">' + charSvg(to) + '<div style="margin-top:4px;font-size:11px;font-weight:700;color:var(--up)">Lv.' + to + "</div></div></div>" +
       '<div style="margin-top:12px;font-size:18px;font-weight:800;letter-spacing:-0.02em">' + names[Math.min(4, to - 1)] + "</div>" +
-      '<div style="margin-top:7px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--cu);border:1px solid rgba(210,165,22,0.4);border-radius:99px;padding:5px 12px"><span class="mono">◈</span>지갑 상한 +' + P().scoop.capPerLevel + "</div>" +
+      '<div style="margin-top:7px;display:inline-flex;align-items:center;gap:6px;font-size:12.5px;color:var(--cu);border:1px solid rgba(210,165,22,0.4);border-radius:99px;padding:5px 12px"><span class="mono">◈ 스쿱 풀충전 · 상한 +' + P().scoop.capPerLevel + '</span>지갑 상한 +' + P().scoop.capPerLevel + "</div>" +
       '<div style="margin-top:16px;min-height:44px;border-radius:10px;background:var(--up);color:#06231a;font-size:13.5px;font-weight:700;display:flex;align-items:center;justify-content:center">좋아요, 계속하기</div>' +
       '<div style="margin-top:8px;font-size:10.5px;color:var(--m2)">화면을 탭해도 닫혀요</div></div>';
     el.addEventListener("click", function () { if (el.parentNode) el.parentNode.removeChild(el); });
@@ -172,5 +199,5 @@
   }
 
   MS.wallet = { state: walletState, spend: spend, refund: refund, checkin: checkin };
-  MS.xp = { add: addXp, visit: visitXp, charSvg: charSvg, levelUpOverlay: levelUpOverlay };
+  MS.xp = { add: addXp, visit: visitXp, charSvg: charSvg, levelUpOverlay: levelUpOverlay, gaugeOf: gaugeOf };
 })();

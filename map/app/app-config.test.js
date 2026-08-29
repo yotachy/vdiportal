@@ -47,7 +47,8 @@ test("정책 기준선 스모크 — 지침서 §8·§10 수치", () => {
   assert.equal(P.scoop.costDeep, 2);
   assert.equal(P.scoop.costCustom, 3);
   assert.equal(P.scoop.checkin.amount, 1);
-  assert.equal(P.scoop.checkin.intervalSec, 21600);
+  assert.equal(P.scoop.checkin.mode, "hourly");     // 2026-08-29: 매시간 정시(6h 주기 폐기)
+  assert.equal(P.scoop.levelupFill, true);           // 레벨업 풀충전
   assert.equal(P.scoop.streak.days, 7);
   assert.equal(P.scoop.streak.bonus, 5);
   assert.equal(P.scoop.ad.scoop, 3);

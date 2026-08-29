@@ -133,11 +133,28 @@ a:hover{color:var(--ach)}
   cursor:pointer;white-space:nowrap;flex:none;border:0}
 .ms-header-scoop .gem{display:inline-block;animation:msSpinY 3.2s linear infinite}
 .ms-header-scoop .cd{font-size:11px;font-weight:500;color:var(--m1)}
-.ms-header-lv{display:flex;flex-direction:column;gap:3px}
-.ms-header-lv .no{font-size:9.5px;font-weight:700;line-height:1;color:var(--m1)}
-.ms-header-lv .bar{width:26px;height:3px;border-radius:2px;background:var(--sf3);overflow:hidden;display:block}
+/* 레벨 게이지 — 2026-08-29: 26×3px 는 안 보였다. 수치까지 같이, 차오를 때 펄스 */
+.ms-header-lv{display:flex;flex-direction:column;gap:3px;min-width:52px}
+.ms-header-lv .row{display:flex;align-items:baseline;justify-content:space-between;gap:6px}
+.ms-header-lv .no{font-size:10px;font-weight:800;line-height:1;color:var(--up);letter-spacing:0.02em}
+.ms-header-lv .xp{font-size:9.5px;font-weight:600;line-height:1;color:var(--m1)}
+.ms-header-lv .bar{width:100%;height:5px;border-radius:3px;background:var(--sf3);overflow:hidden;display:block;position:relative}
 .ms-header-lv .fill{display:block;height:100%;background:linear-gradient(90deg,var(--up),var(--ac));
-  transition:width 0.5s cubic-bezier(0.2,0.8,0.25,1)}
+  transition:width 0.7s cubic-bezier(0.2,0.8,0.25,1)}
+.ms-header-lv.bump .bar{animation:msLvBump 0.9s ease-out}
+.ms-header-lv.bump .fill{animation:msLvGlow 0.9s ease-out}
+@keyframes msLvBump{0%{transform:scaleY(1)}30%{transform:scaleY(1.7)}100%{transform:scaleY(1)}}
+@keyframes msLvGlow{0%{filter:brightness(1)}30%{filter:brightness(1.9) drop-shadow(0 0 6px var(--up))}100%{filter:brightness(1)}}
+/* 획득 연출 안 게이지 */
+.ms-rwfx .rw-gauge{position:absolute;left:0;top:calc(50% + 52px);transform:translateX(-50%);width:196px;display:flex;align-items:center;gap:8px;
+  background:var(--sf1);border:1px solid var(--ln1);border-radius:99px;padding:6px 10px;animation:msRwGaugeIn 0.5s ease-out 0.15s both}
+.ms-rwfx .rw-glv{font-size:10.5px;font-weight:800;color:var(--up);flex:none}
+.ms-rwfx .rw-gbar{flex:1;height:6px;border-radius:3px;background:var(--sf3);overflow:hidden}
+.ms-rwfx .rw-gfill{display:block;height:100%;background:linear-gradient(90deg,var(--up),var(--ac));transition:width 0.9s cubic-bezier(0.2,0.8,0.25,1)}
+.ms-rwfx .rw-gtxt{font-size:10.5px;color:var(--t2);flex:none;min-width:34px;text-align:right}
+.ms-rwfx .rw-gauge.up{border-color:var(--up);box-shadow:0 0 18px -2px var(--up)}
+.ms-rwfx .rw-gauge.up .rw-gtxt{color:var(--up);font-weight:800}
+@keyframes msRwGaugeIn{from{opacity:0;transform:translateX(-50%) translateY(8px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
 .ms-header-acct{height:32px;display:flex;align-items:center;gap:5px;cursor:pointer;flex:none;
   margin-left:2px;padding:0 2px;background:none;border:0}
 .ms-header-acct .ava{width:26px;height:26px;border-radius:50%;border:1.5px solid var(--ln2);

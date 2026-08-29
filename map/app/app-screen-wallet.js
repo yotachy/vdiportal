@@ -11,6 +11,14 @@
   function esc(s) { return String(s == null ? "" : s).replace(/&/g, "&amp;").replace(/</g, "&lt;"); }
 
   function mount(host) {
+    // 다음 정시 표기 — "14:00 (23분)". 서버 nextSlotAt(ISO) 기준, 없으면 로컬 시계로 다음 정시.
+    function nextSlotTxt(iso) {
+      let t = iso ? Date.parse(iso) : NaN;
+      if (!isFinite(t)) { const d = new Date(); t = (Math.floor(d.getTime() / 3600000) + 1) * 3600000; }
+      const d2 = new Date(t), hh = String(d2.getHours()).padStart(2, "0");
+      const min = Math.max(0, Math.ceil((t - Date.now()) / 60000));
+      return hh + ":00 (" + (min >= 1 ? min + "분" : "곧") + ")";
+    }
     function render() {
       const s = MS.store.get();
       const pol = P();
@@ -75,8 +83,8 @@
         })() + "</div>" +
         // 출석
         '<div data-act="checkin" style="margin-top:14px;border:1px solid ' + (s.canCheckin ? "rgba(46,217,160,0.45)" : "var(--ln1)") + ';border-radius:12px;padding:12px 14px;display:flex;align-items:center;gap:10px;cursor:pointer' + (s.canCheckin ? ";animation:msAttGlow 1.8s ease-in-out infinite" : "") + '">' +
-        '<div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:700;color:' + (s.canCheckin ? "var(--up)" : "var(--t2)") + '">' + (s.canCheckin ? "출석 보상 도착 — 받기" : "오늘 출석 완료") + "</div>" +
-        '<div style="margin-top:3px;font-size:11.5px;color:var(--m1)">연속 ' + streak + "일째 · " + pol.scoop.streak.days + "일 채우면 ◈+" + pol.scoop.streak.bonus + "</div>" +
+        '<div style="min-width:0;flex:1"><div style="font-size:13.5px;font-weight:700;color:' + (s.canCheckin ? "var(--up)" : "var(--t2)") + '">' + (s.canCheckin ? "정시 보상 도착 — 받기" : ("다음 보상 " + nextSlotTxt(s.nextSlotAt))) + "</div>" +
+        '<div style="margin-top:3px;font-size:11.5px;color:var(--m1)">매시간 정시에 ◈+' + pol.scoop.checkin.amount + ' · 연속 ' + streak + "일째 · " + pol.scoop.streak.days + "일 채우면 ◈+" + pol.scoop.streak.bonus + "</div>" +
         '<div style="margin-top:6px;display:flex;gap:4px">' +
         (function () {
           let dots = "";
@@ -136,7 +144,7 @@
         host.querySelectorAll('[data-act="' + act + '"]').forEach(function (el) { el.addEventListener("click", fn); });
       };
       on("checkin", function () {
-        if (!MS.store.get().canCheckin) { MS.ui.flash("오늘 출석은 이미 받았어요 — 내일 다시", ""); return; }
+        if (!MS.store.get().canCheckin) { MS.ui.flash("다음 보상은 " + nextSlotTxt(MS.store.get().nextSlotAt) + " 정시에 열려요", ""); return; }
         MS.wallet.checkin().then(render);
       });
       on("ad", function () { MS.ads.watch().then(function (r) { if (r && r.rewarded) render(); }); });
@@ -176,9 +184,26 @@
     });
     const unsub = MS.store.subscribe(function (keys) {
       if (MS.store.get().screen !== "wallet") { unsub(); return; }
-      if (keys && (keys.indexOf("gLinked") >= 0 || keys.indexOf("nick") >= 0 || keys.indexOf("xp") >= 0)) render();
+      if (keys && ["gLinked", "nick", "xp", "canCheckin", "scoops", "nextSlotAt", "streakDays"].some(function (k) { return keys.indexOf(k) >= 0; })) render();   // 정시 경계·출석·레벨업 풀충전이 화면에 바로 반영
     });
   }
 
-  MS.router.register("wallet", { mount: mount });
+  // 정시 경계를 넘으면 서버 상태를 다시 물어 버튼이 저절로 열린다(화면에 있는 동안만, 20초 주기)
+  let tickT = null;
+  const mountWithTick = function (host) {
+    mount(host);
+    if (tickT) clearInterval(tickT);
+    let lastSlot = Math.floor(Date.now() / 3600000);
+    tickT = setInterval(function () {
+      if (MS.store.get().screen !== "wallet") return;
+      const slot = Math.floor(Date.now() / 3600000);
+      if (slot !== lastSlot) { lastSlot = slot; if (MS.wallet) MS.wallet.state(); }   // 구독이 render 를 다시 부른다
+      const el = host.querySelector("[data-act=checkin]");
+      if (el && !MS.store.get().canCheckin) {   // 카운트다운 분 단위 갱신(전체 재렌더 없이)
+        const t = el.querySelector("div > div");
+        if (t) t.textContent = "다음 보상 " + nextSlotTxt(MS.store.get().nextSlotAt);
+      }
+    }, 20000);
+  };
+  MS.router.register("wallet", { mount: mountWithTick, unmount: function () { if (tickT) { clearInterval(tickT); tickT = null; } } });
 })();

@@ -758,9 +758,66 @@ t("상한에 걸려도 출석일은 소비된다 — 하루가 지나가야 다�
   $db->prepare("insert into ledger (account_id,delta,reason,ref,idem,created_at) values (?,?,'seed',NULL,'topup',?)")
      ->execute(array($a["id"], W_CAP - W_SEED, w_now()));
   w_checkin($db, w_get_account($db, "dev-1"), null);
-  eq(w_get_account($db, "dev-1")["last_checkin"], w_today(), "capped 인데 출석일이 안 남았다");
+  eq(substr(w_get_account($db, "dev-1")["last_checkin"], 0, 10), w_today(), "capped 인데 출석일이 안 남았다");
   $r2 = w_checkin($db, w_get_account($db, "dev-1"), null);
   eq($r2["reason"], "already", "capped 였는데 같은 날 또 됐다");
+  $db = null; rmrf($d);
+});
+
+// ── 정시 출석(2026-08-29 사용자 정책) ─────────────────────────────────────────
+t("정시 출석 — 같은 날 다른 시간이면 다시 받고, 스트릭은 그대로·상자 없음", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $r1 = w_checkin($db, $a, "2026-03-01T09");
+  eq($r1["granted"], 1, "09시 지급");
+  eq((int)w_get_account($db, "dev-1")["streak_days"], 1, "첫날 스트릭 1");
+  $r2 = w_checkin($db, w_get_account($db, "dev-1"), "2026-03-01T09");
+  eq($r2["reason"], "already", "같은 시간 두 번");
+  $r3 = w_checkin($db, w_get_account($db, "dev-1"), "2026-03-01T10");
+  eq($r3["granted"], 1, "10시 다시 지급");
+  eq((int)w_get_account($db, "dev-1")["streak_days"], 1, "같은 날이라 스트릭 그대로");
+  eq(w_true_balance($db, $a["id"]), W_SEED + 2, "두 시간 합계");
+  $db = null; rmrf($d);
+});
+
+t("정시 출석 — 7일 연속 상자는 그날 첫 보상에만, 같은 날 다음 시간엔 없다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  for ($i = 0; $i < 6; $i++) w_checkin($db, w_get_account($db, "dev-1"), w_day_add("2026-03-01", $i) . "T08");
+  $r7 = w_checkin($db, w_get_account($db, "dev-1"), "2026-03-07T08");
+  eq($r7["granted"] >= W_CHECKIN + W_CHEST || $r7["capped"], true, "7일차 첫 보상에 상자(상한이면 capped)");
+  $r7b = w_checkin($db, w_get_account($db, "dev-1"), "2026-03-07T09");
+  ok($r7b["granted"] <= W_CHECKIN, "같은 날 다음 시간엔 상자가 또 나오면 안 된다");
+  eq((int)w_get_account($db, "dev-1")["streak_days"], 7, "스트릭 7 유지");
+  $db = null; rmrf($d);
+});
+
+t("정시 출석 — 옛 일 단위 기록(Y-m-d)이 남아 있어도 새 슬롯에서 받을 수 있다", function () {
+  $d = tmpdir(); $db = w_db($d); $a = mkacct($db, "dev-1");
+  $db->prepare("update accounts set streak_days = 3, last_checkin = ? where id = ?")->execute(array(w_today(), $a["id"]));
+  eq(w_state($db, w_get_account($db, "dev-1"))["canCheckin"], true, "옛 형식은 이번 시간 슬롯과 다르다");
+  $r = w_checkin($db, w_get_account($db, "dev-1"), null);
+  eq($r["ok"], true, "받아야 한다");
+  eq((int)w_get_account($db, "dev-1")["streak_days"], 3, "같은 날이라 스트릭 유지");
+  $db = null; rmrf($d);
+});
+
+// ── 레벨업 풀충전(2026-08-29 사용자 정책) ─────────────────────────────────────
+t("레벨업 풀충전 — 로그인 계정만, 상한까지, 레벨당 1회", function () {
+  $d = tmpdir(); $db = w_db($d);
+  w_create_account($db, "dev-A", "ip");
+  $guest = w_get_account($db, "dev-A");
+  eq(w_levelup_fill($db, $guest, 2)["reason"], "guest", "게스트는 받을 수 없다");
+  w_merge($db, "dev-A", "gsub-1");
+  $a = w_get_account($db, "dev-A");
+  $r = w_levelup_fill($db, $a, 2);
+  eq($r["ok"], true, "레벨 2 지급");
+  eq($r["granted"], W_CAP - W_SEED, "상한까지 채운다");
+  eq(w_true_balance($db, $a["id"]), W_CAP, "잔량 = 상한");
+  eq(w_levelup_fill($db, w_get_account($db, "dev-A"), 2)["reason"], "already", "같은 레벨 두 번은 없다");
+  eq(w_levelup_fill($db, w_get_account($db, "dev-A"), 1)["reason"], "level", "레벨 1 은 대상이 아니다");
+  // 이미 상한이면 지급 0 이지만 레벨은 소비된다(다 쓴 뒤 같은 레벨로 다시 못 채운다)
+  $r3 = w_levelup_fill($db, w_get_account($db, "dev-A"), 3);
+  eq($r3["ok"], true, "레벨 3 ok"); eq($r3["granted"], 0, "상한이라 0");
+  eq(w_levelup_fill($db, w_get_account($db, "dev-A"), 3)["reason"], "already", "0 지급이어도 레벨은 소비됐다");
   $db = null; rmrf($d);
 });
 
@@ -1236,9 +1293,9 @@ t("병합은 출석 시계를 뒤로 돌리지 않는다 — 오래된 긴 스�
   w_create_account($db, "dev-A", "ip");
   w_merge($db, "dev-A", "gsub-1");
   $g = w_get_account($db, "dev-A");
-  // 구글 계정: 스트릭 2, 오늘 이미 출석함
+  // 구글 계정: 스트릭 2, 이번 시간 이미 출석함(정시 슬롯 — 2026-08-29 정책)
   $db->prepare("update accounts set streak_days = 2, last_checkin = ? where id = ?")
-     ->execute(array($today, $g["id"]));
+     ->execute(array(w_slot(), $g["id"]));
   $g = w_get_account($db, "dev-A");
   eq(w_state($db, $g)["canCheckin"], false, "전제가 깨졌다 — 오늘 이미 출석한 상태여야 한다");
 
