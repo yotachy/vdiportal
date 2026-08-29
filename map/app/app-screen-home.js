@@ -219,8 +219,14 @@
       const lv = ga.lv;
       const idx = s.personaIdx || 0;
       const stage = MS.persona.stageOf(idx, P2.persona.stages, P2.persona.stageNames);
-      const hpPct = g ? Math.round(Math.min(idx, P2.limits.persona.guestMax) / P2.limits.persona.guestMax * 24) : stage.inPct;
-      const hpStage = g ? "맛보기" : (stage.idx + 1) + "단계 " + stage.name;
+      const gMax = P2.limits.persona.guestMax;
+      const hpPct = g ? Math.round(Math.min(idx, gMax) / gMax * 100) : stage.inPct;
+      // 링 게이지 14px — 진행률은 원호로, 단계·답 수는 글자로
+      const RR = 11, RC = 2 * Math.PI * RR;
+      const ringSvg = '<svg viewBox="0 0 28 28" width="28" height="28" style="flex:none" aria-hidden="true">' +
+        '<circle cx="14" cy="14" r="' + RR + '" fill="none" stroke="var(--sf3)" stroke-width="3"></circle>' +
+        '<circle cx="14" cy="14" r="' + RR + '" fill="none" stroke="var(--cu)" stroke-width="3" stroke-linecap="round" stroke-dasharray="' + (hpPct / 100 * RC).toFixed(2) + " " + RC.toFixed(2) + '" transform="rotate(-90 14 14)"></circle>' +
+        '<text x="14" y="17.5" text-anchor="middle" font-size="8.5" font-weight="700" fill="var(--cu)">' + hpPct + "</text></svg>";
       const C1 = 2 * Math.PI * 34, C2 = 2 * Math.PI * 24;
       const ringD = ((ga.maxed ? 1 : ga.pct / 100) * C1).toFixed(1) + " " + C1.toFixed(1);
       const ring2D = (0.62 * C2).toFixed(1) + " " + C2.toFixed(1);
@@ -230,7 +236,7 @@
       };
       return '<div style="margin:8px 16px 0;border-radius:14px;border:1px solid ' + (g ? "var(--ln1)" : "rgba(123,108,255,0.32)") + ";background:" + (g ? "var(--sf1)" : "linear-gradient(150deg,rgba(123,108,255,0.09),var(--sf1) 60%)") + ";box-shadow:" + (g ? "none" : "0 10px 34px -16px rgba(123,108,255,0.6)") + ';position:relative;overflow:hidden;animation:msRevealUp 0.55s cubic-bezier(0.2,0.8,0.25,1) 0.24s both">' +
         '<div style="position:absolute;top:0;bottom:0;left:0;width:46%;background:linear-gradient(105deg,transparent,rgba(238,241,247,0.05),transparent);animation:msSweepX 5s ease-in-out infinite;pointer-events:none"></div>' +
-        '<svg viewBox="0 0 380 120" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="position:absolute;inset:0;opacity:0.5" aria-hidden="true"><g fill="none" stroke-linecap="round">' +
+        '<svg viewBox="0 0 380 120" width="100%" height="' + (g ? "100%" : "112px") + '" preserveAspectRatio="xMidYMid slice" style="position:absolute;left:0;top:0;opacity:0.5" aria-hidden="true"><g fill="none" stroke-linecap="round">' +
         '<circle cx="330" cy="60" r="34" stroke="rgba(123,108,255,0.35)" stroke-width="1" stroke-dasharray="' + ringD + '" transform="rotate(-90 330 60)"></circle>' +
         '<circle cx="330" cy="60" r="24" stroke="rgba(210,165,22,0.3)" stroke-width="0.8" stroke-dasharray="' + ring2D + '" transform="rotate(-90 330 60)"></circle>' +
         '<circle cx="330" cy="60" r="15" stroke="rgba(139,147,167,0.3)" stroke-width="0.7" stroke-dasharray="2 4"><animateTransform attributeName="transform" type="rotate" from="0 330 60" to="360 330 60" dur="26s" repeatCount="indefinite"></animateTransform></circle>' +
@@ -255,28 +261,34 @@
             '<div style="position:relative;animation:msFloatY 3.6s ease-in-out infinite">' + MS.xp.charSvg(lv, 54) + "</div></div>" +
             '<span style="font-size:10.5px;font-weight:800;color:var(--ac);white-space:nowrap">' + esc(MS.xp.levelName(lv)) + "</span>" +
             '<span style="font-size:9.5px;color:var(--m2);white-space:nowrap">레벨 ' + lv + " 캐릭터</span></div>" +
-            '<div data-act="lv" style="position:relative;min-height:96px;padding:12px 122px 12px 12px;cursor:pointer;display:flex;flex-direction:column;justify-content:center">' +
+            '<div data-act="lv" style="position:relative;min-height:112px;padding:12px 122px 10px 12px;cursor:pointer;display:flex;flex-direction:column;justify-content:center">' +
             '<div style="display:flex;align-items:center;gap:8px"><span style="font-size:11.5px;color:var(--m1);white-space:nowrap">분석가 레벨</span>' +
             '<span style="font-size:11px;font-weight:700;color:var(--ac);white-space:nowrap;flex:none">레벨 <span class="mono">' + lv + "</span></span></div>" +
-            '<div style="margin-top:4px;font-size:16.5px;font-weight:800;letter-spacing:-0.02em;white-space:nowrap;background:linear-gradient(90deg,var(--t1) 25%,var(--ac));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block">' + esc(MS.xp.levelName(lv)) + "</div>" +
-            '<div style="margin-top:8px;display:flex;align-items:center;gap:8px">' +
-            '<div style="flex:1;height:4px;border-radius:2px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + ga.pct + '%;background:linear-gradient(90deg,var(--m1),var(--ac) 55%,var(--cu));border-radius:2px"></span></div>' +
-            '<span style="font-size:10.5px;color:var(--m2);white-space:nowrap;flex:none">' + (ga.maxed ? "최고 레벨" : "다음 레벨까지 경험치 " + (ga.max - ga.cur)) + "</span></div>" +
-            '<div data-act="lvpersona" style="margin-top:7px;display:flex;align-items:center;gap:8px;cursor:pointer">' +
-            '<span style="font-size:10.5px;color:var(--cu);white-space:nowrap;flex:none">페르소나</span>' +
-            '<div style="flex:1;height:4px;border-radius:2px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + hpPct + '%;background:linear-gradient(90deg,var(--ac),var(--cu));border-radius:2px"></span></div>' +
-            '<span style="font-size:10.5px;font-weight:700;color:var(--cu);white-space:nowrap;flex:none">' + esc(hpStage) + "</span></div></div>") +
+            '<div style="margin-top:4px;font-size:17px;font-weight:800;letter-spacing:-0.02em;white-space:nowrap;background:linear-gradient(90deg,var(--t1) 25%,var(--ac));-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:inline-block">' + esc(MS.xp.levelName(lv)) + "</div>" +
+            '<div style="margin-top:4px;font-size:10.5px;color:var(--m2);white-space:nowrap">오늘 경험치 <span class="mono" style="color:' + ((s.xpToday || 0) > 0 ? "var(--ac)" : "var(--m2)") + '">+' + (s.xpToday || 0) + "</span> · 누적 <span class=\"mono\">" + xp + "</span></div></div>" +
+            // 스탯 스트립 — 경험치(막대)와 페르소나(링)를 나란히, 서로 다른 시각 언어로
+            '<div style="position:relative;border-top:1px solid var(--ln0);display:flex">' +
+            '<div data-act="lv" style="flex:1;min-width:0;padding:9px 12px 9px;cursor:pointer">' +
+            '<div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:10.5px;color:var(--m1)">경험치</span>' +
+            '<span class="mono" style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--ac)">' + ga.cur + '<span style="color:var(--m2);font-weight:400"> / ' + ga.max + "</span></span></div>" +
+            '<div style="margin-top:6px;height:4px;border-radius:2px;background:var(--sf3);overflow:hidden"><span style="display:block;height:100%;width:' + ga.pct + '%;background:linear-gradient(90deg,var(--m1),var(--ac) 55%,var(--cu));border-radius:2px"></span></div>' +
+            '<div style="margin-top:5px;font-size:10.5px;color:var(--m2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (ga.maxed ? "최고 레벨" : "다음 레벨까지 " + (ga.max - ga.cur)) + "</div></div>" +
+            '<div style="width:1px;background:var(--ln0);margin:8px 0"></div>' +
+            '<div data-act="lvpersona" style="flex:1;min-width:0;padding:9px 12px 9px;cursor:pointer;display:flex;align-items:center;gap:9px">' + ringSvg +
+            '<div style="min-width:0;flex:1"><div style="display:flex;align-items:baseline;gap:6px"><span style="font-size:10.5px;color:var(--m1)">페르소나</span>' +
+            '<span style="margin-left:auto;font-size:11.5px;font-weight:700;color:var(--cu);white-space:nowrap">' + (stage.idx + 1) + "단계</span></div>" +
+            '<div style="margin-top:4px;font-size:11px;font-weight:600;color:var(--t2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + esc(stage.name) + "</div>" +
+            '<div style="margin-top:3px;font-size:10.5px;color:var(--m2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + idx + "답" + (stage.last ? " · 최고 정밀도" : " · 다음까지 " + (P2.persona.stages[stage.idx + 1] - idx) + "답") + "</div></div></div></div>") +
         '<div style="position:relative;border-top:1px solid var(--ln0);display:flex;align-items:center;padding:8px 12px;gap:8px">' +
         '<span style="font-size:11.5px;color:var(--m1);white-space:nowrap;flex:none">경험치 TIP</span>' +
         '<div style="flex:1;min-width:0;overflow:hidden;position:relative">' +
         '<div style="display:flex;gap:6px;width:max-content;animation:msTipScroll 22s linear infinite">' + tips.map(chip).join("") + tips.map(chip).join("") + "</div>" +
         '<span style="position:absolute;right:0;top:0;bottom:0;width:22px;background:linear-gradient(90deg,transparent,var(--sf1));pointer-events:none"></span></div>' +
-        '<span style="font-size:11px;color:' + ((s.xpToday || 0) > 0 ? "var(--ac)" : "var(--m2)") + ';white-space:nowrap;flex:none">경험치 +' + (s.xpToday || 0) + "</span></div></div>";
+        (g ? '<span style="font-size:11px;color:' + ((s.xpToday || 0) > 0 ? "var(--ac)" : "var(--m2)") + ';white-space:nowrap;flex:none">경험치 +' + (s.xpToday || 0) + "</span>" : "") + "</div></div>";
     }
 
     function bindLevel() {
-      const lvB = host.querySelector('[data-act="lv"]');
-      if (lvB) lvB.addEventListener("click", function () { MS.router.go("wallet"); });
+      host.querySelectorAll('[data-act="lv"]').forEach(function (el) { el.addEventListener("click", function () { MS.router.go("wallet"); }); });
       const lg = host.querySelector('[data-act="lvlogin"]');
       if (lg) lg.addEventListener("click", function () { MS.auth.start(); });
       const pr = host.querySelector('[data-act="lvpersona"]');
