@@ -37,3 +37,9 @@ test("build: www 에 테스트 파일이 없고 index 가 치환된다", () => {
   assert.ok(!existsSync(join(dst, "a.test.js")));
   assert.ok(readFileSync(join(dst, "index.html"), "utf8").includes("https://s/map/forge-core.js"));
 });
+
+test("rewriteIndex: 캐시버스터 ?v= 가 붙은 엔진 태그도 잡고 v 를 보존한다", () => {
+  const out = rewriteIndex('<script src="../forge-core.js?v=20260830a"></script>', "https://x.test/map/");
+  assert.ok(out.includes('window.MS_SERVER_BASE="https://x.test/map"'));
+  assert.ok(out.includes('<script src="https://x.test/map/forge-core.js?v=20260830a"></script>'));
+});

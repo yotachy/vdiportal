@@ -11,8 +11,9 @@ export const SERVER_BASE = "https://parksvc.mycafe24.com/map";
 
 export function rewriteIndex(html, serverBase) {
   const base = serverBase.replace(/\/$/, "");
-  let out = html.replace('<script src="../forge-core.js"></script>',
-    '<script>window.MS_SERVER_BASE="' + base + '";</script>\n<script src="' + base + '/forge-core.js"></script>');
+  // 캐시버스터(?v=…)가 붙어도 잡는다(2026-08-30: stamp-cachebust 가 붙인 ?v= 에 정확 일치가 깨져 빌드 실패). v 는 그대로 넘긴다.
+  let out = html.replace(/<script src="\.\.\/forge-core\.js(\?v=[^"]*)?"><\/script>/,
+    function (_m, v) { return '<script>window.MS_SERVER_BASE="' + base + '";</script>\n<script src="' + base + '/forge-core.js' + (v || "") + '"></script>'; });
   if (out === html) throw new Error("index.html 에서 엔진 script 태그를 못 찾았다 — 로드 순서가 바뀌었나?");
   return out;
 }
