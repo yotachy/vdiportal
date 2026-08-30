@@ -49,6 +49,13 @@ if ($method === "GET") {
   // 두 번째는 네트워크 없이 캐시에서 — 신선도는 클라 정책(일 5분·주/월 30분)과 같은 값. 서버 캐시 TTL 과 별개.
   header("Cache-Control: private, max-age=" . ((isset($_GET["tf"]) && $_GET["tf"] !== "1day") ? 1800 : 300));
   if (isset($_GET["check"])) { echo json_encode(["valid" => check_key($WRITE_KEY)]); exit; }
+  // 백테스트 원자료 — .json 은 .htaccess 로 직접 열람이 막혀 있어(데이터 파일 보호) 백서의 "전체 원자료" 링크가 403 이었다.
+  // 공개해도 되는 산출물이므로 API 를 통해서만 내보낸다.
+  if (isset($_GET["report"])) {
+    $rf = __DIR__ . "/forge-backtest-report.json";
+    if (is_file($rf)) { readfile($rf); } else { echo "{}"; }
+    exit;
+  }
   if (isset($_GET["images"])) {
     if ($AUTH_ON && !$UID) { echo "{}"; exit; }   // 게스트(체험): 사용자 이미지 없음
     if (is_file($IMGF)) { readfile($IMGF); } else { echo "{}"; }

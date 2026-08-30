@@ -753,7 +753,8 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
     <div class="tldr-t">요약</div>
     <ol>
       <li><b>방향 예측(상승/하락)은 시장 기준선을 초과하지 못한다.</b> 대부분의 기술적 분석과 동일한 한계다.</li>
-      <li><b>검증된 항목 하나</b>: 횡보장에서 저점 반등 시작 시점의 매수 진입(승률 57%, 하락추세는 배제).</li>
+      <li><b>검증을 통과한 예보 축 <span id="tlAxisN">8</span>종</b> — 방향이 아니라 <b>무엇을</b> 맞히는가: <span id="tlAxisList">변동성 예보 · 낙폭 위험곡선 · 이익목표 도달 · 급변 경보 · 갭 경보 · 추세 지속/소진 · 시장 상대강도 · 섹터 상대강도</span>.</li>
+      <li><b>진입 신호 하나</b>: 횡보장에서 저점 반등 시작 시점의 매수(승률 53~56% · 하락추세는 배제).</li>
       <li><b>용도</b>: 방향 예측이 아니라 국면 파악·진입 타이밍·리스크 가늠.</li>
     </ol>
   </div>
@@ -779,7 +780,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
         </div>
         <div class="ea-st">
           <div class="ea-h"><span class="ea-n">IN·2</span><span class="ea-t">검증을 통과한 분석 기법</span></div>
-          <div class="ea-d"><b>새 기법은 PC 에서만 만든다.</b> 설계 → walk-forward 백테스트(<b>31,971건 · 87종목</b>) → 자명 기준선·BSS·LOSO 관문 → <b>통과한 것만</b> 엔진에 들어간다.</div>
+          <div class="ea-d"><b>새 기법은 PC 에서만 만든다.</b> 설계 → walk-forward 백테스트(<b>87개 시계열 · 55종목 · 31,971건</b>) → 자명 기준선·BSS·LOSO 관문 → <b>통과한 것만</b> 엔진에 들어간다.</div>
           <span class="ea-bdg ea-mut">기각도 남긴다 — 인터마켓 · 내부자 · 공매도 · PEAD · VIX · 인트라데이</span>
         </div>
       </div>
@@ -806,14 +807,8 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
         <div class="ea-st">
           <div class="ea-h"><span class="ea-n">A1</span><span class="ea-t">지표 배터리 · 32종</span></div>
           <div class="ea-d">각 지표가 병렬로 방향 성향 <b>bias(−1 ·· +1)</b> 산출.</div>
-          <div class="ea-clus">
-            <div class="ea-cl"><div class="ea-cl-h">추세 <em>7</em></div><div class="ea-cl-m">이동평균 · 추세회귀 · ADX · 일목 · 슈퍼트렌드 · PSAR · 아룬</div></div>
-            <div class="ea-cl"><div class="ea-cl-h">모멘텀 <em>8</em></div><div class="ea-cl-m">RSI · MACD · 스토캐스틱 · CCI · 윌리엄스 · ROC · AO · MFI</div></div>
-            <div class="ea-cl"><div class="ea-cl-h">변동성 <em>4</em></div><div class="ea-cl-m">볼린저 · 켈트너 · 돈치안 · ATR</div></div>
-            <div class="ea-cl"><div class="ea-cl-h">거래량 <em>4</em></div><div class="ea-cl-m">거래량 · VWAP · 매물대 · CMF</div></div>
-            <div class="ea-cl"><div class="ea-cl-h">구조·레벨 <em>5</em></div><div class="ea-cl-m">피보나치 · 시장구조 · 피벗 · SMC · 엘리어트</div></div>
-            <div class="ea-cl"><div class="ea-cl-h">주기 <em>2</em></div><div class="ea-cl-m">사이클 · 페이즈폴드</div></div>
-          </div>
+          <!-- 군 구성은 엔진 레지스트리에서 채운다(syncStaticSchema) — 여기에 지표 이름을 적지 않는다 -->
+          <div class="ea-clus" id="eaClus"></div>
           <div class="ea-d" style="margin-top:9px">지표 세트 · 개수 · 이름 · 그룹의 <b>단일 출처는 엔진 레지스트리</b>(<span class="ea-run">indicatorRegistry</span>) — 화면 어디에도 지표 목록을 하드코딩하지 않는다. <b>엔진에 33번째가 들어오면 PC 도 앱도 별도 구현 없이 33종으로 분석한다.</b></div>
           <span class="ea-bdg ea-ok">✓ 드리프트 가드 — 가짜 33번째 지표로 자동 확장을 증명하는 테스트</span>
         </div>
@@ -1003,7 +998,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
   <table id="tftbl"><thead><tr><th>주기</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>콘 커버</th><th>표본</th></tr></thead><tbody></tbody></table>
 
   <h2 id="s6">국면별 방향 예측</h2>
-  <p class="sec-desc">방향 예측은 강세·하락장에서 "항상 상승" 기준선을 넘지 못한다(효율적 시장). <b>200MA 하락추세 게이트</b>로 상승장의 약세신호를 억제한 뒤, <b>횡보장에서만 기준선을 초과한다(+0.1%p)</b>. 전체 방향 적중 58.1%(기준선 항상상승 60.8%). <b>표본을 37→86 시계열(2.3배)로 확대하고 US 편중을 줄여도 결론은 유지</b>된다(확률 캘리브레이션은 v1.4에서 ECE 0.2%p).</p>
+  <p class="sec-desc">방향 예측은 강세·하락장에서 "항상 상승" 기준선을 넘지 못한다(효율적 시장). <b>200MA 하락추세 게이트</b>로 상승장의 약세신호를 억제한 뒤, <b>횡보장에서만 기준선을 초과한다(+0.1%p)</b>. 전체 방향 적중 58.2%(기준선 항상상승 61.0%). <b>표본을 37→87 시계열(2.4배)로 확대하고 US 편중을 줄여도 결론은 유지</b>된다(확률 캘리브레이션은 v1.4에서 ECE 0.2%p).</p>
   <table id="regtbl"><thead><tr><th>국면</th><th>엔진 방향적중</th><th>항상상승</th><th>초과</th><th>표본</th></tr></thead><tbody></tbody></table>
 
   <h2 id="s7">버전별 개선 추이</h2>
@@ -1019,7 +1014,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
   <div id="explored"></div>
 
   <h2 id="s10">검증 결과 —지지반등 신호</h2>
-  <p class="sec-desc">방향 예측은 시장 기준선을 넘지 못하나, 검증을 통과한 진입 신호 하나가 있다. 네 조건이 <b>동시에</b> 성립할 때만 매수한다: <b>① 횡보장에서 밴드 하단까지 하락 → ② RSI 반등 시작 → ③ 200일 이동평균이 하락 중이 아님 → ④ 최근 고점 대비 5% 이상 낙폭.</b> 하락추세 진입·얕은 눌림을 배제한, 일봉 54종의 선별 신호다.</p>
+  <p class="sec-desc">방향 예측은 시장 기준선을 넘지 못하나, 검증을 통과한 진입 신호 하나가 있다. 네 조건이 <b>동시에</b> 성립할 때만 매수한다: <b>① 횡보장에서 밴드 하단까지 하락 → ② RSI 반등 시작 → ③ 200일 이동평균이 하락 중이 아님 → ④ 최근 고점 대비 5% 이상 낙폭.</b> 하락추세 진입·얕은 눌림을 배제한, 일봉 55종의 선별 신호다.</p>
   <table id="rangetbl"><thead><tr><th>매수 후</th><th>이긴 비율(승률)</th><th>평균 수익/회</th><th>판정</th></tr></thead><tbody></tbody></table>
   <div class="strength">
     <h3>근거와 한계</h3>
@@ -1150,7 +1145,7 @@ bias = aggregate(<span class="v">conviction</span>) + visionBias + volBias
 
 </main>
 </div>
-<script src="forge-core.js?v=20260827a"></script>
+<script src="forge-core.js?v=20260831a"></script>
 <script>
 /* ---------- block catalog ---------- */
 const BLOCKS = [
@@ -1340,12 +1335,24 @@ document.getElementById("tfCards").innerHTML = TFS.map(t=>`
 
 <script>
 // 엔진 메타 단일 출처(forge-core.js) — 버전·지표수·검증축을 읽어 해부도/카운트 자동 현행화. 미로드 시 폴백.
-const EV = (typeof ForgeCore !== "undefined" && ForgeCore.version) ? ForgeCore.version : "1.9.7";
+const EV = (typeof ForgeCore !== "undefined" && ForgeCore.version) ? ForgeCore.version : "1.11.2";
 const IND_N = (typeof ForgeCore !== "undefined" && ForgeCore.indicatorCount) || 32;
 const AXES = (typeof ForgeCore !== "undefined" && Array.isArray(ForgeCore.validatedAxes) && ForgeCore.validatedAxes.length) ? ForgeCore.validatedAxes
-  : [{key:"vol",lab:"변동성 예보",acc:69,hz:"3지평"},{key:"dd",lab:"낙폭 위험곡선",acc:68,hz:"3지평"},{key:"up",lab:"이익목표 도달",acc:64,hz:""},{key:"spike",lab:"급변 경보",acc:65,hz:"3지평"},{key:"gap",lab:"갭 경보",acc:63,hz:"3지평",stock:true},{key:"trend",lab:"추세 지속/소진",acc:76,hz:"3지평·비방향"}];
+  : [{key:"vol",lab:"변동성 예보",acc:69,hz:"3지평"},{key:"dd",lab:"낙폭 위험곡선",acc:68,hz:"3지평"},{key:"up",lab:"이익목표 도달",acc:64,hz:""},{key:"spike",lab:"급변 경보",acc:65,hz:"3지평"},{key:"gap",lab:"갭 경보",acc:63,hz:"3지평",stock:true},{key:"trend",lab:"추세 지속/소진",acc:76,hz:"3지평·비방향"},{key:"rel",lab:"시장 상대강도",acc:54,hz:"3지평·상대방향",stock:true},{key:"relsec",lab:"섹터 상대강도",acc:57,hz:"3지평·상대방향",stock:true}];
 const AXIS_N = AXES.length;
-const BT = {"overall":{"dir":0.581,"base":0.608,"ece":0.019,"cone":0.78},"byRegime":{"side":{"dir":0.538,"base":0.537,"lift":0.001,"n":2057},"bull":{"dir":0.6,"base":0.633,"lift":-0.033,"n":25615},"bear":{"dir":0.474,"base":0.48,"lift":-0.007,"n":3824}},"byTf":{"1day":{"dir":0.546,"base":0.573,"cone":0.780,"fx":54,"n":18691},"1week":{"dir":0.628,"base":0.658,"cone":0.779,"fx":18,"n":11082},"1month":{"dir":0.645,"base":0.658,"cone":0.744,"fx":14,"n":1723}},"cal":[{"pred":0.577,"act":0.579},{"pred":0.623,"act":0.622}],"day":[{"s":"000660","g":"국내","from":"2024","to":"2026"},{"s":"005380","g":"국내","from":"2024","to":"2026"},{"s":"005930","g":"국내","from":"2024","to":"2026"},{"s":"012330","g":"국내","from":"2024","to":"2026"},{"s":"035420","g":"국내","from":"2024","to":"2026"},{"s":"035720","g":"국내","from":"2024","to":"2026"},{"s":"051910","g":"국내","from":"2024","to":"2026"},{"s":"055550","g":"국내","from":"2024","to":"2026"},{"s":"068270","g":"국내","from":"2024","to":"2026"},{"s":"105560","g":"국내","from":"2024","to":"2026"},{"s":"AAPL","g":"미국주식","from":"2006","to":"2026"},{"s":"ADA/USD","g":"크립토","from":"2018","to":"2026"},{"s":"AMD","g":"미국주식","from":"2006","to":"2026"},{"s":"AUD/USD","g":"환율","from":"2007","to":"2026"},{"s":"BABA","g":"미국주식","from":"2014","to":"2026"},{"s":"BAC","g":"미국주식","from":"2006","to":"2026"},{"s":"BCH/USD","g":"크립토","from":"2018","to":"2026"},{"s":"BTC/USD","g":"크립토","from":"2014","to":"2026"},{"s":"CAT","g":"미국주식","from":"2006","to":"2026"},{"s":"CRM","g":"미국주식","from":"2006","to":"2026"},{"s":"CSCO","g":"미국주식","from":"2006","to":"2026"},{"s":"CVX","g":"미국주식","from":"2006","to":"2026"},{"s":"DIS","g":"미국주식","from":"2006","to":"2026"},{"s":"DOGE/USD","g":"크립토","from":"2021","to":"2026"},{"s":"ETH/USD","g":"크립토","from":"2021","to":"2026"},{"s":"EUR/USD","g":"환율","from":"2007","to":"2026"},{"s":"GBP/USD","g":"환율","from":"2007","to":"2026"},{"s":"GE","g":"미국주식","from":"2006","to":"2026"},{"s":"HD","g":"미국주식","from":"2006","to":"2026"},{"s":"IBM","g":"미국주식","from":"2006","to":"2026"},{"s":"INTC","g":"미국주식","from":"2006","to":"2026"},{"s":"JNJ","g":"미국주식","from":"2006","to":"2026"},{"s":"JPM","g":"미국주식","from":"2006","to":"2026"},{"s":"KO","g":"미국주식","from":"2006","to":"2026"},{"s":"LTC/USD","g":"크립토","from":"2017","to":"2026"},{"s":"MA","g":"미국주식","from":"2006","to":"2026"},{"s":"MSFT","g":"미국주식","from":"2006","to":"2026"},{"s":"NVDA","g":"미국주식","from":"2006","to":"2026"},{"s":"ORCL","g":"미국주식","from":"2006","to":"2026"},{"s":"PFE","g":"미국주식","from":"2006","to":"2026"},{"s":"PG","g":"미국주식","from":"2006","to":"2026"},{"s":"PYPL","g":"미국주식","from":"2015","to":"2026"},{"s":"QCOM","g":"미국주식","from":"2006","to":"2026"},{"s":"SOL/USD","g":"크립토","from":"2021","to":"2026"},{"s":"T","g":"미국주식","from":"2006","to":"2026"},{"s":"UNH","g":"미국주식","from":"2006","to":"2026"},{"s":"USD/JPY","g":"환율","from":"2007","to":"2026"},{"s":"USD/KRW","g":"환율","from":"2007","to":"2026"},{"s":"V","g":"미국주식","from":"2008","to":"2026"},{"s":"VZ","g":"미국주식","from":"2006","to":"2026"},{"s":"WMT","g":"미국주식","from":"2006","to":"2026"},{"s":"XAU/USD","g":"상품","from":"2007","to":"2026"},{"s":"XOM","g":"미국주식","from":"2006","to":"2026"},{"s":"XRP/USD","g":"크립토","from":"2018","to":"2026"}],"fixtures":[{"s":"068270","rg":"횡보","pnl":0.055,"bh":0.06},{"s":"BABA","rg":"횡보","pnl":0.231,"bh":0.259},{"s":"BAC","rg":"횡보","pnl":0.061,"bh":0.16},{"s":"PFE","rg":"횡보","pnl":0.079,"bh":-0.035},{"s":"PYPL","rg":"횡보","pnl":0.271,"bh":0.139}],"asOf":"2026-07","universe":"86개 시계열(54종목 × 일/주/월 · 크립토·상품·한국 포함)","points":"약 31,500개"};
+// 지표군 = 엔진 레지스트리(indicatorRegistry) 파생 — 개수·이름·그룹의 단일 출처. 도식 어디에도 지표 목록을 적지 않는다.
+const IND_GN = { t:"추세", m:"모멘텀", v:"변동성", q:"거래량", s:"구조·레벨" };
+const IND_GC = { t:"var(--gold)", m:"#e8955c", v:"#7aa6cc", q:"var(--eth)", s:"#b58cf0" };
+const IND_REG = (typeof ForgeCore !== "undefined" && Array.isArray(ForgeCore.indicatorRegistry)) ? ForgeCore.indicatorRegistry : [];
+const IND_FB = { t:["이동평균","추세 회귀채널","ADX / DMI","일목균형표","PSAR","Gann 부채꼴","슈퍼트렌드","Aroon"],
+  m:["MACD","RSI","스토캐스틱","CCI","Williams %R","ROC","AO"],
+  v:["볼린저밴드","ATR","켈트너 채널","돈치안 채널","사이클 위상","파동 스캔"],
+  q:["거래량","VWAP","볼륨 프로파일","MFI","CMF"],
+  s:["피보나치","피벗 S/R","시장구조 BOS","엘리어트 파동","스마트머니 존","차트 패턴"] };
+const IND_GROUPS = ["t","m","v","q","s"].map(g => ({ g, name:IND_GN[g], c:IND_GC[g],
+  items: IND_REG.length ? IND_REG.filter(r=>r.group===g) : IND_FB[g].map(l=>({ id:"", label:l, group:g })) }))
+  .filter(x => x.items.length);
+const BT = {"overall":{"dir":0.582,"base":0.61,"ece":0.019,"cone":0.778},"byRegime":{"side":{"dir":0.538,"base":0.537,"lift":0.001,"n":2057},"bull":{"dir":0.601,"base":0.634,"lift":-0.033,"n":26090},"bear":{"dir":0.474,"base":0.48,"lift":-0.007,"n":3824}},"byTf":{"1day":{"dir":0.549,"base":0.577,"cone":0.781,"fx":55,"n":19166},"1week":{"dir":0.628,"base":0.658,"cone":0.779,"fx":18,"n":11082},"1month":{"dir":0.645,"base":0.658,"cone":0.744,"fx":14,"n":1723}},"cal":[{"pred":0.576,"act":0.58},{"pred":0.625,"act":0.626}],"day":[{"s":"000660","g":"국내","from":"2024","to":"2026"},{"s":"005380","g":"국내","from":"2024","to":"2026"},{"s":"005930","g":"국내","from":"2024","to":"2026"},{"s":"012330","g":"국내","from":"2024","to":"2026"},{"s":"035420","g":"국내","from":"2024","to":"2026"},{"s":"035720","g":"국내","from":"2024","to":"2026"},{"s":"051910","g":"국내","from":"2024","to":"2026"},{"s":"055550","g":"국내","from":"2024","to":"2026"},{"s":"068270","g":"국내","from":"2024","to":"2026"},{"s":"105560","g":"국내","from":"2024","to":"2026"},{"s":"AAPL","g":"미국주식","from":"2006","to":"2026"},{"s":"ADA/USD","g":"크립토","from":"2018","to":"2026"},{"s":"AMD","g":"미국주식","from":"2006","to":"2026"},{"s":"AUD/USD","g":"환율","from":"2007","to":"2026"},{"s":"BABA","g":"미국주식","from":"2014","to":"2026"},{"s":"BAC","g":"미국주식","from":"2006","to":"2026"},{"s":"BCH/USD","g":"크립토","from":"2018","to":"2026"},{"s":"BTC/USD","g":"크립토","from":"2014","to":"2026"},{"s":"CAT","g":"미국주식","from":"2006","to":"2026"},{"s":"CRM","g":"미국주식","from":"2006","to":"2026"},{"s":"CSCO","g":"미국주식","from":"2006","to":"2026"},{"s":"CVX","g":"미국주식","from":"2006","to":"2026"},{"s":"DIS","g":"미국주식","from":"2006","to":"2026"},{"s":"DOGE/USD","g":"크립토","from":"2021","to":"2026"},{"s":"ETH/USD","g":"크립토","from":"2021","to":"2026"},{"s":"EUR/USD","g":"환율","from":"2007","to":"2026"},{"s":"GBP/USD","g":"환율","from":"2007","to":"2026"},{"s":"GE","g":"미국주식","from":"2006","to":"2026"},{"s":"HD","g":"미국주식","from":"2006","to":"2026"},{"s":"IBM","g":"미국주식","from":"2006","to":"2026"},{"s":"INTC","g":"미국주식","from":"2006","to":"2026"},{"s":"JNJ","g":"미국주식","from":"2006","to":"2026"},{"s":"JPM","g":"미국주식","from":"2006","to":"2026"},{"s":"KO","g":"미국주식","from":"2006","to":"2026"},{"s":"LTC/USD","g":"크립토","from":"2017","to":"2026"},{"s":"MA","g":"미국주식","from":"2006","to":"2026"},{"s":"MSFT","g":"미국주식","from":"2006","to":"2026"},{"s":"NVDA","g":"미국주식","from":"2006","to":"2026"},{"s":"ORCL","g":"미국주식","from":"2006","to":"2026"},{"s":"PFE","g":"미국주식","from":"2006","to":"2026"},{"s":"PG","g":"미국주식","from":"2006","to":"2026"},{"s":"PYPL","g":"미국주식","from":"2015","to":"2026"},{"s":"QCOM","g":"미국주식","from":"2006","to":"2026"},{"s":"SOL/USD","g":"크립토","from":"2021","to":"2026"},{"s":"SPY","g":"미국주식","from":"2006","to":"2026"},{"s":"T","g":"미국주식","from":"2006","to":"2026"},{"s":"UNH","g":"미국주식","from":"2006","to":"2026"},{"s":"USD/JPY","g":"환율","from":"2007","to":"2026"},{"s":"USD/KRW","g":"환율","from":"2007","to":"2026"},{"s":"V","g":"미국주식","from":"2008","to":"2026"},{"s":"VZ","g":"미국주식","from":"2006","to":"2026"},{"s":"WMT","g":"미국주식","from":"2006","to":"2026"},{"s":"XAU/USD","g":"상품","from":"2007","to":"2026"},{"s":"XOM","g":"미국주식","from":"2006","to":"2026"},{"s":"XRP/USD","g":"크립토","from":"2018","to":"2026"}],"fixtures":[{"s":"068270","rg":"횡보","pnl":0.055,"bh":0.06},{"s":"BABA","rg":"횡보","pnl":0.231,"bh":0.259},{"s":"BAC","rg":"횡보","pnl":0.061,"bh":0.16},{"s":"EUR/USD","rg":"횡보","pnl":-0.001,"bh":-0.027},{"s":"PFE","rg":"횡보","pnl":0.079,"bh":-0.035},{"s":"PYPL","rg":"횡보","pnl":0.271,"bh":0.139},{"s":"VZ","rg":"횡보","pnl":0.158,"bh":0.071}],"asOf":"2026-08","universe":"87개 시계열(55종목 × 일/주/월 · 크립토·상품·한국 포함)","points":"약 31,971개"};
 const pc = x => (x*100).toFixed(1) + "%";
 const rx = x => (x>=0?"+":"") + (x*100).toFixed(0) + "%";
 const rx2 = x => (x>=0?"+":"") + (x*100).toFixed(1) + "%";
@@ -1357,7 +1364,7 @@ const RANGE = { trades: 2064, nFix: 49, holds: [
 ] };
 
 document.getElementById("method").innerHTML =
-  "<b style='color:var(--ink)'>" + BT.universe + "</b>(미국주식·크립토·환율·국내) × <b style='color:var(--ink)'>" + BT.points + " 과거 시점</b>. 각 시점에서 그때까지의 데이터만 엔진에 넣어 예측하고(미래 미참조 = lookahead 차단), 지평(약 3개월) 뒤 실제 결과와 대조했다. 기본 전략(30여 지표 자동 합성)으로 측정.";
+  "<b style='color:var(--ink)'>" + BT.universe + "</b>(미국주식·크립토·환율·상품·국내) × <b style='color:var(--ink)'>" + BT.points + " 과거 시점</b>. 각 시점에서 그때까지의 데이터만 엔진에 넣어 예측하고(미래 미참조 = lookahead 차단), 지평(약 3개월) 뒤 실제 결과와 대조했다. 기본 전략(지표 " + IND_N + "종 자동 합성)으로 측정.";
 
 const O = BT.overall;
 document.getElementById("cards").innerHTML = [
@@ -1376,7 +1383,7 @@ const CHANGELOG = [
   { v:"—", tag:"엔진 성능 — 사이클 검출 O(n²) 제거(검출 창 = 백테스트 정합)", items:[
     "<b>analyzeCycle 이 전량 이력(수천 봉)에서 O(n²)</b>였다 — naive DFT(dftSpectrum: k=1..n/2 × i=0..n)와 PDM 주기 스캔(pmax=n/2.5까지)이 둘 다 봉 수의 제곱. NVDA 5,027봉 실측 <b>단일 2,187ms</b>, 그래서 커스텀 채점 분석(지표 루프 + run 2회) 전체가 <b>17.6초</b>(폰이면 수십 초)였다. 나머지 31개 지표는 전부 ≤12ms.",
     "고침: <b>검출 입력을 최근 600봉으로 창을 씌운다</b>(백테스트 LOOKBACK 600과 동일 영역). DFT·PDM 이 상수로 묶여 <b>2,187ms → ~40ms(약 50배)</b>, 전량 커스텀 분석 <b>17.6초 → ~1.8초</b>. 검출 결과(w·phi·icpt·fit)는 <b>전체 배열 인덱스 좌표로 되돌려</b> cycleSeries(합성)·작도가 그대로 정합한다(위상 phi += w·off · 절편 icpt −= slope·off · fit 은 전체 길이로 재생성).",
-    "<b>채점 방향 성적 불변 — 구조적으로 보장.</b> 백테스트는 매 시점 <b>최근 ≤600봉만</b> 엔진에 넣는다(price.slice · LOOKBACK 600). 이 영역에선 창 오프셋 off=0 → 새 코드가 <b>기존과 바이트 단위로 동일</b>(구·신 analyzeCycle 을 7개 픽스처·여러 시점 ≤600봉에서 대조 — 주기·bias·진폭·fit 완전 일치). <b>58.1% 성적은 그대로</b>이고 바뀐 것은 <b>검증된 적 없던 라이브 전량-이력의 초장주기 검출</b>뿐(5,000봉에 2~3주기뿐이라 통계적으로 약함). 이번 변경은 라이브를 <b>검증된 영역과 일치</b>시킨 것. forge-core 259/259 유지.",
+    "<b>채점 방향 성적 불변 — 구조적으로 보장.</b> 백테스트는 매 시점 <b>최근 ≤600봉만</b> 엔진에 넣는다(price.slice · LOOKBACK 600). 이 영역에선 창 오프셋 off=0 → 새 코드가 <b>기존과 바이트 단위로 동일</b>(구·신 analyzeCycle 을 7개 픽스처·여러 시점 ≤600봉에서 대조 — 주기·bias·진폭·fit 완전 일치). <b>58.2% 성적은 그대로</b>이고 바뀐 것은 <b>검증된 적 없던 라이브 전량-이력의 초장주기 검출</b>뿐(5,000봉에 2~3주기뿐이라 통계적으로 약함). 이번 변경은 라이브를 <b>검증된 영역과 일치</b>시킨 것. forge-core 259/259 유지.",
   ]},
   { v:"—", tag:"작도 개선 — 예측 불확실성 지형(감쇠 레일·분위수 팬·신뢰 지평 해체)", items:[
     "예측선 1/2/3차가 <b>불확실성의 크기를 전혀 전달하지 못하던 문제</b>를 고쳤다. 끝점 목표는 확률 50~60%대의 기울어진 동전인데 화면상 단정적 마커로 보였고, 목표까지의 경로 파동이 근거리와 원거리 구분 없이 같은 굵기로 그려졌다. 추가: <b>분위수 팬</b>(50%/68% 층, 기존 가우시안 밀도 구름 대체 — 구름은 경계가 없어 폭을 읽을 수 없었다) · <b>신뢰 감쇠 레일</b>(차트 하단 막대) · <b>신뢰 지평선</b>(이 지점부터 선을 잇지 않고 <b>점묘로 해체</b> — ‘연결된 경로’라는 주장 자체를 철회) · 끝점 라벨을 <b>캘리브레이션 방향확률</b>로 교체(50% 미만이면 회색 강등 + 목표 마커 축소) · 범례 6항목 토글.",
@@ -1411,14 +1418,14 @@ const CHANGELOG = [
   { v:"1.11.2", tag:"구조 탐색 지표도 검증 영역으로 — 엘리어트·시장구조 600봉 창", cur:true, items:[
     "<b>전수 감사</b>(1.11.1 의 발견을 32지표 전체로 확장): 각 지표의 bias 를 <b>전량 이력 vs 최근 600봉</b>으로 실측 대조(미국주식·암호화폐 9종). <b>27종은 차이 0 또는 무시 가능</b>(≤0.04)이고, <b>구조 탐색형 5종만 갈렸다</b> — elliott(평균Δ0.209·최대0.610·<b>9종 중 6종 부호 반전</b>) · structure(0.200·0.600·3종 반전) · volume(0.134·0.403) · fib(0.079·0.261) · pattern(0.035·0.316). 공통 원인은 하나 — <b>detectSwings/detectPatterns 가 전 이력에서 구조를 찾는다</b>.",
     "<b>고침(이번 판)</b>: <code>analyzeElliott</code> · <code>analyzeStructure</code> 의 탐색 입력을 최근 600봉으로 창. 파동·스윙 인덱스는 <b>전체 배열 좌표로 되돌려</b> 작도가 그대로 정합한다(실측: 5,045봉 종목에서 swingIdxMin = 4445 = P−600). <code>analyzeStructure(draw:true)</code> 의 다중스케일 티어는 <b>의도적으로 전 이력을 유지</b>(대/중/소 위계는 작도 전용·엔진 bias 불변).",
-    "<b>성적 불변 — 구조적 증명</b>: ≤600봉이면 창이 안 걸려 no-op. 픽스처 87종 × 4시점 <b>325 케이스에서 구·신 출력 바이트 단위 동일</b>(실측). 58.1% 그대로.",
+    "<b>성적 불변 — 구조적 증명</b>: ≤600봉이면 창이 안 걸려 no-op. 픽스처 87종 × 4시점 <b>325 케이스에서 구·신 출력 바이트 단위 동일</b>(실측). 58.2% 그대로.",
     "<b>라이브 변화(정직 표기)</b>: elliott 이 6종 중 5종에서 <b>±0.14~0.61 → 0.00</b> — 최근 600봉으로는 파동 카운트가 성립하지 않는 구간이다(검증 영역에선 창의 36.6% 에서만 발화하는 지표였다). structure 는 AAPL −0.30→+0.30 · META +0.30→−0.30 반전. deep 판정은 AAPL 중립→상승 · META 중립→하락으로 이동.",
     "<b>남은 3종은 다음 판</b>: volume(OBV 가 전 이력 누적 — series 길이가 작도와 묶여 있어 패딩 필요) · fib(스윙 탐색은 전 이력, len 120 은 폴백일 뿐) · pattern. Δ 가 작고 손이 더 가서 분리했다 — 감사 수치는 백로그에 보존.",
   ]},
   { v:"1.11.1", tag:"라이브를 검증 영역과 일치 — 추세 회귀창 600봉", items:[
     "<b>문제</b>: 백테스트는 매 시점 <b>최근 ≤600봉만</b> 엔진에 넣는다(LOOKBACK 600). 그런데 라이브는 <b>전량 이력</b>을 준다 — <code>analyzeTrend</code> 의 장기창이 NVDA 5,030봉(20년) 회귀가 됐고, <b>그 영역은 검증된 적이 없다</b>. 실측(2026-08-28): 그 회귀선은 화면 가격 밴드 <b>밖 −2.1배</b>·현재가 대비 <b>−59%</b> 지점을 지나는데, R²log 가 0.86 이라 작도의 저신뢰 게이트(R²&lt;0.15)에 한 번도 안 걸렸다 — <b>R² 는 자기 적합 구간을 설명하는 정도이지 표시 구간에서 의미 있는지가 아니다</b>.",
     "<b>고침</b>: <code>long = winFit(min(P,600))</code> · <code>mid = winFit(min(P/2,300))</code>. 채널 절편은 <b>전체 인덱스 좌표로 되돌리고</b>(bRaw −= slopeRaw·startIdx) 잔차 σ 도 창 안에서만 잰다(창 밖 이력이 섞이면 σ 가 그 종목의 20년 편차가 된다). <b>analyzeCycle 600봉 창(2026-08-26)과 같은 처방·같은 좌표 복원.</b>",
-    "<b>성적 불변 — 구조적 증명</b>: ≤600봉 입력이면 캡이 걸리지 않아 no-op. 픽스처 <b>87종 × 3시점 = 248 케이스에서 구·신 출력이 바이트 단위로 동일</b>(실측). 방향 58.1%·기준선 60.8% 그대로이고, 바뀐 것은 <b>검증된 적 없던 라이브 전량-이력 구간뿐</b>이다.",
+    "<b>성적 불변 — 구조적 증명</b>: ≤600봉 입력이면 캡이 걸리지 않아 no-op. 픽스처 <b>87종 × 3시점 = 248 케이스에서 구·신 출력이 바이트 단위로 동일</b>(실측). 방향 58.2%·기준선 61.0% 그대로이고, 바뀐 것은 <b>검증된 적 없던 라이브 전량-이력 구간뿐</b>이다.",
     "<b>라이브 변화(정직 표기)</b>: 장기창 기울기 NVDA 0.138→0.132 · MSFT 0.071→0.007 · <b>BTC-USD +0.095→−0.083%/봉(부호 반전)</b> — 20년 로그추세는 상승, 최근 2.4년은 하락이다. 428봉짜리 종목(005930)은 완전 불변. 작도에선 화면 밖이던 추세선이 NVDA·TSLA·BTC 에서 <b>화면 안으로</b>(밴드 통과 0%→100%).",
     "<b>작도 동반(판정 불변)</b>: <code>trendScreenFit</code>(표시 구간 적합도 — <b>run() 이 부르지 않는다</b>) 신설 + 플롯 클립(Gann 과 동형) + 밴드를 아예 안 지나는 선은 긋지 않고 <i>“장기 추세 화면 밖 아래 · 현재가 대비 −59%”</i> 배지로 값만 알린다. 생략만 하면 “엔진은 쓰는데 화면엔 없다”가 되어 정직 표기가 반대로 깨진다.",
   ]},
@@ -1536,7 +1543,7 @@ document.querySelector("#tftbl tbody").innerHTML = ["1day","1week","1month"].map
 }).join("");
 
 // 테스트 대상 유니버스(자산군별)
-const GRP=["미국주식","크립토","환율","국내"], byg={};
+const GRP=["미국주식","크립토","환율","상품","국내"], byg={};
 BT.day.forEach(f=>{(byg[f.g]=byg[f.g]||[]).push(f);});
 document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const items=byg[g].map(f=>`<span class="uv-item"><b>${f.s}</b> <span class="mut">${f.from}~${f.to.slice(2)}</span></span>`).join("");
@@ -1575,11 +1582,12 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
     {n:"이익목표 도달",c:amber,   v:[null,null,null,null,null,null,null,64.0,64.0,64.0,64.0,64.0,64.0,64.0,64.0,64.0,64.0,64.0,64.0,64.0,64.0]},
     {n:"급변 경보",   c:"#e06a6a",v:[null,null,null,null,null,null,null,null,null,65.0,65.0,65.0,65.0,65.0,65.0,65.0,65.0,65.0,65.0,65.0,65.0]},
     {n:"갭 경보(주식)",c:"#c98a5a",v:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,62.9,62.9,62.9,62.9,62.9,62.9,62.9]},
-    {n:"실적 인지 갭",c:"#8ac98a",v:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,69.4,69.4,69.4,69.4]},
+    // 실적 인지 축은 v1.9.7 이후 엔진에서 제거됐다(외부 API 의존 리스크) — 선을 v1.9.7 에서 끊어 "지금도 살아 있다"로 읽히지 않게 한다
+    {n:"실적 인지 갭 (제거됨)",c:"#8ac98a",v:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,69.4,69.4,null,null]},
     {n:"시장 상대강도",c:"#b48ad6",v:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,54.0,54.0]},
     {n:"섹터 상대강도",c:"#d68ab4",v:[null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,null,57.0]},
   ];
-  const BASE=60.8, W=900,H=380, mL=42,mR=134,mT=22,mB=42, pw=W-mL-mR,ph=H-mT-mB, yMin=52,yMax=78;
+  const BASE=61.0, W=900,H=380, mL=42,mR=134,mT=22,mB=42, pw=W-mL-mR,ph=H-mT-mB, yMin=52,yMax=78;
   const X=i=>mL+i*pw/(VER.length-1), Y=v=>mT+ph-(v-yMin)/(yMax-yMin)*ph;
   let s=`<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="버전별 개선 추이 — 방향 적중은 평탄, 검증된 축들이 높은 예측력으로 추가됨">`;
   for(let v=55;v<=75;v+=5){ s+=`<line class="vc-grid" x1="${mL}" y1="${Y(v)}" x2="${W-mR}" y2="${Y(v)}"/><text class="vc-ax" x="${mL-6}" y="${Y(v)+3}" text-anchor="end">${v}%</text>`; }
@@ -1597,7 +1605,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   host.innerHTML=s+`</svg>`;
 })();
 
-// 엔진 해부도 · 라이브 신경망 — 30 지표 뉴런 + 변동성 피처 10 뉴런, 밀집 팬아웃/팬인 + 흐르는 신호.
+// 엔진 해부도 · 라이브 신경망 — 지표 뉴런(레지스트리 파생) + 변동성 피처 10 뉴런, 밀집 팬아웃/팬인 + 흐르는 신호.
 (function renderEngineLive(){
   const host=document.getElementById("eaLive"); if(!host) return;
   const W=1500,H=830, gold="var(--gold)",eth="var(--eth)",bull="var(--bull)",bear="var(--bear)";
@@ -1624,11 +1632,14 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   const risk = AXES.map((a,i)=>({ x:706, y:Math.round(RTOP+i*RSTEP), r:11,
     c: a.stock ? "#c98a5a" : bull, lab: a.lab, sub: a.acc+"%"+(a.hz?" · "+a.hz:"")+(a.stock?"·주식":""), pl:"right", ax:a }));
   const named=[price,vol,pers,wt,drift,dir,cone,cal,out,pcv,emb,mob,...risk];
-  // ── 30 지표 뉴런(6군) ──
-  const CL=[{n:"추세",k:7,c:gold},{n:"모멘텀",k:8,c:"#e8955c"},{n:"변동성",k:4,c:"#7aa6cc"},{n:"거래량",k:4,c:eth,vol:1},{n:"구조",k:5,c:"#b58cf0"},{n:"주기",k:2,c:"#5ec8b6"}];
-  const IND=[]; let yy=54; const IX=250;
-  CL.forEach(cl=>{ cl.y0=yy; for(let j=0;j<cl.k;j++){ IND.push({x:IX,y:yy,c:cl.c,cl}); yy+=17.6; } cl.yc=(cl.y0+yy-17.6)/2; yy+=14; });
-  const INDBOT=yy-14;
+  // ── 지표 뉴런 — 군 구성은 엔진 레지스트리에서 파생한다(하드코딩 금지: 33번째가 들어오면 뉴런이 자동으로 늘어난다) ──
+  const CL=IND_GROUPS.map(g=>({n:g.name,k:g.items.length,c:g.c,vol:g.g==="q"?1:0,items:g.items}));
+  const IND=[]; const IX=250, IY0=54, IY1=628, IGAP=14;
+  const NIND=CL.reduce((a,c)=>a+c.k,0);
+  const ISTEP=(IY1-IY0-IGAP*(CL.length-1))/Math.max(1,NIND-1);   // 밴드 높이 고정 → 지표가 늘어도 엔진 박스를 넘지 않는다
+  let yy=IY0;
+  CL.forEach(cl=>{ cl.y0=yy; for(let j=0;j<cl.k;j++){ IND.push({x:IX,y:yy,c:cl.c,cl,it:cl.items[j]}); yy+=ISTEP; } cl.yc=(cl.y0+yy-ISTEP)/2; yy+=IGAP; });
+  const INDBOT=yy-IGAP;
   // ── 변동성 피처 10 뉴런 ──
   const FEAT=[]; const FX=452; for(let i=0;i<10;i++) FEAT.push({x:FX,y:432+i*18,c:bull});
   // ── SVG 조립 ──
@@ -1678,10 +1689,11 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   wire("M1092 344 C 1196 400, 1200 596, 1092 634", gold, .20, 1.3);
   // 지표군 → 드리프트: 군 대표 1줄기, 도트=군 크기 비례(모멘텀8 多·주기2 少)
   CL.forEach(cl=>{ flow(uid({x:IX,y:cl.yc},drift), cl.c, cl.k); });
-  // 가중은 개별 지표에 곱해진다 — 대표 지표 몇 개로만 표시(전부 그으면 판독 불가)
-  [2,10,17,24,29].forEach(i=>{ if(IND[i]) wire(uid(wt,IND[i]), PV, .10, 1); });
+  // 가중은 개별 지표에 곱해진다 — 군마다 대표 하나씩만 표시(전부 그으면 판독 불가)
+  const REP=[]; { let k=0; CL.forEach(cl=>{ REP.push(k+Math.floor(cl.k/2)); k+=cl.k; }); }
+  REP.forEach(i=>{ if(IND[i]) wire(uid(wt,IND[i]), PV, .10, 1); });
   // 대표 팬아웃(가격→지표·피처): 얇은 단일 스트림
-  [0,7,15,22,28].forEach(i=>{ flow(uid(price,IND[i]), IND[i].c, 1); });
+  REP.forEach(i=>{ if(IND[i]) flow(uid(price,IND[i]), IND[i].c, 1); });
   [0,4,9].forEach(i=>{ flow(uid(price,FEAT[i]), bull, 1); });
   [[0,0],[4,1],[9,2]].forEach(([f,r])=>flow(uid(FEAT[f],risk[r]), bull, 1));
   s+=wires+`<g>${pdefs}</g>`+parts;
@@ -1734,7 +1746,7 @@ document.getElementById("univ").innerHTML = GRP.filter(g=>byg[g]).map(g=>{
   });
 })();
 
-document.getElementById("foot").innerHTML = "스쿱포지 엔진 v"+EV+" · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-backtest-report.json' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
+document.getElementById("foot").innerHTML = "스쿱포지 엔진 v"+EV+" · 기준 "+BT.asOf+" · walk-forward 백테스트 · <a href='forge-api.php?report=1' target='_blank'>전체 원자료(JSON) →</a> · <a href='forge-guide.html'>엔진 작동 원리 →</a> · <a href='forge-pricing.html'>요금제 →</a>";
 // 정적 스키매틱 카운트·축 목록 현행화(엔진 메타 반영)
 (function syncStaticSchema(){
   Array.from(document.querySelectorAll(".ea-t")).forEach(el => {
@@ -1742,6 +1754,12 @@ document.getElementById("foot").innerHTML = "스쿱포지 엔진 v"+EV+" · 기�
     if (/리스크 .*축 · 로지스틱/.test(el.textContent)) el.textContent = "리스크 "+AXIS_N+"축 · 로지스틱";
   });
   const dn = document.getElementById("eaDeepN"); if (dn) dn.textContent = IND_N;
+  const tan = document.getElementById("tlAxisN"); if (tan) tan.textContent = AXIS_N;
+  const tal = document.getElementById("tlAxisList"); if (tal) tal.textContent = AXES.map(a=>a.lab).join(" · ");
+  const clus = document.getElementById("eaClus");
+  if (clus) clus.innerHTML = IND_GROUPS.map(g =>
+    '<div class="ea-cl"><div class="ea-cl-h">'+g.name+' <em>'+g.items.length+'</em></div>'
+    + '<div class="ea-cl-m">'+g.items.map(i=>i.label).join(" · ")+'</div></div>').join("");
   const b2d = Array.from(document.querySelectorAll(".ea-d")).find(el => /변동성 예보/.test(el.innerHTML) && /낙폭 위험곡선/.test(el.innerHTML));
   if (b2d) b2d.innerHTML = AXES.map(a => "<b>"+a.lab+"</b>"+(a.acc? " "+a.acc+"%":"")+(a.stock?"(주식)":"")).join(" · ") + ". 짝지어 <b>확률 R:R</b>.";
 })();

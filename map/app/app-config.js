@@ -70,7 +70,7 @@
       minN: 5,                     // 서버 al_peers_stats 와 동일 — 표본 미달 항목은 '집계 준비 중'
       // walk-forward 백테스트 정본 실측(forge-engine.html — 프로토 62.6%/60.96% 샘플 대체).
       // 방향은 '항상 상승' 기준선을 넘지 못한다는 것까지가 정직 표기의 일부다.
-      backtest: { hit: 58.1, base: 60.8, n: "31,971", syms: 87 }
+      backtest: { hit: 58.2, base: 61.0, n: "31,971", series: 87, syms: 55 }
     },
     ui: {
       sheetClosePx: 90,

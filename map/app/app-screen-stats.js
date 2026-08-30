@@ -113,7 +113,7 @@
       '<circle cx="' + bx + '" cy="' + by + '" r="2.4" fill="var(--ac)"></circle>' +
       "</svg>" +
       '<span style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-family:\'IBM Plex Mono\',monospace;font-size:15px;font-weight:700;color:var(--up)">' + bt.hit + "%</span></div>" +
-      '<div style="flex:1;min-width:0;font-size:11.5px;color:var(--t2);line-height:1.7">walk-forward 백테스트 <b style="color:var(--t1)">' + bt.n + "건 · " + bt.syms + '종목</b>의 방향 적중률.<br>' +
+      '<div style="flex:1;min-width:0;font-size:11.5px;color:var(--t2);line-height:1.7">walk-forward 백테스트 <b style="color:var(--t1)">' + bt.n + "건 · " + bt.series + "개 시계열 · " + bt.syms + '종목</b>의 방향 적중률.<br>' +
       '<span style="color:var(--ac)">기준선(항상 상승) ' + bt.base + '%</span>를 넘지 못해요 — 방향은 참고용.<br>' +
       '<span style="color:var(--m1)">보정 없이 그대로 공개 — 판단은 각자의 몫. ' + userLine + "</span></div></div>";
   }
