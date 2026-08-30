@@ -74,10 +74,16 @@
         _yScale = { mode: "auto", lo: null, hi: null };
         renderHeroZoom();
       } else {
+        // 결과 열람 = 콘·예측선 표시. 시연(draft/play)이 켠 '전폭 캔들만' 플래그는 여기서 반드시 끈다 —
+        // 같은 iframe 을 재사용하므로 안 끄면 forge-draw 가 pred=null 로 그려 예측 영역이 통째로 사라진다
+        // (2026-08-30 실측: 결과 화면 _drawWide=true, 작도만 보이고 콘 없음).
+        _drawWide = false; _playSeq = false; _scanning = false; _scanU = 1;
         if (!_evidenceShow) toggleEvidence();   // 결과 열람 = 근거 표시(앱은 웹분석 전/후 구분 없음)
         renderChart(lastResult, currentData());
         if (Array.isArray(m.evidenceOff) && m.evidenceOff.length) onEvidence({ off: m.evidenceOff });
         if (typeof fitPrediction === "function") { try { fitPrediction(); } catch (e) {} }
+        // 시연이 넓은 창에서 켠 로그축을 결과 창 기준으로 다시 판정(180봉 결과 창에 20년 로그축이 남지 않게)
+        try { _autoLogForWindow(_chartWin.start, _chartWin.count); renderHeroZoom(); } catch (e) {}
       }
     } catch (e) { emit("error", { msg: String(e && e.message || e) }); }
   }

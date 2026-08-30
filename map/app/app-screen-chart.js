@@ -120,11 +120,10 @@
         chartHtml =
           '<div data-forge style="position:relative;height:' + FRAME_H + 'px;background:var(--sf0)">' +
           (!rep ? '<span style="position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);font-size:12px;color:var(--m1)">차트 준비 중…</span>' : "") + "</div>" +
-          '<div style="display:flex;align-items:center;gap:8px;padding:8px 16px 0;min-height:34px">' +
-          (rep && dc ?
-            '<button data-act="draws" style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--t1);border:1px solid var(--ln1);border-radius:99px;padding:5px 11px;background:var(--sf1);cursor:pointer;font-family:inherit">' +
-            '<span style="display:flex;gap:2px"><span style="width:8px;height:2px;background:var(--bl);border-radius:1px;margin-top:4px"></span><span style="width:8px;height:2px;background:var(--cy);border-radius:1px;margin-top:4px"></span><span style="width:8px;height:2px;background:var(--am);border-radius:1px;margin-top:4px"></span></span>' +
-            "작도 " + dc.on + "/" + dc.total + ' <span style="color:var(--m1)">지표별 보기·숨기기</span> ›</button>' : "") +
+          // 작도 칩 줄 — 차트가 보이는 채로 탭해서 켜고 끈다(시트가 차트를 가리던 것을 대체, 2026-08-30 사용자 지시)
+          (rep && dc ? drawChipsHtml(rep, s) : "") +
+          '<div style="display:flex;align-items:center;gap:8px;padding:6px 16px 0;min-height:26px">' +
+          (rep && dc ? '<span style="font-size:10.5px;color:var(--m2)">작도 <span class="mono" style="color:var(--ac)">' + dc.on + "/" + dc.total + '</span> · 칩을 탭해 보기·숨기기</span>' : "") +
           (!rep ? '<span style="font-size:11px;color:var(--m1);border:1px dashed var(--ln2);border-radius:99px;padding:5px 12px">분석 전 — 예측 미확정</span>' : "") +
           (rep && deepTier ?
             '<span style="margin-left:auto;display:flex;gap:8px;font-size:9.5px;color:var(--m2);white-space:nowrap">' +
@@ -348,62 +347,50 @@
         '<div style="margin-top:6px;font-size:12.5px;color:var(--m1)">심화 분석(◈ ' + MS.config.POLICY.scoop.costDeep + ")에서 열립니다</div></div>";
     }
 
-    // ── 작도 토글 시트(프로토 L2058~2081) ──
-    function openDraws() {
-      const rep = report();
-      if (!rep) return;
-      MS.store.set({ coachDone: 1 });
-      MS.ui.openSheet("draws", function (body) {
-        function paintSheet() {
-          const s = MS.store.get();
-          const dc = drawCount();
-          body.innerHTML =
-            '<div style="display:flex;align-items:center;gap:8px;padding:4px 0 10px">' +
-            '<span style="font-size:16px;font-weight:700">차트에 그릴 작도</span>' +
-            '<span class="mono" style="font-size:12.5px;color:var(--ac)">' + dc.on + "/" + dc.total + "</span>" +
-            '<button data-all="on" style="margin-left:auto;font-size:11.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:99px;padding:4px 10px;background:none;cursor:pointer;font-family:inherit">모두 켜기</button>' +
-            '<button data-all="off" style="font-size:11.5px;color:var(--t2);border:1px solid var(--ln2);border-radius:99px;padding:4px 10px;background:none;cursor:pointer;font-family:inherit">모두 끄기</button></div>' +
-            '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">' +
-            rep.indicators.map(function (ind) {
-              const offd = !!s.indOff[ind.id];
-              return '<button data-tog="' + ind.id + '" style="display:flex;align-items:center;gap:8px;min-height:44px;padding:0 12px;border-radius:10px;border:1px solid ' + (offd ? "var(--ln0)" : "var(--ln2)") + ";background:" + (offd ? "transparent" : "var(--sf2)") + ";opacity:" + (offd ? 0.5 : 1) + ';cursor:pointer;font-family:inherit;letter-spacing:inherit;text-align:left">' +
-                '<span style="width:9px;height:9px;border-radius:2px;background:' + GC[ind.group] + ';flex:none"></span>' +
-                '<span style="font-size:12.5px;font-weight:600;color:var(--t1);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0">' + esc(ind.name) + "</span>" +
-                '<span style="margin-left:auto;font-size:12px;color:' + (offd ? "var(--m2)" : "var(--up)") + ';flex:none">' + (offd ? "－" : "✓") + "</span></button>";
-            }).join("") + "</div>" +
-            '<div style="margin:10px 0 4px;font-size:11.5px;color:var(--m2)">● 선·밴드형은 차트에 그려지고, 수치형은 배지로 표시돼요 · 끈 지표도 계산에는 그대로 들어갑니다</div>';
-          body.querySelectorAll("[data-tog]").forEach(function (b) {
-            b.addEventListener("click", function () {
-              const id = b.getAttribute("data-tog");
-              const s2 = MS.store.get();
-              const off = {};
-              Object.keys(s2.indOff).forEach(function (k) { off[k] = s2.indOff[k]; });
-              if (off[id]) delete off[id]; else off[id] = 1;
-              MS.store.set({ indOff: off });
-              MS.store.persistSoon();
-              const dc0 = MS.store.get().dayCounters;
-              if (dc0.drawXp < MS.config.POLICY.xp.drawToggle.perDay) {
-                const dc2 = {};
-                Object.keys(dc0).forEach(function (kk) { dc2[kk] = dc0[kk]; });
-                dc2.drawXp++;
-                MS.store.set({ dayCounters: dc2 });
-                setTimeout(function () { MS.xp.add(MS.config.POLICY.xp.drawToggle.xp, "작도 조작"); }, 350);
-              }
-              paintSheet(); render();
-            });
-          });
-          body.querySelectorAll("[data-all]").forEach(function (b) {
-            b.addEventListener("click", function () {
-              const mode = b.getAttribute("data-all");
-              const off = {};
-              if (mode === "off") rep.indicators.forEach(function (ind) { off[ind.id] = 1; });
-              MS.store.set({ indOff: off });
-              MS.store.persistSoon();
-              paintSheet(); render();
-            });
-          });
+    // ── 작도 칩 줄(차트 아래 한 줄, 가로 스크롤) — 지표별 보기·숨기기. 끈 지표도 계산엔 그대로 들어간다 ──
+    function drawChipsHtml(rep, s) {
+      const allOn = rep.indicators.every(function (ind) { return !s.indOff[ind.id]; });
+      const chip = function (id, name, color, on, extra) {
+        return '<button data-tog="' + id + '" aria-pressed="' + (on ? "true" : "false") + '" style="display:inline-flex;align-items:center;gap:5px;height:28px;padding:0 10px 0 8px;border-radius:99px;border:1px solid ' + (on ? "var(--ln2)" : "var(--ln0)") + ";background:" + (on ? "var(--sf2)" : "transparent") + ";color:" + (on ? "var(--t1)" : "var(--m2)") + ';font-size:11.5px;font-weight:600;white-space:nowrap;flex:none;cursor:pointer;font-family:inherit;letter-spacing:inherit' + (extra || "") + '">' +
+          '<span style="width:8px;height:8px;border-radius:2px;background:' + color + ";opacity:" + (on ? 1 : 0.35) + ';flex:none"></span>' + esc(name) + "</button>";
+      };
+      return '<div data-chips style="display:flex;gap:6px;padding:8px 16px 0;overflow-x:auto;-webkit-overflow-scrolling:touch">' +
+        chip("_all", allOn ? "전체 끄기" : "전체 켜기", "var(--ac)", true, ";border-style:dashed") +
+        rep.indicators.map(function (ind) { return chip(ind.id, ind.name, GC[ind.group], !s.indOff[ind.id]); }).join("") +
+        "</div>";
+    }
+    function bindDrawChips(rep) {
+      const strip = host.querySelector("[data-chips]");
+      if (!strip || !rep) return;
+      strip.addEventListener("click", function (e) {
+        const b = e.target.closest("[data-tog]"); if (!b) return;
+        const id = b.getAttribute("data-tog");
+        const s2 = MS.store.get();
+        const off = {};
+        if (id === "_all") {
+          const allOn = rep.indicators.every(function (ind) { return !s2.indOff[ind.id]; });
+          if (allOn) rep.indicators.forEach(function (ind) { off[ind.id] = 1; });
+        } else {
+          Object.keys(s2.indOff).forEach(function (k) { off[k] = s2.indOff[k]; });
+          if (off[id]) delete off[id]; else off[id] = 1;
         }
-        paintSheet();
+        MS.store.set({ indOff: off, coachDone: 1 });
+        MS.store.persistSoon();
+        MS.ui.hap("tick");
+        if (id !== "_all") {
+          const dc0 = MS.store.get().dayCounters;
+          if (dc0.drawXp < MS.config.POLICY.xp.drawToggle.perDay) {
+            const dc2 = {};
+            Object.keys(dc0).forEach(function (kk) { dc2[kk] = dc0[kk]; });
+            dc2.drawXp++;
+            MS.store.set({ dayCounters: dc2 });
+            setTimeout(function () { MS.xp.add(MS.config.POLICY.xp.drawToggle.xp, "작도 조작"); }, 350);
+          }
+        }
+        const sc = host.scrollTop, sx = strip.scrollLeft;
+        render();   // 카운트·칩 상태 갱신 + syncFrame 이 evidence 메시지로 차트만 다시 그린다
+        host.scrollTop = sc;
+        const st2 = host.querySelector("[data-chips]"); if (st2) st2.scrollLeft = sx;
       });
     }
 
@@ -505,8 +492,7 @@
         const s = MS.store.get();
         if (!s.analyzed[key()]) MS.flow.openTier();   // 미분석 → 단계 시트(프로토 chipTap)
       });
-      const dr = host.querySelector('[data-act="draws"]');
-      if (dr) dr.addEventListener("click", openDraws);
+      bindDrawChips(rep);
       const stk = host.querySelector('[data-act="stocks"]');
       if (stk) stk.addEventListener("click", function () { MS.flow.openStocks(); });
       // 핀치·팬은 프레임(PC 차트 코드)이 담당 — 앱 측 제스처 없음
