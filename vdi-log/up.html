@@ -271,6 +271,10 @@
   .modal-ft{padding:14px 22px 18px; border-top:1px solid var(--line-row); display:flex; gap:9px; flex:none;}
   .modal-ft .btn{flex:1; justify-content:center; height:50px; border-radius:var(--r);}
   .modal-ft .btn.gold{flex:1.45;}
+  .modal-ft .btn[hidden]{display:none;}   /* .btn 의 inline-flex 가 UA [hidden] 을 덮어써서 명시 필요 */
+  .modal-ft .btn.del-btn{flex:none; width:50px; padding:0; justify-content:center; color:var(--down);}
+  .modal-ft .btn.del-btn:hover{background:color-mix(in srgb, var(--down) 12%, transparent); border-color:var(--down); color:var(--down);}
+  .modal-ft .btn.del-btn svg{width:17px; height:17px;}
   .field label{display:block; font-size:.72rem; color:var(--ink-faint); font-weight:700; margin-bottom:6px;}
   .field input,.field select{width:100%; border:1.5px solid var(--line-in); background:var(--card); color:var(--ink); border-radius:var(--r); padding:0 13px; height:48px; font-size:.9rem; font-weight:700;}
   .field input::placeholder{color:var(--ink-ph); font-weight:600;}
@@ -531,6 +535,7 @@
       <div class="sold-hint" id="soldHint"></div>
     </div>
     <div class="modal-ft">
+      <button class="btn del-btn" id="modalDel" title="삭제" aria-label="이 자산 삭제" hidden><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg></button>
       <button class="btn" id="modalCancel">취소</button>
       <button class="btn gold" id="modalSave" style="justify-content:center;">저장</button>
     </div>
@@ -1355,6 +1360,7 @@ function openModal(id){
   document.getElementById("fAmount").value=it&&it.amount?Number(it.amount).toLocaleString("ko-KR"):"";
   document.getElementById("fNote").value=it?(it.note||""):"";
   document.getElementById("fInclude").checked=it?isIncluded(it):true;
+  document.getElementById("modalDel").hidden=!editingId;   // 추가 모드엔 삭제할 대상이 없다
   syncCatSeg();
   updateStockFields();  // 주식이면 평가금액 자동계산·읽기전용·#티커 잠금 처리 포함
   m.classList.add("open");
@@ -1402,7 +1408,9 @@ function delItem(id){
   const it=data.items.find(x=>x.id===id); if(!it) return;
   if(!confirm(`'${it.name}' 항목을 삭제할까요?`)) return;
   data.items=data.items.filter(x=>x.id!==id);
-  opDelete(id); render(); toast("삭제되었습니다.");
+  opDelete(id);
+  if(editingId===id) closeModal();
+  render(); toast("삭제되었습니다.");
 }
 function toggleTax(){
   if(!data.meta) data.meta={};
@@ -1552,6 +1560,7 @@ document.getElementById("sortSel").addEventListener("change",e=>setSort(e.target
 document.getElementById("listSearch").addEventListener("input",()=>{ if(scope!=="dash") renderList(); });
 document.getElementById("modalClose").addEventListener("click",closeModal);
 document.getElementById("modalCancel").addEventListener("click",closeModal);
+document.getElementById("modalDel").addEventListener("click",()=>{ if(editingId) delItem(editingId); });
 document.getElementById("modalSave").addEventListener("click",saveModal);
 document.getElementById("fAmount").addEventListener("input",updateAmountKor);
 document.getElementById("fInclude").addEventListener("change",updateSoldUI);
